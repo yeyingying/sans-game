@@ -79,6 +79,30 @@ import {
 } from "./ui.js";
 
 const canvas = document.getElementById("game");
+const BASE_WIDTH = 960;
+const BASE_HEIGHT = 600;
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function usePhoneCanvas() {
+  const sw = window.screen?.width || window.innerWidth;
+  const sh = window.screen?.height || window.innerHeight;
+  return Math.min(sw, sh) <= 500 && Math.max(sw, sh) <= 950;
+}
+
+if (usePhoneCanvas()) {
+  const sw = window.screen?.width || window.innerWidth;
+  const sh = window.screen?.height || window.innerHeight;
+  const phoneAspect = Math.max(sw, sh) / Math.max(1, Math.min(sw, sh));
+  canvas.width = clamp(Math.round(BASE_HEIGHT * phoneAspect), 1080, 1400);
+  canvas.height = BASE_HEIGHT;
+} else {
+  canvas.width = BASE_WIDTH;
+  canvas.height = BASE_HEIGHT;
+}
+
 const ctx = canvas.getContext("2d");
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
@@ -458,8 +482,7 @@ function inRect(p, r) {
   return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
 }
 
-canvas.addEventListener("click", (e) => {
-  const pos = canvasCoords(e);
+function handleCanvasTap(pos) {
   if ((state === "playing" || state === "paused" || state === "choice") && inRect(pos, speedButtonRect(WIDTH))) {
     cycleSpeed();
     return;
@@ -524,6 +547,20 @@ canvas.addEventListener("click", (e) => {
   } else if (state === "gameover") {
     state = "charselect";
   }
+}
+
+let lastPointerTapAt = 0;
+
+canvas.addEventListener("pointerup", (e) => {
+  if (e.isPrimary === false || (e.button !== undefined && e.button !== 0)) return;
+  e.preventDefault();
+  lastPointerTapAt = performance.now();
+  handleCanvasTap(canvasCoords(e));
+});
+
+canvas.addEventListener("click", (e) => {
+  if (performance.now() - lastPointerTapAt < 500) return;
+  handleCanvasTap(canvasCoords(e));
 });
 
 function cycleSpeed() {

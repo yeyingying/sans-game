@@ -194,9 +194,9 @@ export function drawTitleScreen(ctx, width, height, portraits) {
 }
 
 export function charBoxRect(i, width, height, count = 2) {
-  const w = count >= 4 ? 210 : 240;
-  const h = 300;
   const gap = count >= 4 ? 22 : count >= 3 ? 40 : 60;
+  const w = count >= 4 ? Math.min(260, Math.floor((width - 96 - gap * (count - 1)) / count)) : 240;
+  const h = 300;
   const total = count * w + (count - 1) * gap;
   return { x: (width - total) / 2 + i * (w + gap), y: height / 2 - h / 2 - 20, w, h };
 }
@@ -288,7 +288,10 @@ export function weaponBoxRect(i, width) {
 }
 
 export function confirmButtonRect(width, height) {
-  return { x: width / 2 - 110, y: height - 62, w: 220, h: 44 };
+  const compact = width > 1040;
+  const w = compact ? 260 : 220;
+  const h = compact ? 50 : 44;
+  return { x: width / 2 - w / 2, y: height - h - 16, w, h };
 }
 
 export function drawWeaponSelect(ctx, width, height, weapons, selected, charName = "") {

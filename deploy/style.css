@@ -31,12 +31,11 @@ html, body {
 }
 
 canvas {
-  width: min(calc(100vw - 12px), calc((100vh - 12px) * 1.6), 960px);
-  width: min(calc(100vw - 12px), calc((100dvh - 12px) * 1.6), 960px);
+  width: auto;
+  height: auto;
   max-width: 100%;
   max-height: calc(100vh - 12px);
   max-height: calc(100dvh - 12px);
-  height: auto;
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
