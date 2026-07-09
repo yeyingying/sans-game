@@ -71,6 +71,13 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
     lastPX: 0,
     lastPY: 0,
     hazards: [],
+    gesture: null, // {kind, t, dur, fire} — wind-up animation before an attack
+    tele: null, // {t, fromX, fromY, toX, toY} — sans-style blink
+    particles: [], // red pixels for teleports / impacts
+    flash: 0, // red screen-edge flash on big hits
+    animT: 0, // walk-cycle clock
+    faceDir: "down",
+    moving: false,
     subtitle: null,
     subtitleT: 0,
     mercyChoice: false,
@@ -119,6 +126,15 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
       this.t += dt;
       if (this.subtitleT > 0) this.subtitleT -= dt;
       if (boss.hitFlash > 0) boss.hitFlash -= dt;
+
+      // particles / flash always tick
+      for (const pt of this.particles) {
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.t += dt;
+      }
+      this.particles = this.particles.filter((pt) => pt.t < 0.5);
+      if (this.flash > 0) this.flash -= dt;
 
       if (this.state === "intro") this.updateIntro(dt, ctx);
       else if (this.state === "fight1" || this.state === "fight2") this.updateFight(dt, ctx);
@@ -196,12 +212,77 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
       this.t = 0;
     },
 
+    // spray red dissolve pixels at a point
+    burst(x, y, n = 14) {
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 30 + Math.random() * 70;
+        this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20, t: 0 });
+      }
+    },
+
+    // sans-style blink to a new flank position, then run `after`
+    teleportTo(tx, ty, after) {
+      this.burst(boss.x, boss.y, 16);
+      this.tele = { t: 0, fromX: boss.x, fromY: boss.y, toX: tx, toY: ty, after };
+    },
+
+    // wind-up gesture before firing; `fire` runs at the apex
+    windup(kind, fire) {
+      this.gesture = { kind, t: 0, dur: 0.42, fire, fired: false };
+    },
+
     // ----- combat AI --------------------------------------------------------
     updateFight(dt, ctx) {
       const { player } = ctx;
-      // drift the boss gently around its home spot, facing the player
-      boss.x += (this.homeX - boss.x) * Math.min(1, dt * 1.5);
-      boss.y += (this.homeY - boss.y) * Math.min(1, dt * 1.5) + Math.sin(this.t * 2) * 6 * dt;
+      const prevX = boss.x;
+      const prevY = boss.y;
+
+      // teleport in progress: fade out, blink, fade back in
+      if (this.tele) {
+        const te = this.tele;
+        te.t += dt;
+        if (te.t >= 0.18 && !te.blinked) {
+          te.blinked = true;
+          boss.x = te.toX;
+          boss.y = te.toY;
+          this.homeX = te.toX;
+          this.homeY = te.toY;
+          this.burst(te.toX, te.toY, 16);
+        }
+        if (te.t >= 0.34) {
+          const after = te.after;
+          this.tele = null;
+          if (after) after();
+        }
+        return;
+      }
+
+      // gesture (attack wind-up) in progress
+      if (this.gesture) {
+        const g = this.gesture;
+        g.t += dt;
+        if (!g.fired && g.t >= g.dur * 0.62) {
+          g.fired = true;
+          g.fire();
+        }
+        if (g.t >= g.dur) this.gesture = null;
+        return;
+      }
+
+      // idle drift: strafe around home, gentle bob
+      const strafe = Math.sin(this.t * 0.9) * 70;
+      boss.x += (this.homeX + strafe - boss.x) * Math.min(1, dt * 1.6);
+      boss.y += (this.homeY - boss.y) * Math.min(1, dt * 1.6) + Math.sin(this.t * 2.4) * 8 * dt;
+
+      // walk animation bookkeeping
+      const mvx = boss.x - prevX;
+      const mvy = boss.y - prevY;
+      this.moving = Math.hypot(mvx, mvy) > 6 * dt;
+      if (this.moving) {
+        this.animT += dt;
+        this.faceDir = Math.abs(mvx) >= Math.abs(mvy) ? (mvx > 0 ? "right" : "left") : mvy > 0 ? "down" : "up";
+      }
 
       // track "player standing still"
       if (dist(player.x, player.y, this.lastPX, this.lastPY) < 4) this.stillTimer += dt;
@@ -214,8 +295,17 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
       const rate = this.phase === 2 ? 1.2 : 1; // phase 2 attacks 20% faster
       this.attackTimer = (this.phase === 1 ? 2.2 : 2.0) / rate;
 
-      if (this.phase === 1) this.pickAttackP1(ctx);
-      else this.pickAttackP2(ctx);
+      const attack = () => (this.phase === 1 ? this.pickAttackP1(ctx) : this.pickAttackP2(ctx));
+      // half the time, blink to a fresh flank before attacking
+      if (Math.random() < 0.5) {
+        const pa = Math.random() * Math.PI * 2;
+        const pr = 230 + Math.random() * 90;
+        const tx = player.x + Math.cos(pa) * pr;
+        const ty = Math.max(this.WALL_H + 40, Math.min(this.HEIGHT - 40, player.y + Math.sin(pa) * pr));
+        this.teleportTo(tx, ty, attack);
+      } else {
+        attack();
+      }
     },
 
     pickAttackP1(ctx) {
@@ -225,30 +315,38 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
       const retreating = d > 320;
 
       if (this.stillTimer > 3) {
-        // 5: bones erupt under the still player
-        for (let i = 0; i < 5; i++) {
-          this.bone(player.x + (Math.random() - 0.5) * 70, player.y + (Math.random() - 0.5) * 70, 60, 0.3 + i * 0.05, { size: 30 });
-        }
+        // 5: hop-slam — bones erupt under the still player
+        this.windup("hop", () => {
+          for (let i = 0; i < 5; i++) {
+            this.bone(player.x + (Math.random() - 0.5) * 70, player.y + (Math.random() - 0.5) * 70, 60, 0.3 + i * 0.05, { size: 30 });
+          }
+        });
         this.stillTimer = 0;
       } else if (approaching) {
-        // 3: bone wall between boss and player
-        const mx = (player.x + boss.x) / 2;
-        const my = (player.y + boss.y) / 2;
-        const a = Math.atan2(player.y - boss.y, player.x - boss.x) + Math.PI / 2;
-        this.wall(mx - Math.cos(a) * 70, my - Math.sin(a) * 70, mx + Math.cos(a) * 70, my + Math.sin(a) * 70, 20, 2.5);
+        // 3: palm-thrust — bone wall between boss and player
+        this.windup("lunge", () => {
+          const mx = (player.x + boss.x) / 2;
+          const my = (player.y + boss.y) / 2;
+          const a = Math.atan2(player.y - boss.y, player.x - boss.x) + Math.PI / 2;
+          this.wall(mx - Math.cos(a) * 70, my - Math.sin(a) * 70, mx + Math.cos(a) * 70, my + Math.sin(a) * 70, 20, 2.5);
+        });
       } else if (retreating) {
-        // 4: gaster blaster behind the boss, straight beam
-        const a = Math.atan2(player.y - boss.y, player.x - boss.x);
-        this.blaster(boss.x - Math.cos(a) * 30, boss.y - Math.sin(a) * 30, a, 1, 1.4);
+        // 4: recoil — gaster blaster behind the boss, straight beam
+        this.windup("recoil", () => {
+          const a = Math.atan2(player.y - boss.y, player.x - boss.x);
+          this.blaster(boss.x - Math.cos(a) * 30, boss.y - Math.sin(a) * 30, a, 1, 1.4);
+        });
       } else if (d < 90) {
-        // 2: dash to player, knockback, teleport back (50% reduction, 120 dmg)
-        this.dashAttack(ctx);
+        // 2: crouch — dash through the player, then blink back
+        this.windup("crouch", () => this.dashAttack(ctx));
       } else {
-        // 1: bone on each of the 4 sides of the player
-        this.bone(player.x, player.y - 46, 80);
-        this.bone(player.x, player.y + 46, 80);
-        this.bone(player.x - 46, player.y, 80);
-        this.bone(player.x + 46, player.y, 80);
+        // 1: hop-slam — bone on each of the 4 sides of the player
+        this.windup("hop", () => {
+          this.bone(player.x, player.y - 46, 80);
+          this.bone(player.x, player.y + 46, 80);
+          this.bone(player.x - 46, player.y, 80);
+          this.bone(player.x + 46, player.y, 80);
+        });
       }
     },
 
@@ -272,6 +370,12 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
     pickAttackP2(ctx) {
       const { player } = ctx;
       const roll = Math.floor(Math.random() * 5);
+      const gestureFor = { 0: "lunge", 1: "channel", 2: "hop", 3: "recoil", 4: "channel" }[roll];
+      this.windup(gestureFor, () => this.fireAttackP2(ctx, roll));
+    },
+
+    fireAttackP2(ctx, roll) {
+      const { player } = ctx;
       if (roll === 0) {
         // 1: bone wall sealing 1/3 of the map on the side the player is NOT on
         const leftSide = player.x < ctx.camX + this.WIDTH / 2;
@@ -480,17 +584,26 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
           const k = Math.min(h.t / 0.18, 1);
           boss.x = h.fromX + (h.tx - h.fromX) * k;
           boss.y = h.fromY + (h.ty - h.fromY) * k;
+          // red afterimages along the dash path
+          if (!h.trail) h.trail = [];
+          if (k < 1) h.trail.push({ x: boss.x, y: boss.y, t: 0 });
+          for (const tr of h.trail) tr.t += dt;
           if (k >= 1 && !h.hit) {
             h.hit = true;
             if (circleHit(boss.x, boss.y, 40, player.x, player.y, player.radius)) {
               player.takeDamage(h.dmg);
               knockback(player, { x: h.fromX, y: h.fromY }, 60, ctx);
+              this.flash = 0.3; // red screen flash
             }
+            this.burst(boss.x, boss.y, 12);
           }
-          if (h.t > 0.32) {
-            // teleport back home
+          if (h.t > 0.32 && !h.returned) {
+            h.returned = true;
+            // blink back home with particles
+            this.burst(boss.x, boss.y, 12);
             boss.x = this.homeX;
             boss.y = this.homeY;
+            this.burst(boss.x, boss.y, 12);
             boss.invulnTimer = 0;
           }
         }
@@ -506,14 +619,30 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
         if (h.kind === "bone") {
           const app = h.t < 0 ? 1 + h.t / 0.35 : 1;
           c.save();
-          c.globalAlpha = h.t < 0 ? 0.4 : Math.max(0, 1 - h.t / h.life);
-          drawBoneRed(c, h.x, h.y, h.size, h.t < 0 ? -Math.PI / 2 : -Math.PI / 2);
           if (h.t < 0) {
+            // telegraph: pulsing warning ring
             c.strokeStyle = "#e04545";
-            c.globalAlpha = 0.5;
+            c.globalAlpha = 0.35 + 0.3 * Math.sin(h.t * 30);
+            c.lineWidth = 2;
             c.beginPath();
-            c.arc(h.x, h.y, h.size * 0.4 * (1 - app + 0.3), 0, Math.PI * 2);
+            c.arc(h.x, h.y, h.size * 0.5 * (1.3 - app), 0, Math.PI * 2);
             c.stroke();
+            c.globalAlpha = 0.35;
+            drawBoneRed(c, h.x, h.y, h.size * 0.5, -Math.PI / 2);
+          } else {
+            // eruption: bone pops with squash-stretch + expanding shockwave
+            const k = h.t / h.life;
+            const pop = k < 0.2 ? 0.6 + 2.5 * k : 1.1 - k * 0.1;
+            c.globalAlpha = Math.max(0, 1 - k);
+            drawBoneRed(c, h.x, h.y - h.size * 0.15 * pop, h.size * pop, -Math.PI / 2);
+            if (h.t < 0.22) {
+              c.strokeStyle = "#ff7a7a";
+              c.lineWidth = 3;
+              c.globalAlpha = (1 - h.t / 0.22) * 0.8;
+              c.beginPath();
+              c.arc(h.x, h.y, h.size * (0.4 + h.t * 6), 0, Math.PI * 2);
+              c.stroke();
+            }
           }
           c.restore();
         } else if (h.kind === "boom") {
@@ -546,11 +675,29 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
           const spr = h.t > 0.45 ? GB_FIRE : GB_IDLE;
           c.save();
           c.translate(h.x, h.y);
-          c.rotate(h.angle - Math.PI / 2);
+          // spin-in entrance like the player's blaster
+          const spin = h.t < 0.2 ? (1 - h.t / 0.2) * Math.PI * 2 : 0;
+          c.rotate(h.angle - Math.PI / 2 + spin);
           c.imageSmoothingEnabled = false;
           const gw = 56;
+          c.globalAlpha = Math.min(1, h.t / 0.15);
           c.drawImage(spr, -gw / 2, -(spr.height / spr.width) * gw / 2, gw, (spr.height / spr.width) * gw);
           c.restore();
+          if (h.t > 0.2 && h.t <= 0.45) {
+            // charging: red orb growing at the mouth
+            const ck = (h.t - 0.2) / 0.25;
+            const mx = h.x + Math.cos(h.angle) * 26;
+            const my = h.y + Math.sin(h.angle) * 26;
+            c.save();
+            c.fillStyle = "#ff5d5d";
+            c.shadowColor = "#ff2d2d";
+            c.shadowBlur = 16;
+            c.globalAlpha = 0.55 + ck * 0.4;
+            c.beginPath();
+            c.arc(mx, my, 3 + ck * 11, 0, Math.PI * 2);
+            c.fill();
+            c.restore();
+          }
           if (h.t > 0.45) {
             const len = 900;
             c.save();
@@ -571,6 +718,33 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
         }
       }
 
+      // dash afterimages: fading red silhouettes
+      for (const h of this.hazards) {
+        if (h.kind !== "dash" || !h.trail) continue;
+        for (const tr of h.trail) {
+          const a = Math.max(0, 1 - tr.t / 0.3);
+          if (a <= 0) continue;
+          c.save();
+          c.globalAlpha = a * 0.4;
+          c.shadowColor = "#ff2d2d";
+          c.shadowBlur = 10;
+          c.fillStyle = "#8e2323";
+          c.fillRect(tr.x - 9, tr.y - 18, 18, 36);
+          c.restore();
+        }
+      }
+
+      // red dissolve particles (teleports, impacts)
+      if (this.particles.length) {
+        c.save();
+        for (const pt of this.particles) {
+          c.globalAlpha = Math.max(0, 1 - pt.t / 0.5);
+          c.fillStyle = "#c22e2e";
+          c.fillRect(pt.x - 2, pt.y - 2, 4, 4);
+        }
+        c.restore();
+      }
+
       // dust on death
       if (this.state === "death" && this.dust) {
         c.save();
@@ -584,7 +758,15 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
 
       // boss body (unless fully dead)
       if (this.state !== "death" || this.t < 1.2) {
-        drawBossBody(c, boss.x, boss.y, this.t, boss.invulnTimer <= 0 || this.state === "transition", this.shake || 0);
+        drawBossBody(c, boss.x, boss.y, this.t, boss.invulnTimer <= 0 || this.state === "transition", {
+          shake: this.shake || 0,
+          gesture: this.gesture,
+          tele: this.tele,
+          animT: this.animT,
+          faceDir: this.faceDir,
+          moving: this.moving,
+          hitFlash: boss.hitFlash,
+        });
       }
     },
 
@@ -593,6 +775,16 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
       const c = ctx2d;
       const W = this.WIDTH;
       const H = this.HEIGHT;
+      // red vignette flash on heavy hits
+      if (this.flash > 0) {
+        c.save();
+        const g = c.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.75);
+        g.addColorStop(0, "rgba(214, 40, 40, 0)");
+        g.addColorStop(1, `rgba(214, 40, 40, ${(this.flash / 0.3) * 0.5})`);
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+        c.restore();
+      }
       // boss health bar at the bottom
       if (this.state === "fight1" || this.state === "fight2" || this.state === "transition") {
         const bw = W * 0.6;
@@ -686,9 +878,48 @@ function drawBoneRed(c, x, y, size, angle) {
   c.restore();
 }
 
-// corrupted sans: red glow, flickering dark-red blocks, blank white sockets
-function drawBossBody(c, x, y, t, active, shake = 0) {
-  const spr = WALK_SETS.sans.down[0];
+// corrupted sans: red glow, flickering dark-red blocks, blank white sockets,
+// walk animation, wind-up gestures and teleport fades
+function drawBossBody(c, x, y, t, active, opts = {}) {
+  const { shake = 0, gesture = null, tele = null, animT = 0, faceDir = "down", moving = false, hitFlash = 0 } = opts;
+  // pick a walk frame like the player does
+  const frames = WALK_SETS.sans[faceDir] || WALK_SETS.sans.down;
+  const spr = moving ? frames[Math.floor(animT * 7) % 4] : frames[0];
+
+  // gesture offsets: hop up, lunge forward, recoil back, crouch, channel tremble
+  let gx = 0;
+  let gy = 0;
+  let sqx = 1;
+  let sqy = 1;
+  if (gesture) {
+    const k = gesture.t / gesture.dur; // 0..1
+    const arc = Math.sin(Math.min(k / 0.62, 1) * Math.PI);
+    if (gesture.kind === "hop") {
+      gy = -26 * arc;
+      sqy = k > 0.62 ? 0.82 : 1 + arc * 0.12; // squash on landing
+      sqx = k > 0.62 ? 1.18 : 1;
+    } else if (gesture.kind === "lunge") {
+      gx = 14 * arc;
+      sqx = 1 + arc * 0.15;
+    } else if (gesture.kind === "recoil") {
+      gx = -12 * arc;
+      sqy = 1 + arc * 0.1;
+    } else if (gesture.kind === "crouch") {
+      sqy = 1 - arc * 0.3;
+      sqx = 1 + arc * 0.2;
+    } else if (gesture.kind === "channel") {
+      gx = Math.sin(gesture.t * 45) * 2.5;
+      gy = -6 * arc;
+    }
+  }
+  // teleport: shrink+fade out, then pop back in
+  let alpha = active ? 1 : 0.85;
+  if (tele) {
+    const half = tele.t < 0.18 ? 1 - tele.t / 0.18 : (tele.t - 0.18) / 0.16;
+    alpha *= Math.max(0.05, half);
+    sqy *= 0.6 + half * 0.4;
+  }
+
   c.save();
   // flickering dark-red blocks around the body
   c.fillStyle = "#5a1414";
@@ -696,23 +927,33 @@ function drawBossBody(c, x, y, t, active, shake = 0) {
     if ((Math.floor(t * 12) + i) % 3 === 0) {
       const a = (i / 6) * Math.PI * 2 + t;
       const r = 30 + (i % 2) * 9;
+      c.globalAlpha = alpha;
       c.fillRect(x + Math.cos(a) * r - 3, y + Math.sin(a) * r - 3, 6, 6);
     }
   }
-  // red glow
+  // red glow (pulses harder mid-gesture)
   c.shadowColor = "#ff2d2d";
-  c.shadowBlur = 20;
+  c.shadowBlur = gesture ? 30 : 20;
   c.imageSmoothingEnabled = false;
-  // exactly player-sized: radius 11 * 4.4 scaled on the taller dimension
-  const drawH = 48;
-  const drawW = (spr.width / spr.height) * drawH;
-  c.globalAlpha = active ? 1 : 0.85;
-  const bx = x + shake;
-  c.drawImage(spr, bx - drawW / 2, y - drawH / 2, drawW, drawH);
-  // blank the eyes: white sockets, no pupils
-  c.shadowBlur = 0;
-  c.fillStyle = "#ffffff";
-  c.fillRect(bx - 8, y - drawH / 2 + 8, 5, 5);
-  c.fillRect(bx + 3, y - drawH / 2 + 8, 5, 5);
+  const drawH = 48 * sqy;
+  const drawW = (spr.width / spr.height) * 48 * sqx;
+  c.globalAlpha = alpha;
+  const bx = x + shake + gx;
+  const by = y + gy + (48 - drawH) / 2; // keep the feet planted when squashing
+  c.drawImage(spr, bx - drawW / 2, by - drawH / 2, drawW, drawH);
+  // blank white sockets (front-facing frames only)
+  if (faceDir === "down" && !tele) {
+    c.shadowBlur = 0;
+    c.fillStyle = "#ffffff";
+    c.fillRect(bx - 8 * sqx, by - drawH / 2 + 8 * sqy, 5, 5);
+    c.fillRect(bx + 3 * sqx, by - drawH / 2 + 8 * sqy, 5, 5);
+  }
+  // hit feedback: brief white overlay
+  if (hitFlash > 0) {
+    c.globalAlpha = hitFlash * 4;
+    c.globalCompositeOperation = "lighter";
+    c.fillStyle = "#ffffff";
+    c.fillRect(bx - drawW / 2, by - drawH / 2, drawW, drawH);
+  }
   c.restore();
 }
