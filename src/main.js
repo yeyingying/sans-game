@@ -51,6 +51,20 @@ import {
   weaponSummary,
 } from "./weapon.js";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
+import {
+  initSfx,
+  setSfxVolume,
+  sfxHit,
+  sfxKill,
+  sfxPickup,
+  sfxEquip,
+  sfxLevelUp,
+  sfxChoice,
+  sfxHurt,
+  sfxStreak,
+  sfxAlarm,
+  sfxFanfare,
+} from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
 import {
@@ -144,6 +158,7 @@ let choiceRerollAvailable = false; // one reroll per choice screen
 let nextChoiceAt = CHOICE_INTERVAL;
 let choiceInterval = CHOICE_INTERVAL;
 let player, spawner, enemies, projectiles, bombs, explosions, spikes, pickups, floatingTexts, elapsed;
+let choiceScreens = 0; // how many choice screens this run has shown
 let healFlash = 0; // hp-bar whitening after a heal
 // score: kills and survival time both count; bests persist per character
 let lastScore = 0;
@@ -156,6 +171,39 @@ function bestScoreOf(charId) {
   return parseInt(localStorage.getItem("best_" + charId) || "0", 10) || 0;
 }
 let hurtFlash = 0; // Horror: brief red screen tint when hurt (15% chance)
+let killFlash = 0; // white screen pop on kill-streak milestones
+
+// kill streak: chained kills (within 1.6s of each other) build a counter;
+// milestones flash the screen, float a callout and chirp a rising sfx
+let streak = 0;
+let streakTimer = 0;
+let nextStreakAt = 10;
+let streakTier = 0;
+
+// death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
+const ENEMY_NAMES = {
+  slime: "青蛙怪",
+  bat: "胆小蝶",
+  ghost: "蔬菜精",
+  tank: "杰瑞",
+  red: "独眼怪",
+  orange: "马吉克",
+  blue: "洗洗",
+  purple: "冰帽怪",
+};
+function enemyDisplayName(e) {
+  return (e.elite ? "精英·" : "") + (ENEMY_NAMES[e.type] || "怪物");
+}
+let lastHitBy = null; // most recent damage source
+let lastDeathBy = null; // frozen at death for the gameover screen
+
+// boss warning: the last 30s before the boss the screen pulses red,
+// the music ducks and a siren beeps every 10s
+const BOSS_WARN_TIME = BOSS_APPEAR_TIME - 30;
+let nextWarnBeep = BOSS_WARN_TIME;
+function bossWarnActive() {
+  return !bossFight && elapsed >= BOSS_WARN_TIME && elapsed < BOSS_APPEAR_TIME;
+}
 
 // battle BGM: per-character track, starts with the fight, pauses with Z,
 // stops on death/quit. Volume is adjustable on the pause screen.
@@ -192,7 +240,9 @@ function gameVolTarget() {
 function setBgmVolume(v) {
   bgmVolume = Math.min(1, Math.max(0, Math.round(v * 10) / 10));
   localStorage.setItem("bgmVolume", String(bgmVolume));
+  setSfxVolume(Math.min(1, bgmVolume * 1.4)); // sfx rides the same volume knob
 }
+setSfxVolume(Math.min(1, bgmVolume * 1.4));
 // ease an audio element's volume toward a target; auto play/pause at the ends
 function fadeAudio(audio, target, dt, speed) {
   const cur = audio.volume;
@@ -233,12 +283,22 @@ function reset(weaponId) {
   choiceInterval = CHOICE_INTERVAL;
   nextChoiceAt = choiceInterval;
   choiceOptions = [];
+  choiceScreens = 0;
+  killFlash = 0;
+  streak = 0;
+  streakTimer = 0;
+  nextStreakAt = 10;
+  streakTier = 0;
+  lastHitBy = null;
+  lastDeathBy = null;
+  nextWarnBeep = BOSS_WARN_TIME;
 }
 
 reset(currentWeaponList()[0].id);
 
 function settleGame() {
   // score settlement shown for both death and quitting from pause
+  lastDeathBy = player.hp <= 0 ? lastHitBy : null; // only real deaths get a recap
   state = "gameover";
   bgm.pause();
   lastScore = currentScore();
@@ -269,6 +329,16 @@ function startGame() {
     player.regen += 15;
     player.dmgReduction = 0.6; // survivable enough to watch the whole show
   }
+  // warm-up ring: 8 frail slimes already closing in, so the mowing starts
+  // the moment the intro fades instead of seconds of empty walking
+  if (DEBUG_BOSS === null) {
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const ex = player.x + Math.cos(a) * 260;
+      const ey = clamp(player.y + Math.sin(a) * 220, WALL_H + 24, HEIGHT - 24);
+      enemies.push(new Enemy("slime", ex, ey, spawner.scale(false)));
+    }
+  }
   timeScale = 1;
   state = "playing";
   introBlack = 1.5; // brief black screen while the music crossfades
@@ -284,7 +354,7 @@ function buildChoicePool() {
   const pool = [
     {
       kind: "atk",
-      weight: 25,
+      weight: 12,
       make: () => ({
         title: "攻击力 +4",
         desc: "所有武器伤害提升",
@@ -296,7 +366,7 @@ function buildChoicePool() {
     },
     {
       kind: "hp",
-      weight: 25,
+      weight: 12,
       make: () => ({
         title: "生命上限 +25",
         desc: "并立刻回复 25 点生命",
@@ -309,7 +379,7 @@ function buildChoicePool() {
     },
     {
       kind: "speed",
-      weight: 25,
+      weight: 12,
       make: () => ({
         title: "移动速度 +18",
         desc: "跑得更快，风筝更稳",
@@ -321,7 +391,7 @@ function buildChoicePool() {
     },
     {
       kind: "fireRate",
-      weight: 20,
+      weight: 12,
       make: () => ({
         title: "攻速 +10%",
         desc: "所有武器攻击更快",
@@ -333,7 +403,7 @@ function buildChoicePool() {
     },
     {
       kind: "regen",
-      weight: 20,
+      weight: 12,
       make: () => ({
         title: "每秒回血 +2",
         desc: `持续恢复生命 (当前 ${player.regen}/秒，上限 10)`,
@@ -441,7 +511,7 @@ function buildChoicePool() {
   if (unowned.length) {
     pool.push({
       kind: "newWeapon",
-      weight: 8,
+      weight: 22,
       make: () => {
         const w = unowned[Math.floor(Math.random() * unowned.length)];
         return {
@@ -460,7 +530,7 @@ function buildChoicePool() {
   if (enhanceable.length) {
     pool.push({
       kind: "enhance",
-      weight: 15,
+      weight: 20,
       make: () => {
         const inst = enhanceable[Math.floor(Math.random() * enhanceable.length)];
         const w = WEAPONS[inst.id];
@@ -481,7 +551,7 @@ function buildChoicePool() {
   if (upgradable.length) {
     pool.push({
       kind: "tierUp",
-      weight: 18,
+      weight: 26,
       make: () => {
         const inst = upgradable[Math.floor(Math.random() * upgradable.length)];
         const w = WEAPONS[inst.id];
@@ -499,9 +569,12 @@ function buildChoicePool() {
   return pool;
 }
 
+const WEAPON_KINDS = new Set(["newWeapon", "tierUp", "enhance"]);
+
 function rollChoices() {
   const pool = buildChoicePool();
   const picked = [];
+  const pickedKinds = [];
   while (picked.length < 3 && pool.length) {
     const total = pool.reduce((s, p) => s + p.weight, 0);
     let r = Math.random() * total;
@@ -514,7 +587,17 @@ function rollChoices() {
       r -= pool[i].weight;
     }
     picked.push(pool[idx].make());
+    pickedKinds.push(pool[idx].kind);
     pool.splice(idx, 1);
+  }
+  // first three choice screens guarantee at least one weapon-class card
+  if (choiceScreens <= 3 && !pickedKinds.some((k) => WEAPON_KINDS.has(k))) {
+    const weaponEntries = pool.filter((p) => WEAPON_KINDS.has(p.kind));
+    if (weaponEntries.length) {
+      const entry = weaponEntries[Math.floor(Math.random() * weaponEntries.length)];
+      const slot = Math.floor(Math.random() * picked.length);
+      picked[slot] = entry.make();
+    }
   }
   return picked;
 }
@@ -523,6 +606,7 @@ function applyChoice(i) {
   const opt = choiceOptions[i];
   if (!opt) return;
   opt.apply();
+  sfxChoice();
   floatingTexts.push(new FloatingText(player.x, player.y - 26, opt.title, opt.color));
   choiceOptions = [];
   state = "playing";
@@ -628,6 +712,7 @@ function handleCanvasTap(pos) {
 let lastPointerTapAt = 0;
 
 canvas.addEventListener("pointerup", (e) => {
+  initSfx(); // AudioContext may only start inside a user gesture
   if (e.isPrimary === false || (e.button !== undefined && e.button !== 0)) return;
   e.preventDefault();
   lastPointerTapAt = performance.now();
@@ -635,6 +720,7 @@ canvas.addEventListener("pointerup", (e) => {
 });
 
 canvas.addEventListener("click", (e) => {
+  initSfx();
   if (performance.now() - lastPointerTapAt < 500) return;
   handleCanvasTap(canvasCoords(e));
 });
@@ -644,6 +730,7 @@ function cycleSpeed() {
 }
 
 window.addEventListener("keydown", (e) => {
+  initSfx(); // AudioContext may only start inside a user gesture
   const k = e.key.toLowerCase();
   if (k === "z") {
     if (state === "playing") {
@@ -710,7 +797,7 @@ function spawnBlast({ x, y, dmg, blast, color, root = 0 }) {
   for (const e of enemies) {
     if (circleHit(x, y, blast, e.x, e.y, e.radius)) {
       if (root > 0) e.applyRoot(root); // blast roots respect diminishing returns
-      e.takeDamage(dmg);
+      if (e.takeDamage(dmg)) sfxHit();
     }
   }
 }
@@ -719,7 +806,7 @@ function explodeBomb(b) {
   explosions.push(new Explosion(b.x, b.y, b.blast, "#ffffff"));
   for (const e of enemies) {
     if (circleHit(b.x, b.y, b.blast, e.x, e.y, e.radius)) {
-      e.takeDamage(b.dmg);
+      if (e.takeDamage(b.dmg)) sfxHit();
     }
   }
   // 骨雷强化: echo explosions at the same spot (pure shockwave, no bone)
@@ -741,6 +828,7 @@ function spawnDrops(enemy) {
 
 function onLevelUp(levels) {
   floatingTexts.push(new FloatingText(player.x, player.y - 26, "LEVEL UP!", "#ffd166"));
+  sfxLevelUp();
   for (let l = 0; l < levels; l++) {
     for (const inst of player.weapons) applyLevelUpBonus(inst);
   }
@@ -754,6 +842,7 @@ function update(dt) {
 
   if (!bossFight && elapsed >= nextChoiceAt) {
     nextChoiceAt += choiceInterval;
+    choiceScreens += 1;
     choiceOptions = rollChoices();
     choiceRerollAvailable = true;
     state = "choice";
@@ -777,6 +866,12 @@ function update(dt) {
       );
       enemies.push(e);
     }
+  }
+
+  // boss warning siren beeps every 10s while the red pulse runs
+  if (bossWarnActive() && elapsed >= nextWarnBeep) {
+    nextWarnBeep += 10;
+    sfxAlarm();
   }
 
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
@@ -848,6 +943,7 @@ function update(dt) {
       const STRIKE_DMG = 20;
       if (!shieldUp && circleHit(e.strike.x, e.strike.y, 30, player.x, player.y, player.radius)) {
         if (player.takeDamage(STRIKE_DMG)) {
+          lastHitBy = enemyDisplayName(e) + "的突袭";
           floatingTexts.push(new FloatingText(player.x, player.y - 20, `-${STRIKE_DMG}`, "#c95df0"));
         } else if (player.dodged) {
           floatingTexts.push(new FloatingText(player.x, player.y - 20, "MISS!", "#7cf28a"));
@@ -877,6 +973,7 @@ function update(dt) {
       } else {
         const hit = player.takeDamage(e.dmg);
         if (hit) {
+          lastHitBy = enemyDisplayName(e);
           floatingTexts.push(new FloatingText(player.x, player.y - 20, `-${e.dmg}`, "#ff5d73"));
         } else if (player.dodged) {
           floatingTexts.push(new FloatingText(player.x, player.y - 20, "MISS!", "#7cf28a"));
@@ -893,6 +990,7 @@ function update(dt) {
         // 十字骨射强化: extend the root of already-rooted enemies
         if (p.extendRoot > 0 && e.rootTimer > 0) e.rootTimer += p.extendRoot;
         if (!e.takeDamage(p.dmg)) continue; // immune: passes through
+        sfxHit();
         // 追踪骨弹强化: hits pin the enemy in place
         if (p.rootOnHit > 0) e.applyRoot(p.rootOnHit);
         p.hitSet.add(e.id);
@@ -933,6 +1031,7 @@ function update(dt) {
         if (circleHit(sp.x, sp.y, radius, e.x, e.y, e.radius)) {
           if (sp.root > 0) e.applyRoot(sp.root);
           const hit = e.takeDamage(sp.dmg);
+          if (hit) sfxHit();
           // 环身重砸强化: i-frames per enemy struck (capped)
           if (hit && sp.invulnPerHit > 0) {
             player.invuln = Math.min(player.invuln + sp.invulnPerHit, 1.5);
@@ -974,6 +1073,7 @@ function update(dt) {
   }
   spikes = spikes.filter((sp) => !sp.expired);
 
+  const hpBeforeBoss = player ? player.hp : 0;
   if (bossFight) {
     bossFight.update(dt, {
       player,
@@ -1001,6 +1101,8 @@ function update(dt) {
       },
     });
     if (bossFight.done) enemies = enemies.filter((e) => !e.boss);
+    // boss attacks apply damage inside bossFight.update — tag them here
+    if (player.hp < hpBeforeBoss - 0.001) lastHitBy = "天意侵蚀Sans";
   }
 
   const dead = enemies.filter((e) => e.hp <= 0 && !e.boss);
@@ -1009,12 +1111,33 @@ function update(dt) {
     if (!e.noXp) spawnDrops(e);
   }
   enemies = enemies.filter((e) => (e.hp > 0 || e.boss));
+  if (dead.length > 0) {
+    sfxKill(dead.length);
+    // chained kills build the streak; milestones pop the screen
+    streak += dead.length;
+    streakTimer = 1.6;
+    while (streak >= nextStreakAt) {
+      killFlash = 0.22;
+      floatingTexts.push(new FloatingText(player.x, player.y - 44, `${nextStreakAt} 连杀！`, "#ffd166"));
+      sfxStreak(streakTier);
+      streakTier += 1;
+      nextStreakAt = Math.max(nextStreakAt + 5, Math.round((nextStreakAt * 1.5) / 5) * 5);
+    }
+  } else if (streakTimer > 0) {
+    streakTimer -= dt;
+    if (streakTimer <= 0) {
+      streak = 0;
+      nextStreakAt = 10;
+      streakTier = 0;
+    }
+  }
 
   for (const pu of pickups) {
     pu.update(dt, player, player.magnetRadius);
     if (circleHit(pu.x, pu.y, pu.radius, player.x, player.y, player.radius)) {
       pu.collected = true;
       if (pu.kind === "xp") {
+        sfxPickup();
         const levels = player.addXp(pu.data.amount);
         if (levels > 0) onLevelUp(levels);
       } else if (pu.kind === "bossheart") {
@@ -1022,9 +1145,11 @@ function update(dt) {
         for (const t of EQUIPMENT_TYPES) t.apply(player); // every gem's effect
         player.kills += 50; // the boss counts as 50 kills
         floatingTexts.push(new FloatingText(player.x, player.y - 26, "决心！全属性提升", "#ffffff"));
+        sfxFanfare();
         settleGame();
       } else {
         pu.data.type.apply(player);
+        sfxEquip();
         floatingTexts.push(new FloatingText(player.x, player.y - 26, pu.data.type.label, pu.data.type.color));
       }
     }
@@ -1036,6 +1161,9 @@ function update(dt) {
 
   if (player.hp - hpBefore > 0.9) healFlash = 0.45;
   if (healFlash > 0) healFlash -= dt;
+  if (killFlash > 0) killFlash -= dt;
+  // one central hurt cue no matter where the damage came from
+  if (hpBefore - player.hp > 0.5) sfxHurt();
   // Horror's rage: taking a hit sometimes tints the whole screen red
   if (player.character === "horror" && hpBefore - player.hp > 0.5 && Math.random() < 0.15) {
     hurtFlash = 0.5;
@@ -1663,6 +1791,37 @@ function draw() {
     ctx.restore();
   }
 
+  // kill-streak milestone: quick white pop over the whole screen
+  if (killFlash > 0 && (state === "playing" || state === "choice")) {
+    ctx.save();
+    ctx.fillStyle = `rgba(255, 255, 255, ${(killFlash / 0.22) * 0.2})`;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.restore();
+  }
+
+  // boss warning: pulsing red vignette + countdown while the music ducks
+  if (bossWarnActive() && (state === "playing" || state === "choice" || state === "paused")) {
+    const pulse = 0.5 + 0.5 * Math.sin(elapsed * 5);
+    ctx.save();
+    const grad = ctx.createRadialGradient(
+      WIDTH / 2, HEIGHT / 2, HEIGHT * 0.35,
+      WIDTH / 2, HEIGHT / 2, HEIGHT * 0.85
+    );
+    grad.addColorStop(0, "rgba(200, 30, 30, 0)");
+    grad.addColorStop(1, `rgba(200, 30, 30, ${0.14 + pulse * 0.14})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.textAlign = "center";
+    ctx.globalAlpha = 0.55 + pulse * 0.45;
+    ctx.fillStyle = "#ff5d5d";
+    ctx.font = "bold 20px monospace";
+    ctx.fillText("※ 一股可怕的气息正在逼近……", WIDTH / 2, WALL_H + 46);
+    ctx.font = "bold 15px monospace";
+    ctx.fillText(`${Math.max(1, Math.ceil(BOSS_APPEAR_TIME - elapsed))} 秒`, WIDTH / 2, WALL_H + 70);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
   drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player), healFlash);
   if (bossFight) bossFight.drawOverlay(ctx);
   if (state === "playing" || state === "paused" || state === "choice") {
@@ -1712,6 +1871,7 @@ function draw() {
   } else if (state === "gameover") {
     drawCenterText(ctx, WIDTH, HEIGHT, [
       { text: "GAME OVER", font: "bold 32px monospace", color: "#ff5d73" },
+      ...(lastDeathBy ? [{ text: `死于:${lastDeathBy}`, font: "14px monospace", color: "#c95d5d" }] : []),
       { text: `得分 ${lastScore}`, font: "bold 24px monospace", color: "#ffd166" },
       {
         text: newRecord ? "★ 新纪录！" : `历史最高 ${lastBest}`,
@@ -1746,6 +1906,12 @@ window.__dbg = () => ({
   hp: player ? Math.round(player.hp) : null,
   px: player ? Math.round(player.x) : null,
   camX: Math.round(camX),
+  enemies: enemies.length,
+  kills: player ? player.kills : 0,
+  streak,
+  deathBy: lastDeathBy,
+  warn: bossWarnActive(),
+  choices: choiceOptions.map((o) => o.title),
 });
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });
 
@@ -1760,7 +1926,8 @@ function loop(now) {
   if (state === "paused") {
     if (!bgm.paused) bgm.pause();
   } else if (bgm.src && (state === "playing" || state === "choice")) {
-    fadeAudio(bgm, gameVolTarget(), dt, 1.1);
+    // the music ducks during the boss warning so the siren reads clearly
+    fadeAudio(bgm, gameVolTarget() * (bossWarnActive() ? 0.25 : 1), dt, 1.1);
   } else {
     fadeAudio(bgm, 0, dt, 1.5); // gameover / back to menu
   }

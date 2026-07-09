@@ -44,7 +44,9 @@ export class Spawner {
   scale(elite) {
     const t = this.elapsed;
     // linear early; from 3:00 on it compounds so strong builds stay pressured
-    const hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.18, (t - 180) / 30) : 1 + t / 22;
+    let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.18, (t - 180) / 30) : 1 + t / 22;
+    // warm-up minute: lots of frail enemies so the opening feels like mowing
+    if (t < 60) hpMult *= 0.6 + 0.4 * (t / 60);
     return {
       hpMult,
       dmgMult: 1 + t / 50,
@@ -70,9 +72,8 @@ export class Spawner {
       }
     }
 
-    // gentler opening: longer gaps during the first minute, old pace after
-    const early = Math.max(0, 1 - this.elapsed / 60); // 1 -> 0 over 60s
-    const interval = Math.max(1.3 - this.elapsed / 40, 0.28) + early * 0.7;
+    // warm-up opening: quick 1.1s spawns of frail enemies (see scale())
+    const interval = Math.max(1.1 - this.elapsed / 45, 0.28);
     if (this.spawnTimer <= 0) {
       this.spawnTimer = interval;
       // batch growth also starts 20s later so minute one stays manageable
