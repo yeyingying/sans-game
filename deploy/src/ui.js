@@ -151,6 +151,10 @@ export function startButtonRect(width, height) {
   return { x: width / 2 - 110, y: height / 2 + 66, w: 220, h: 52 };
 }
 
+export function creditsButtonRect(width, height) {
+  return { x: width - 132, y: height - 52, w: 116, h: 34 };
+}
+
 export function drawTitleScreen(ctx, width, height, portraits) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.99)";
@@ -190,6 +194,17 @@ export function drawTitleScreen(ctx, width, height, portraits) {
   ctx.fillStyle = "#7d7690";
   ctx.font = "12px monospace";
   ctx.fillText("(或按 空格/回车)", width / 2, btn.y + 76);
+
+  // credits button, tucked into the bottom-right corner
+  const cb = creditsButtonRect(width, height);
+  ctx.fillStyle = "#1a1622";
+  ctx.fillRect(cb.x, cb.y, cb.w, cb.h);
+  ctx.strokeStyle = "#5a5468";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cb.x, cb.y, cb.w, cb.h);
+  ctx.fillStyle = "#b9b2c9";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText("制作名单", cb.x + cb.w / 2, cb.y + 22);
   ctx.restore();
 }
 
@@ -363,7 +378,11 @@ export function choiceBoxRect(i, width, height) {
   return { x: (width - total) / 2 + i * (w + gap), y: height / 2 - h / 2, w, h };
 }
 
-export function drawChoiceScreen(ctx, width, height, options) {
+export function rerollButtonRect(width, height) {
+  return { x: width / 2 - 70, y: height / 2 + 110, w: 140, h: 40 };
+}
+
+export function drawChoiceScreen(ctx, width, height, options, canReroll) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.78)";
   ctx.fillRect(0, 0, width, height);
@@ -398,6 +417,17 @@ export function drawChoiceScreen(ctx, width, height, options) {
       ctx.fillText(line, box.x + box.w / 2, box.y + 108 + li * 20);
     });
   }
+
+  // reroll button: one use per choice
+  const btn = rerollButtonRect(width, height);
+  ctx.fillStyle = canReroll ? "#241f2b" : "#181521";
+  ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.strokeStyle = canReroll ? "#5ee6e6" : "#453f52";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.fillStyle = canReroll ? "#5ee6e6" : "#6b6578";
+  ctx.font = "bold 15px monospace";
+  ctx.fillText(canReroll ? "刷新" : "已刷新", btn.x + btn.w / 2, btn.y + 25);
   ctx.restore();
 }
 

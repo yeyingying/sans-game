@@ -370,6 +370,7 @@ export const WEAPONS = {
     tag: "突进穿透",
     desc: "向目标突刺并穿透路径，返回原位时爆炸，升级加突刺次数",
     color: "#5db9ff",
+    enhance: { desc: "突刺时减伤 +10%", detail: "重复选择 +5%/层" },
     tiers: [
       { dashes: 1, dmgMult: 1.6, rateMult: 0.5 },
       { dashes: 2, dmgMult: 1.8, rateMult: 0.5 },
@@ -384,6 +385,7 @@ export const WEAPONS = {
     tag: "空中分裂",
     desc: "射出 6 根骨头，悬停后各自裂成子骨，升级加分裂数量",
     color: "#f2ead8",
+    enhance: { desc: "子骨再裂出 4 个子子骨", detail: "重复选择增加分裂数量" },
     tiers: [
       { split: 4, dmgMult: 1.2, rateMult: 0.55, size: 10 },
       { split: 5, dmgMult: 1.35, rateMult: 0.55, size: 10 },
@@ -398,6 +400,7 @@ export const WEAPONS = {
     tag: "标记爆破",
     desc: "在目标身上召唤蓝骨爆炸并环出骨圈，升级加爆炸、目标与骨数",
     color: "#4f9dff",
+    enhance: { desc: "骨圈变蓝并禁锢 1 秒", detail: "重复选择禁锢 +0.5s/层" },
     tiers: [
       { targets: 3, blast: 40, ringBones: 6, dmgMult: 1.4, rateMult: 0.5 },
       { targets: 3, blast: 48, ringBones: 7, dmgMult: 1.6, rateMult: 0.5 },
@@ -412,6 +415,7 @@ export const WEAPONS = {
     tag: "坠地分裂",
     desc: "头顶巨骨砸向地面爆炸，裂成 36 根小骨四射(不索敌)，升级多一圈骨头",
     color: "#ffd166",
+    enhance: { desc: "碎骨 3 层穿透且不消失", detail: "重复选择穿透 +2/层" },
     tiers: [
       { shards: 36, rings: 1, dmgMult: 2.2, rateMult: 0.3, blast: 90 },
       { shards: 36, rings: 2, dmgMult: 2.4, rateMult: 0.3, blast: 96 },
@@ -426,6 +430,7 @@ export const WEAPONS = {
     tag: "缓速禁锢",
     desc: "缓慢前进的暗蓝光环，触碰持续伤害并禁锢，升级加索敌目标",
     color: "#2f6ea8",
+    enhance: { desc: "敌人粘在光球上(上限 5)", detail: "重复选择上限 +3/层" },
     tiers: [
       { orbs: 1, dmgMult: 1.2, rateMult: 0.4 },
       { orbs: 2, dmgMult: 1.4, rateMult: 0.4 },
@@ -440,6 +445,7 @@ export const WEAPONS = {
     tag: "头顶轰击",
     desc: "头顶召唤龙骨炮向目标轰出巨大光束，升级加数量(同向齐射)",
     color: "#fddefe",
+    enhance: { desc: "龙骨炮体积 +50%", detail: "重复选择 +20%/层" },
     tiers: [
       { count: 1, dmgMult: 3.0, rateMult: 0.45 },
       { count: 2, dmgMult: 3.4, rateMult: 0.45 },
@@ -454,6 +460,7 @@ export const WEAPONS = {
     tag: "环状激光",
     desc: "36 根短激光按顺序绕圈依次闪射，命中禁锢 1 秒(不索敌)，升级加激光数",
     color: "#8fd6ff",
+    enhance: { desc: "激光命中处小爆炸", detail: "重复选择扩大爆炸半径" },
     tiers: [
       { lasers: 36, dmgMult: 1.1, rateMult: 0.25 },
       { lasers: 44, dmgMult: 1.25, rateMult: 0.25 },
@@ -468,6 +475,7 @@ export const WEAPONS = {
     tag: "旋转炮台",
     desc: "骨桩插地环转，撞击碾过的敌人，升级 +2 根",
     color: "#9be8a8",
+    enhance: { desc: "撞击附带击退", detail: "重复选择提高击退力度" },
     tiers: [
       { bones: 4, dmgMult: 1.5, rateMult: 0.5 },
       { bones: 6, dmgMult: 1.7, rateMult: 0.5 },
@@ -818,11 +826,14 @@ export function getGBState(player, inst) {
     kick = k * 46; // shoved backwards by the blast
     alpha = 1 - k;
   }
+  // enhancement: bigger blaster (+50%, +20%/extra layer)
+  const sizeMult = inst.enhance > 0 ? 1.5 + 0.2 * (inst.enhance - 1) : 1;
   const px2 = Math.cos(g.angle + Math.PI / 2);
   const py2 = Math.sin(g.angle + Math.PI / 2);
+  const spacing = 56 * sizeMult;
   const blasters = [];
   for (let i = 0; i < tier.count; i++) {
-    const off = (i - (tier.count - 1) / 2) * 56;
+    const off = (i - (tier.count - 1) / 2) * spacing;
     const bx = g.ox + px2 * off - Math.cos(g.angle) * kick;
     const by = g.oy + py2 * off - Math.sin(g.angle) * kick;
     blasters.push({
@@ -832,8 +843,9 @@ export function getGBState(player, inst) {
       extraRot,
       alpha,
       firing,
+      sizeMult,
       beam: firing
-        ? { x1: bx, y1: by, x2: bx + Math.cos(g.angle) * 760, y2: by + Math.sin(g.angle) * 760, width: 30 }
+        ? { x1: bx, y1: by, x2: bx + Math.cos(g.angle) * 760, y2: by + Math.sin(g.angle) * 760, width: 30 * sizeMult }
         : null,
     });
   }
@@ -956,9 +968,9 @@ function updateInstance(player, inst, dt, world) {
     if (inst.dashState) {
       const d = inst.dashState;
       d.t += dt;
-      // invulnerable while dashing (white pulse, no blink)
-      player.invuln = Math.max(player.invuln, 0.1);
-      player.activeInvuln = Math.max(player.activeInvuln, 0.1);
+      // 50% damage reduction while dashing (enhance adds more, capped 90%)
+      const dashGuard = Math.min(0.5 + (inst.enhance > 0 ? 0.1 + 0.05 * (inst.enhance - 1) : 0), 0.9);
+      player.guardBonus = Math.max(player.guardBonus, dashGuard);
       const dur = 0.3; // slow enough to read as a dash, not a teleport
       const prog = Math.min(d.t / dur, 1);
       const px0 = player.x;
@@ -1090,9 +1102,9 @@ function updateInstance(player, inst, dt, world) {
               vx: Math.cos(a) * speed,
               vy: Math.sin(a) * speed,
               dmg: shardDmg,
-              pierce: 1,
+              pierce: inst.enhance > 0 ? 3 + 2 * (inst.enhance - 1) : 1,
               size: 9,
-              maxRange: 420,
+              maxRange: inst.enhance > 0 ? Infinity : 420, // no self-expire when enhanced
               traveled: 0,
             });
           }
@@ -1198,9 +1210,21 @@ function updateInstance(player, inst, dt, world) {
         // long enough to always reach past the screen edge
         const x2 = player.x + Math.cos(a) * 1300;
         const y2 = player.y + Math.sin(a) * 1300;
+        const blastR = inst.enhance > 0 ? 26 + 8 * (inst.enhance - 1) : 0;
         for (const e of enemies) {
           if (distPointSegment(e.x, e.y, x1, y1, x2, y2) < 11 + e.radius) {
-            if (e.takeDamage(dmg)) e.rootTimer = Math.max(e.rootTimer, 1);
+            if (e.takeDamage(dmg)) {
+              e.rootTimer = Math.max(e.rootTimer, 1);
+              if (blastR > 0) {
+                world.spawnBlast({
+                  x: e.x,
+                  y: e.y,
+                  dmg: Math.max(1, Math.round(dmg * 0.5)),
+                  blast: blastR,
+                  color: "#8fd6ff",
+                });
+              }
+            }
           }
         }
         inst.ringFx.push({ x1, y1, x2, y2, t: 0 });
@@ -1229,7 +1253,17 @@ function updateInstance(player, inst, dt, world) {
       for (const e of enemies) {
         if (e.orbitTimer > 0) continue;
         if (circleHit(b.x, b.y, 18, e.x, e.y, e.radius)) {
-          if (e.takeDamage(contactDmg)) e.orbitTimer = 0.45;
+          if (e.takeDamage(contactDmg)) {
+            e.orbitTimer = 0.45;
+            if (inst.enhance > 0) {
+              const force = 14 + 6 * (inst.enhance - 1);
+              const dx = e.x - b.x;
+              const dy = e.y - b.y;
+              const d = Math.hypot(dx, dy) || 1;
+              e.x += (dx / d) * force;
+              e.y += (dy / d) * force;
+            }
+          }
         }
       }
     }
@@ -1865,9 +1899,11 @@ function updateInstance(player, inst, dt, world) {
   } else if (weapon.id === "slam") {
     const dmg = weaponDmg(player, tier.dmgMult);
     const count = tier.smashes + extraAmmo;
+    // fists only reach so far — cap the strike range near the player
+    const SLAM_RANGE = 100;
     const picks = enemies
       .map((e) => ({ e, d: Math.hypot(e.x - player.x, e.y - player.y) }))
-      .filter((o) => o.d <= effRange * 1.6)
+      .filter((o) => o.d <= SLAM_RANGE)
       .sort((a, b) => a.d - b.d)
       .map((o) => o.e);
     for (let i = 0; i < count; i++) {
@@ -1957,7 +1993,11 @@ function updateInstance(player, inst, dt, world) {
         size: tier.size,
         maxRange: Infinity,
         traveled: 0,
-        splitInfo: { count: tier.split, dmg: Math.max(1, Math.round(dmg * 0.8)) },
+        splitInfo: {
+          count: tier.split,
+          dmg: Math.max(1, Math.round(dmg * 0.8)),
+          grand: inst.enhance > 0 ? 4 + 2 * (inst.enhance - 1) : 0,
+        },
       });
     }
   } else if (weapon.id === "bonemark") {
@@ -1990,6 +2030,7 @@ function updateInstance(player, inst, dt, world) {
           dmg: Math.max(1, Math.round(dmg * 0.7)),
           delay: 0.46,
           color: "#6fc0ff",
+          root: inst.enhance > 0 ? 1 + 0.5 * (inst.enhance - 1) : 0,
         });
       }
     }
@@ -2016,6 +2057,8 @@ function updateInstance(player, inst, dt, world) {
         traveled: 0,
         orb: true,
         orbTick: tick,
+        stickCap: inst.enhance > 0 ? 5 + 3 * (inst.enhance - 1) : 0,
+        stuck: [],
       });
     }
   } else if (weapon.id === "boneringH") {
@@ -2106,9 +2149,10 @@ export function updateWeapons(player, dt, world) {
       p.didSplit = true;
       p.pierce = 0;
       const n = p.splitInfo.count;
+      const grand = p.splitInfo.grand || 0;
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
-        world.spawnProjectile({
+        const child = {
           x: p.x,
           y: p.y,
           vx: Math.cos(a) * 300,
@@ -2118,21 +2162,39 @@ export function updateWeapons(player, dt, world) {
           size: 8,
           maxRange: Infinity, // flies until it hits something or leaves the screen
           traveled: 0,
-        });
+        };
+        // enhancement: children split once more into grandchildren
+        if (grand > 0) {
+          child.splitInfo = { count: grand, dmg: Math.max(1, Math.round(p.splitInfo.dmg * 0.7)), grand: 0 };
+        }
+        world.spawnProjectile(child);
       }
     }
   }
 
-  // blue orbs: contact ticks that damage and briefly root
+  // blue orbs: contact ticks that damage and briefly root; enhanced orbs
+  // also snare enemies onto the orb up to a cap
   for (const p of world.projectiles) {
     if (!p.orb) continue;
+    if (p.stuck) p.stuck = p.stuck.filter((e) => e.hp > 0);
     for (const e of world.enemies) {
       if (e.laserTick > 0) continue;
       if (circleHit(p.x, p.y, p.size / 2 + 2, e.x, e.y, e.radius)) {
         if (e.takeDamage(p.orbTick)) {
           e.laserTick = 0.02;
           e.rootTimer = Math.max(e.rootTimer, 0.06);
+          if (p.stickCap > 0 && !p.stuck.includes(e) && p.stuck.length < p.stickCap) {
+            p.stuck.push(e);
+          }
         }
+      }
+    }
+    // drag snared enemies along with the orb
+    if (p.stuck) {
+      for (const e of p.stuck) {
+        e.x = p.x;
+        e.y = p.y;
+        e.rootTimer = Math.max(e.rootTimer, 0.1);
       }
     }
   }

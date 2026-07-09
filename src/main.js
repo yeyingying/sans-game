@@ -62,6 +62,7 @@ import {
   confirmButtonRect,
   drawChoiceScreen,
   choiceBoxRect,
+  rerollButtonRect,
   speedButtonRect,
   drawSpeedButton,
   pauseButtonRect,
@@ -72,6 +73,7 @@ import {
   resumeButtonRect,
   drawResumeButton,
   startButtonRect,
+  creditsButtonRect,
   drawTitleScreen,
   volumeMinusRect,
   volumePlusRect,
@@ -136,6 +138,7 @@ let selectedChar = 0;
 let selectedWeapon = 0;
 let timeScale = 1; // 1x -> 2x -> 3x, applies to the whole simulation
 let choiceOptions = [];
+let choiceRerollAvailable = false; // one reroll per choice screen
 let nextChoiceAt = CHOICE_INTERVAL;
 let choiceInterval = CHOICE_INTERVAL;
 let player, spawner, enemies, projectiles, bombs, explosions, spikes, pickups, floatingTexts, elapsed;
@@ -160,25 +163,43 @@ const BGM_TRACKS = {
   horror: "horror.mp3",
   hard: "hard.mp3", // falls back to MEGALOVANIA if the file isn't there
 };
+// per-character loudness tweak (horror's track is a touch quiet)
+const CHAR_VOL = { horror: 1.4 };
+const MENU_STATES = new Set(["title", "charselect", "select", "credits"]);
 let bgmVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem("bgmVolume") ?? "0.5") || 0.5));
+
+// menu theme plays on the title / select screens with a gentle fade
+const menuBgm = new Audio("sans.mp3");
+menuBgm.loop = true;
+menuBgm.volume = 0;
+
 const bgm = new Audio();
 bgm.loop = true;
-bgm.volume = bgmVolume;
-// if a character's track is missing, fall back to the default
+bgm.volume = 0;
 bgm.addEventListener("error", () => {
   if (!bgm.src.endsWith("MEGALOVANIA.mp3")) {
     bgm.src = "MEGALOVANIA.mp3";
-    if (state === "playing") bgmPlay();
   }
 });
 function bgmPlay() {
   bgm.play().catch(() => {}); // autoplay may be blocked until a user gesture
 }
+function gameVolTarget() {
+  return Math.min(bgmVolume * (CHAR_VOL[player?.character] || 1), 1);
+}
 function setBgmVolume(v) {
   bgmVolume = Math.min(1, Math.max(0, Math.round(v * 10) / 10));
-  bgm.volume = bgmVolume;
   localStorage.setItem("bgmVolume", String(bgmVolume));
 }
+// ease an audio element's volume toward a target; auto play/pause at the ends
+function fadeAudio(audio, target, dt, speed) {
+  const cur = audio.volume;
+  if (Math.abs(cur - target) <= speed * dt) audio.volume = target;
+  else audio.volume = Math.max(0, Math.min(1, cur + Math.sign(target - cur) * speed * dt));
+  if (target > 0.001 && audio.paused) audio.play().catch(() => {});
+  else if (audio.volume <= 0.001 && !audio.paused && target <= 0.001) audio.pause();
+}
+let introBlack = 0; // seconds of black-screen intro when a game begins
 let camX = 0; // world x of the view's left edge (map is infinite horizontally)
 
 function currentCharacter() {
@@ -214,8 +235,10 @@ function startGame() {
   reset(currentWeaponList()[selectedWeapon].id);
   timeScale = 1;
   state = "playing";
+  introBlack = 1.5; // brief black screen while the music crossfades
   const track = BGM_TRACKS[currentCharacter().id] || "MEGALOVANIA.mp3";
   bgm.src = track; // reload also resets playback to the start
+  bgm.volume = 0; // fades up during the intro
   bgmPlay();
 }
 
@@ -498,7 +521,12 @@ function handleCanvasTap(pos) {
     return;
   }
   if (state === "title") {
-    if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) state = "charselect";
+    if (inRect(pos, creditsButtonRect(WIDTH, HEIGHT))) state = "credits";
+    else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) state = "charselect";
+    return;
+  }
+  if (state === "credits") {
+    state = "title";
     return;
   }
   if (state === "charselect") {
@@ -538,6 +566,11 @@ function handleCanvasTap(pos) {
       bgm.currentTime = 0;
     }
   } else if (state === "choice") {
+    if (choiceRerollAvailable && inRect(pos, rerollButtonRect(WIDTH, HEIGHT))) {
+      choiceOptions = rollChoices();
+      choiceRerollAvailable = false;
+      return;
+    }
     for (let i = 0; i < choiceOptions.length; i++) {
       if (inRect(pos, choiceBoxRect(i, WIDTH, HEIGHT))) {
         applyChoice(i);
@@ -585,6 +618,10 @@ window.addEventListener("keydown", (e) => {
   }
   if (state === "title") {
     if (k === " " || k === "enter") state = "charselect";
+    return;
+  }
+  if (state === "credits") {
+    if (k === " " || k === "enter" || k === "escape") state = "title";
     return;
   }
   if (state === "charselect") {
@@ -675,6 +712,7 @@ function update(dt) {
   if (elapsed >= nextChoiceAt) {
     nextChoiceAt += choiceInterval;
     choiceOptions = rollChoices();
+    choiceRerollAvailable = true;
     state = "choice";
   }
 
@@ -1298,7 +1336,7 @@ function draw() {
             ctx.rotate(b.angle - Math.PI / 2 + (b.extraRot || 0)); // spin-in
             ctx.imageSmoothingEnabled = false;
             const spr = b.firing ? GB_FIRE : GB_IDLE;
-            const gw = 48;
+            const gw = 48 * (b.sizeMult || 1);
             const gh = (spr.height / spr.width) * gw;
             ctx.drawImage(spr, -gw / 2, -gh / 2, gw, gh);
             ctx.restore();
@@ -1502,6 +1540,14 @@ function draw() {
   }
   if (state === "playing") drawJoystick(ctx, getJoystick());
 
+  // black-screen intro — drawn under the menus so the pause screen still shows
+  if (introBlack > 0) {
+    ctx.save();
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(1, introBlack / 1.0)})`;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.restore();
+  }
+
   if (state === "title") {
     drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans]);
   } else if (state === "charselect") {
@@ -1531,7 +1577,7 @@ function draw() {
     drawResumeButton(ctx, WIDTH, HEIGHT);
     drawQuitButton(ctx, WIDTH, HEIGHT);
   } else if (state === "choice") {
-    drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions);
+    drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollAvailable);
   } else if (state === "gameover") {
     drawCenterText(ctx, WIDTH, HEIGHT, [
       { text: "GAME OVER", font: "bold 32px monospace", color: "#ff5d73" },
@@ -1546,6 +1592,16 @@ function draw() {
       { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
       { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
     ]);
+  } else if (state === "credits") {
+    drawCenterText(ctx, WIDTH, HEIGHT, [
+      { text: "制 作 名 单", font: "bold 30px monospace", color: "#7ea8ff" },
+      { text: "", font: "10px monospace" },
+      { text: "贴图模版: Toby Fox", font: "16px monospace", color: "#f2ead8" },
+      { text: "音乐: Toby Fox / Soda Noodles / Franderman123", font: "16px monospace", color: "#f2ead8" },
+      { text: "游戏制作: 26", font: "16px monospace", color: "#f2ead8" },
+      { text: "", font: "10px monospace" },
+      { text: "点击画面 或 按空格 返回", font: "14px monospace", color: "#ffd166" },
+    ]);
   }
 }
 
@@ -1553,10 +1609,26 @@ let lastTime = performance.now();
 function loop(now) {
   const dt = Math.min((now - lastTime) / 1000, 1 / 30);
   lastTime = now;
-  setMovementEnabled(state === "playing");
-  // run the simulation timeScale times per frame so cooldowns, timers,
-  // enemies and the player all speed up together without physics tunneling
-  for (let i = 0; i < timeScale && state === "playing"; i++) update(dt);
+
+  // crossfade the menu theme and the battle music
+  const inMenu = MENU_STATES.has(state);
+  fadeAudio(menuBgm, inMenu ? bgmVolume : 0, dt, 0.9);
+  if (state === "paused") {
+    if (!bgm.paused) bgm.pause();
+  } else if (bgm.src && (state === "playing" || state === "choice")) {
+    fadeAudio(bgm, gameVolTarget(), dt, 1.1);
+  } else {
+    fadeAudio(bgm, 0, dt, 1.5); // gameover / back to menu
+  }
+
+  setMovementEnabled(state === "playing" && introBlack <= 0);
+  if (introBlack > 0) {
+    introBlack -= dt; // hold the world frozen behind the black screen
+  } else {
+    // run the simulation timeScale times per frame so cooldowns, timers,
+    // enemies and the player all speed up together without physics tunneling
+    for (let i = 0; i < timeScale && state === "playing"; i++) update(dt);
+  }
   draw();
   requestAnimationFrame(loop);
 }
