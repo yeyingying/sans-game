@@ -331,6 +331,11 @@ export const WEAPONS = {
     desc: "巨骨扫向最近的敌人，范围伤害并持续推挤，升级加范围次数",
     color: "#ff5d5d",
     enhance: { desc: "击退 +50%", detail: "重复选择 +10%/层" },
+    evolve: {
+      name: "回天旋骨",
+      desc: "半径170的三连横扫风暴",
+      tier: { radius: 170, swings: 4, dmgMult: 4.2, rateMult: 0.85 },
+    },
     tiers: [
       { radius: 95, swings: 1, dmgMult: 1.5, rateMult: 0.6 },
       { radius: 110, swings: 1, dmgMult: 1.7, rateMult: 0.6 },
@@ -346,6 +351,11 @@ export const WEAPONS = {
     desc: "敌人背后召唤骨头飞回，沿途伤敌，回收时概率回血",
     color: "#ff8f8f",
     enhance: { desc: "回血概率 +10%", detail: "重复选择 +5%/层" },
+    evolve: {
+      name: "饕餮盛宴",
+      desc: "7目标必吸血，猎手永不饥饿",
+      tier: { targets: 7, bonesPer: 3, healChance: 1.0, dmgMult: 3.2, rateMult: 0.85, size: 14 },
+    },
     tiers: [
       { targets: 2, bonesPer: 1, healChance: 0.2, dmgMult: 1.2, rateMult: 0.6, size: 10 },
       { targets: 3, bonesPer: 1, healChance: 0.3, dmgMult: 1.35, rateMult: 0.6, size: 10 },
@@ -361,6 +371,11 @@ export const WEAPONS = {
     desc: "周身连续砸击，高伤害并禁锢，升级加次数和禁锢",
     color: "#d63a3a",
     enhance: { desc: "每砸中一个敌人获得 0.15s 无敌", detail: "重复选择 +0.1s/层，累计上限 1.5s" },
+    evolve: {
+      name: "灭世重锤",
+      desc: "10连砸+2.5秒禁锢",
+      tier: { smashes: 10, root: 2.5, dmgMult: 5.5, rateMult: 0.6 },
+    },
     tiers: [
       { smashes: 3, root: 0.5, dmgMult: 2.2, rateMult: 0.4 },
       { smashes: 4, root: 0.75, dmgMult: 2.4, rateMult: 0.4 },
@@ -396,6 +411,11 @@ export const WEAPONS = {
     desc: "脚下召出巨骨掀起击退波，升级加波数和巨骨大小",
     color: "#ff5d5d",
     enhance: { desc: "被震波杀死的敌人爆炸", detail: "重复选择扩大爆炸半径" },
+    evolve: {
+      name: "山崩地裂",
+      desc: "5波半径200的灭世震荡",
+      tier: { waves: 5, radius: 200, boneSize: 80, dmgMult: 4.5, rateMult: 0.55 },
+    },
     tiers: [
       { waves: 1, radius: 95, boneSize: 40, dmgMult: 1.8, rateMult: 0.35 },
       { waves: 2, radius: 105, boneSize: 46, dmgMult: 2.0, rateMult: 0.35 },
@@ -411,6 +431,11 @@ export const WEAPONS = {
     desc: "斧子绕身两圈粘住敌人后连人掷出，升级加斧子大小",
     color: "#aab2c2",
     enhance: { desc: "每粘住一个敌人回复 1 血", detail: "重复选择 +1 回血/层" },
+    evolve: {
+      name: "死神收割",
+      desc: "巨斧尺寸翻倍，绞碎一切",
+      tier: { size: 52, dmgMult: 5.0, rateMult: 0.55 },
+    },
     tiers: [
       { size: 18, dmgMult: 2.0, rateMult: 0.35 },
       { size: 22, dmgMult: 2.2, rateMult: 0.35 },
@@ -426,6 +451,11 @@ export const WEAPONS = {
     desc: "斧头轻砸后，大斧虚影劈向同处造成大额伤害，升级加砸击次数",
     color: "#e8ecf4",
     enhance: { desc: "每次砸击分裂 2 个额外幻影", detail: "重复选择 +1 幻影" },
+    evolve: {
+      name: "万象幻斧",
+      desc: "6连劈幻影风暴",
+      tier: { combos: 6, dmgMult: 2.6, rateMult: 0.75 },
+    },
     tiers: [
       { combos: 1, dmgMult: 1.0, rateMult: 0.5 },
       { combos: 2, dmgMult: 1.1, rateMult: 0.5 },
@@ -441,6 +471,11 @@ export const WEAPONS = {
     desc: "原地重砸一击，随后在四周立起一圈骨头，升级加骨头数量",
     color: "#e8dcc0",
     enhance: { desc: "骨头圈数 +2", detail: "重复选择 +1 圈" },
+    evolve: {
+      name: "白骨王座",
+      desc: "32根巨骨的死亡领域",
+      tier: { bones: 32, ring: 150, dmgMult: 4.0, rateMult: 0.7 },
+    },
     tiers: [
       { bones: 12, ring: 80, dmgMult: 1.6, rateMult: 0.45 },
       { bones: 14, ring: 85, dmgMult: 1.8, rateMult: 0.45 },
@@ -457,6 +492,11 @@ export const WEAPONS = {
     desc: "向目标突刺并穿透路径，返回原位时爆炸，升级加突刺次数",
     color: "#5db9ff",
     enhance: { desc: "突刺时减伤 +10%", detail: "重复选择 +5%/层" },
+    evolve: {
+      name: "无影闪袭",
+      desc: "9连突刺，残影撕裂战场",
+      tier: { dashes: 9, dmgMult: 4.0, rateMult: 0.75 },
+    },
     tiers: [
       { dashes: 1, dmgMult: 1.6, rateMult: 0.5 },
       { dashes: 2, dmgMult: 1.8, rateMult: 0.5 },
@@ -472,6 +512,11 @@ export const WEAPONS = {
     desc: "射出 6 根骨头，悬停后各自裂成子骨，升级加分裂数量",
     color: "#f2ead8",
     enhance: { desc: "子骨再裂出 4 个子子骨", detail: "重复选择增加分裂数量" },
+    evolve: {
+      name: "湮灭骨雨",
+      desc: "14裂变铺天盖地",
+      tier: { split: 14, dmgMult: 3.0, rateMult: 0.8, size: 14 },
+    },
     tiers: [
       { split: 4, dmgMult: 1.2, rateMult: 0.55, size: 10 },
       { split: 5, dmgMult: 1.35, rateMult: 0.55, size: 10 },
@@ -487,6 +532,11 @@ export const WEAPONS = {
     desc: "在目标身上召唤蓝骨爆炸并环出骨圈，升级加爆炸、目标与骨数",
     color: "#4f9dff",
     enhance: { desc: "骨圈变蓝并禁锢 1 秒", detail: "重复选择禁锢 +0.5s/层" },
+    evolve: {
+      name: "天罚洪流",
+      desc: "8目标大爆环阵降罚",
+      tier: { targets: 8, blast: 100, ringBones: 14, dmgMult: 3.8, rateMult: 0.75 },
+    },
     tiers: [
       { targets: 3, blast: 40, ringBones: 6, dmgMult: 1.4, rateMult: 0.5 },
       { targets: 3, blast: 48, ringBones: 7, dmgMult: 1.6, rateMult: 0.5 },
@@ -502,6 +552,11 @@ export const WEAPONS = {
     desc: "头顶巨骨砸地爆炸，裂成小骨四射，升级多一圈骨头",
     color: "#ffd166",
     enhance: { desc: "碎骨 3 层穿透且不消失", detail: "重复选择穿透 +2/层" },
+    evolve: {
+      name: "陨骨灭世",
+      desc: "8环弹幕+半径160巨爆",
+      tier: { shards: 36, rings: 8, dmgMult: 5.5, rateMult: 0.42, blast: 160 },
+    },
     tiers: [
       { shards: 36, rings: 1, dmgMult: 2.2, rateMult: 0.3, blast: 90 },
       { shards: 36, rings: 2, dmgMult: 2.4, rateMult: 0.3, blast: 96 },
@@ -517,6 +572,11 @@ export const WEAPONS = {
     desc: "缓慢前进的暗蓝光环，触碰持续伤害并禁锢，升级加索敌目标",
     color: "#2f6ea8",
     enhance: { desc: "敌人粘在光球上(上限 5)", detail: "重复选择上限 +3/层" },
+    evolve: {
+      name: "群魂环舞",
+      desc: "9颗光球织成灵魂风暴",
+      tier: { orbs: 9, dmgMult: 3.6, rateMult: 0.62 },
+    },
     tiers: [
       { orbs: 1, dmgMult: 1.2, rateMult: 0.4 },
       { orbs: 2, dmgMult: 1.4, rateMult: 0.4 },
@@ -532,6 +592,11 @@ export const WEAPONS = {
     desc: "头顶召唤龙骨炮向目标轰出巨大光束，升级加数量(同向齐射)",
     color: "#fddefe",
     enhance: { desc: "龙骨炮体积 +50%", detail: "重复选择 +20%/层" },
+    evolve: {
+      name: "审判龙阵",
+      desc: "9门龙骨炮齐轰",
+      tier: { count: 9, dmgMult: 8.0, rateMult: 0.65 },
+    },
     tiers: [
       { count: 1, dmgMult: 3.0, rateMult: 0.45 },
       { count: 2, dmgMult: 3.4, rateMult: 0.45 },
@@ -547,6 +612,11 @@ export const WEAPONS = {
     desc: "36 根短激光绕圈依次闪射，命中禁锢，升级加激光数",
     color: "#8fd6ff",
     enhance: { desc: "激光命中处小爆炸", detail: "重复选择扩大爆炸半径" },
+    evolve: {
+      name: "星环湮灭",
+      desc: "120道环射织成光之囚笼",
+      tier: { lasers: 120, dmgMult: 3.0, rateMult: 0.36 },
+    },
     tiers: [
       { lasers: 36, dmgMult: 1.1, rateMult: 0.25 },
       { lasers: 44, dmgMult: 1.25, rateMult: 0.25 },
@@ -562,6 +632,11 @@ export const WEAPONS = {
     desc: "骨桩插地环转，撞击碾过的敌人，升级 +2 根",
     color: "#9be8a8",
     enhance: { desc: "撞击附带击退", detail: "重复选择提高击退力度" },
+    evolve: {
+      name: "白骨绞盘",
+      desc: "20根骨桩的绞杀阵",
+      tier: { bones: 20, dmgMult: 4.2, rateMult: 0.7 },
+    },
     tiers: [
       { bones: 4, dmgMult: 1.5, rateMult: 0.5 },
       { bones: 6, dmgMult: 1.7, rateMult: 0.5 },

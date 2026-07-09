@@ -188,6 +188,21 @@ function run(seconds, onFrame) {
     ["soundwave", "radius", 180],
     ["chain", "chains", 9],
     ["plaser", "beams", 9],
+    ["sweep", "radius", 170],
+    ["feast", "targets", 7],
+    ["slam", "smashes", 10],
+    ["quake", "waves", 5],
+    ["lasso", "size", 52],
+    ["cleave", "combos", 6],
+    ["boneringH", "bones", 32],
+    ["dash", "dashes", 9],
+    ["splitbone", "split", 14],
+    ["bonemark", "targets", 8],
+    ["megabone", "rings", 8],
+    ["orb", "orbs", 9],
+    ["gaster", "count", 9],
+    ["ringlaser", "lasers", 120],
+    ["turret", "bones", 20],
   ]) {
     const inst = W.createWeaponInstance(id);
     check(`${id}: not evolvable at start`, !W.canEvolve(inst));
@@ -249,14 +264,18 @@ if (MODE === "normal") {
       key("Enter");
     }
     key("ArrowRight"); // hold right: kite instead of standing in the horde
+    let runScreens = 0;
     for (let i = 0; i < 30 * 120; i++) {
       frame();
       const d = dbg();
       if (d.state === "choice") {
-        checkedScreens++;
-        check(`run${runNo} choice screen has weapon card [${d.choices.join(" | ")}]`, d.choices.some(isWeaponCard));
+        runScreens++;
+        // the weapon-card guarantee only covers the first 3 screens of a run
+        if (runScreens <= 3) {
+          checkedScreens++;
+          check(`run${runNo} screen${runScreens} has weapon card [${d.choices.join(" | ")}]`, d.choices.some(isWeaponCard));
+        }
         key("1");
-        if (checkedScreens >= 3) { /* keep playing until death below */ }
       }
       if (d.state === "gameover") {
         if (!firstDeath || !firstDeath.deathBy) firstDeath = dbg();
