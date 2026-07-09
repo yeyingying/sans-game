@@ -261,10 +261,11 @@ function startGame() {
     elapsed = BOSS_APPEAR_TIME - 2;
     nextChoiceAt = 99999; // skip the backlog of choice screens
     // simulate a 5-minute build so the tester isn't one-shot
-    player.maxHp = 400;
-    player.hp = 400;
+    player.maxHp = 1200;
+    player.hp = 1200;
     player.atk += 40;
-    player.regen += 2;
+    player.regen += 15;
+    player.dmgReduction = 0.6; // survivable enough to watch the whole show
   }
   timeScale = 1;
   state = "playing";
