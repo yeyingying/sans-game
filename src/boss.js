@@ -45,6 +45,9 @@ export function makeBossEnemy(x, y) {
     slowTimer: 0,
     mark: null,
     strike: null,
+    applyRoot() {
+      return false; // the boss cannot be rooted
+    },
     takeDamage(d) {
       if (this.invulnTimer > 0) return false;
       this.hp -= d;

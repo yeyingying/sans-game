@@ -43,8 +43,10 @@ export class Spawner {
 
   scale(elite) {
     const t = this.elapsed;
+    // linear early; from 3:00 on it compounds so strong builds stay pressured
+    const hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.18, (t - 180) / 30) : 1 + t / 22;
     return {
-      hpMult: 1 + t / 22,
+      hpMult,
       dmgMult: 1 + t / 50,
       speedMult: 1 + Math.min(t / 90, 0.35),
       xpMult: 1 + t / 60,

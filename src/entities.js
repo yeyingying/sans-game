@@ -143,7 +143,17 @@ export class Enemy {
     this.mark = null;
     this.strike = null;
     this.rootTimer = 0; // 禁锢: no move, no attack, invulnerability disabled
+    this.rootImmune = 0; // diminishing returns: no new roots while this runs
     this.slowTimer = 0; // 减速: half speed
+  }
+
+  // 禁锢 with diminishing returns: one root per window — while rootImmune
+  // runs (the root itself + 2.5s), fresh roots are shrugged off.
+  applyRoot(sec) {
+    if (this.rootImmune > 0) return false;
+    this.rootTimer = Math.max(this.rootTimer, sec);
+    this.rootImmune = sec + 2.5;
+    return true;
   }
 
   // All damage flows through here so spawn/revive invulnerability works
@@ -162,6 +172,7 @@ export class Enemy {
   }
 
   update(dt, target) {
+    if (this.rootImmune > 0) this.rootImmune -= dt;
     if (this.rootTimer > 0) {
       // rooted: no movement, no teleport progress; damage-gate timers still tick
       this.rootTimer -= dt;

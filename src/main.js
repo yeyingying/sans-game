@@ -204,6 +204,7 @@ function fadeAudio(audio, target, dt, speed) {
 let introBlack = 0; // seconds of black-screen intro when a game begins
 let camX = 0; // world x of the view's left edge (map is infinite horizontally)
 let bossFight = null; // active 天意侵蚀Sans encounter, or null
+let eliteWave = 0; // 0=pending, 1=warned, 2=spawned (one wave per run at 4:00)
 
 function currentCharacter() {
   return CHARACTERS[selectedChar];
@@ -227,6 +228,7 @@ function reset(weaponId) {
   floatingTexts = [];
   elapsed = 0;
   bossFight = null;
+  eliteWave = 0;
   camX = player.x - WIDTH / 2;
   choiceInterval = CHOICE_INTERVAL;
   nextChoiceAt = choiceInterval;
@@ -334,15 +336,16 @@ function buildChoicePool() {
       weight: 20,
       make: () => ({
         title: "每秒回血 +2",
-        desc: `持续恢复生命 (当前 ${player.regen}/秒)`,
+        desc: `持续恢复生命 (当前 ${player.regen}/秒，上限 10)`,
         color: "#7cf28a",
         apply: () => {
-          player.regen += 2;
+          player.regen = Math.min(player.regen + 2, 10);
         },
       }),
     },
-  ];
+  ].filter((c) => c.kind !== "regen" || player.regen < 10);
 
+  // (regen capped at 10/s — the card stops appearing at the cap)
   pool.push({
     kind: "thorns",
     weight: 10,
@@ -706,7 +709,7 @@ function spawnBlast({ x, y, dmg, blast, color, root = 0 }) {
   explosions.push(new Explosion(x, y, blast, color));
   for (const e of enemies) {
     if (circleHit(x, y, blast, e.x, e.y, e.radius)) {
-      if (root > 0) e.rootTimer = Math.max(e.rootTimer, root);
+      if (root > 0) e.applyRoot(root); // blast roots respect diminishing returns
       e.takeDamage(dmg);
     }
   }
@@ -754,6 +757,26 @@ function update(dt) {
     choiceOptions = rollChoices();
     choiceRerollAvailable = true;
     state = "choice";
+  }
+
+  // elite wave: warning at 3:52, the wave crashes in at 4:00
+  if (eliteWave === 0 && elapsed >= 232 && !bossFight) {
+    eliteWave = 1;
+    floatingTexts.push(new FloatingText(player.x, player.y - 60, "※ 精英潮来袭！", "#ffd166"));
+  }
+  if (eliteWave === 1 && elapsed >= 240 && !bossFight) {
+    eliteWave = 2;
+    const types = ["tank", "red", "orange", "blue", "purple", "ghost"];
+    for (let i = 0; i < 7; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const e = new Enemy(
+        types[Math.floor(Math.random() * types.length)],
+        camX + WIDTH / 2 + side * (WIDTH / 2 + 50),
+        WALL_H + 30 + Math.random() * (HEIGHT - WALL_H - 60),
+        spawner.scale(true)
+      );
+      enemies.push(e);
+    }
   }
 
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
@@ -871,7 +894,7 @@ function update(dt) {
         if (p.extendRoot > 0 && e.rootTimer > 0) e.rootTimer += p.extendRoot;
         if (!e.takeDamage(p.dmg)) continue; // immune: passes through
         // 追踪骨弹强化: hits pin the enemy in place
-        if (p.rootOnHit > 0) e.rootTimer = Math.max(e.rootTimer, p.rootOnHit);
+        if (p.rootOnHit > 0) e.applyRoot(p.rootOnHit);
         p.hitSet.add(e.id);
         p.pierce -= 1;
         // 贯穿骨矛强化: every pierced enemy detonates
@@ -908,7 +931,7 @@ function update(dt) {
       const radius = sp.wave || 24;
       for (const e of enemies) {
         if (circleHit(sp.x, sp.y, radius, e.x, e.y, e.radius)) {
-          if (sp.root > 0) e.rootTimer = Math.max(e.rootTimer, sp.root);
+          if (sp.root > 0) e.applyRoot(sp.root);
           const hit = e.takeDamage(sp.dmg);
           // 环身重砸强化: i-frames per enemy struck (capped)
           if (hit && sp.invulnPerHit > 0) {
@@ -1247,6 +1270,17 @@ function draw() {
     const spriteScale = { bat: 2.2, tank: 3.2, ghost: 2.9, blue: 2.8, red: 2.7, purple: 2.7, orange: 3.0 }[e.sprite] || 2.6;
     drawSprite(ctx, ENEMY_SPRITES[e.sprite], e.x, e.y, e.radius * spriteScale);
     if (flicker) ctx.restore();
+    // root-immunity: small grey broken ring (diminishing returns active)
+    if (e.rootImmune > 0 && e.rootTimer <= 0) {
+      ctx.save();
+      ctx.strokeStyle = "#8d8798";
+      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y - e.radius - 10, 4, 0.6, Math.PI * 2 - 0.6);
+      ctx.stroke();
+      ctx.restore();
+    }
     // 禁锢: blue shackle ring around rooted enemies
     if (e.rootTimer > 0) {
       ctx.save();

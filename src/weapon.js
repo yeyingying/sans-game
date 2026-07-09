@@ -1214,7 +1214,7 @@ function updateInstance(player, inst, dt, world) {
         for (const e of enemies) {
           if (distPointSegment(e.x, e.y, x1, y1, x2, y2) < 11 + e.radius) {
             if (e.takeDamage(dmg)) {
-              e.rootTimer = Math.max(e.rootTimer, 1);
+              e.applyRoot(1);
               if (blastR > 0) {
                 world.spawnBlast({
                   x: e.x,
@@ -1616,7 +1616,7 @@ function updateInstance(player, inst, dt, world) {
         e.x = player.x - (dx / d) * arrive;
         e.y = player.y - (dy / d) * arrive;
         e.takeDamage(weaponDmg(player, tier.dmgMult));
-        e.rootTimer = Math.max(e.rootTimer, tier.root);
+        e.applyRoot(tier.root);
         c.done = true;
       } else {
         e.x += (dx / d) * step;
