@@ -170,6 +170,11 @@ export const WEAPONS = {
     desc: "地下伸出蓝骨伤害并禁锢敌人，升级加目标和禁锢时长",
     color: "#4f9dff",
     enhance: { desc: "攻击附带小爆炸", detail: "爆炸波及的敌人禁锢 0.25s/层" },
+    evolve: {
+      name: "万物皆缚",
+      desc: "12道蓝骨同时落下，禁锢4秒",
+      tier: { targets: 12, root: 4.0, dmgMult: 4.0, rateMult: 0.7 },
+    },
     tiers: [
       { targets: 3, root: 1.0, dmgMult: 1.4, rateMult: 0.5 },
       { targets: 4, root: 1.5, dmgMult: 1.6, rateMult: 0.5 },
@@ -185,6 +190,11 @@ export const WEAPONS = {
     desc: "地下涌出层层骨浪扇形推进，升级加浪数和骨头数",
     color: "#c59bff",
     enhance: { desc: "骨浪附带击退", detail: "重复选择击退 +10%/层" },
+    evolve: {
+      name: "怒涛白骨",
+      desc: "9波14骨的白骨海啸",
+      tier: { waves: 9, bones: 14, dmgMult: 3.2, rateMult: 0.7 },
+    },
     tiers: [
       { waves: 2, bones: 4, dmgMult: 1.2, rateMult: 0.5 },
       { waves: 3, bones: 6, dmgMult: 1.3, rateMult: 0.5 },
@@ -200,6 +210,11 @@ export const WEAPONS = {
     desc: "向固定方向同时射出骨头，每级 +2 根",
     color: "#f2ead8",
     enhance: { desc: "延长敌人的禁锢", detail: "命中禁锢中的敌人 +1s，每层再 +0.5s" },
+    evolve: {
+      name: "米字天罚",
+      desc: "20根巨骨十六向齐射",
+      tier: { bones: 20, pierce: 5, dmgMult: 3.8, rateMult: 1.35, size: 16 },
+    },
     tiers: [
       { bones: 4, pierce: 2, dmgMult: 1.2, rateMult: 1.1, size: 12 },
       { bones: 6, pierce: 2, dmgMult: 1.4, rateMult: 1.1, size: 12 },
@@ -215,6 +230,11 @@ export const WEAPONS = {
     desc: "骨雷绕身一周后掷向敌人爆炸，升级加骨雷数和爆炸半径",
     color: "#ffd166",
     enhance: { desc: "环绕时周期小爆炸", detail: "每 0.5s 一次，每层提高频率" },
+    evolve: {
+      name: "雷环净世",
+      desc: "9颗巨雷，爆炸半径翻倍",
+      tier: { count: 9, blast: 140, dmgMult: 4.5, rateMult: 0.65, size: 24 },
+    },
     tiers: [
       { count: 1, blast: 60, dmgMult: 1.6, rateMult: 0.45, size: 16 },
       { count: 2, blast: 70, dmgMult: 1.8, rateMult: 0.45, size: 16 },
@@ -230,6 +250,11 @@ export const WEAPONS = {
     desc: "每 4.5 秒开盾，全额反弹伤害并击退，升级加持续时间",
     color: "#9a5df0",
     enhance: { desc: "开盾时狂化", detail: "+100% 移速和回血，每层 +25%" },
+    evolve: {
+      name: "不灭魂壁",
+      desc: "护盾持续6秒，几乎无缝衔接",
+      tier: { duration: 6.0 },
+    },
     tiers: [
       { duration: 2.0 },
       { duration: 2.5 },
@@ -245,6 +270,11 @@ export const WEAPONS = {
     desc: "骨头从天而降释放紫色音波，伤害并击退，升级加骨数和半径",
     color: "#e08fff",
     enhance: { desc: "巨大骨伤害 +100%", detail: "音波范围不变，每层再 +20%" },
+    evolve: {
+      name: "天崩音爆",
+      desc: "6根天骨砸出半径180的音爆",
+      tier: { bones: 6, radius: 180, dmgMult: 8.0, rateMult: 0.65 },
+    },
     tiers: [
       { bones: 1, radius: 70, dmgMult: 3.0, rateMult: 0.45 },
       { bones: 2, radius: 85, dmgMult: 3.4, rateMult: 0.45 },
@@ -260,6 +290,11 @@ export const WEAPONS = {
     desc: "锁链拖敌到面前，途中掉血，到达重击禁锢并小范围爆炸",
     color: "#b8a5d0",
     enhance: { desc: "到达爆炸附带禁锢", detail: "波及的敌人禁锢 0.25s/层" },
+    evolve: {
+      name: "亡魂囚笼",
+      desc: "9条锁链织成囚笼，无处可逃",
+      tier: { chains: 9, root: 2.5, dmgMult: 5.0, rateMult: 0.65 },
+    },
     tiers: [
       { chains: 1, root: 0.5, dmgMult: 2.0, rateMult: 0.45 },
       { chains: 2, root: 0.75, dmgMult: 2.2, rateMult: 0.45 },
@@ -275,6 +310,11 @@ export const WEAPONS = {
     desc: "瞬间闪射贯穿全屏的激光，一次性伤害并减速，升级加锁定目标数",
     color: "#c95df0",
     enhance: { desc: "减速效果 +100%", detail: "重复选择每层再 +20%" },
+    evolve: {
+      name: "湮紫洪流",
+      desc: "9道粗光洪流洗地",
+      tier: { beams: 9, dmgMult: 6.0, width: 26, duration: 0.15, rateMult: 0.5 },
+    },
     tiers: [
       { beams: 1, dmgMult: 2.0, width: 12, duration: 0.15, rateMult: 0.35 },
       { beams: 2, dmgMult: 2.3, width: 13, duration: 0.15, rateMult: 0.35 },

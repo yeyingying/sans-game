@@ -46,6 +46,8 @@ export const UPGRADES = [
   { id: "magnet", name: "引魂磁石", desc: "初始磁吸范围 +25 / 级", max: 3, base: 30, color: "#c59bff" },
   { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", max: 5, base: 50, color: "#ffd166" },
   { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", max: 2, base: 100, color: "#5ee6e6" },
+  { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", max: 3, base: 80, color: "#7ea8ff" },
+  { id: "revive", name: "重燃决心", desc: "每局死亡时原地复活一次(半血)", max: 1, base: 300, color: "#ffffff" },
 ];
 
 let upgrades = readJson("metaUpgrades", {});

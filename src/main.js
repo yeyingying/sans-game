@@ -334,6 +334,25 @@ function diffPills() {
   }));
 }
 
+// codex completion: monsters seen + boss + weapons used + evolutions reached
+function codexCompletion() {
+  const st = getStats();
+  let have = Object.keys(ENEMY_NAMES).filter((t) => (st.killsByType[t] || 0) > 0).length;
+  let total = Object.keys(ENEMY_NAMES).length + 1;
+  if (st.bossKills > 0) have += 1;
+  for (const c of CHARACTERS) {
+    for (const w of WEAPON_LISTS[c.id]) {
+      total += 1;
+      if (st.weaponsUsed[w.id]) have += 1;
+      if (w.evolve) {
+        total += 1;
+        if (st.evolved[w.id]) have += 1;
+      }
+    }
+  }
+  return Math.floor((have / total) * 100);
+}
+
 function charLocks() {
   const locks = {};
   for (const c of CHARACTERS) {
@@ -362,6 +381,7 @@ function reset(weaponId) {
   player = new Player(WIDTH / 2, HEIGHT / 2);
   player.character = currentCharacter().id;
   applyMetaUpgrades(player); // permanent shop upgrades kick in from second zero
+  player.revives = upgradeLevel("revive"); // 重燃决心: one comeback per run
   player.weapons = [createWeaponInstance(weaponId)];
   spawner = new Spawner(WIDTH, HEIGHT, WALL_H, getDifficulty());
   enemies = [];
@@ -500,6 +520,10 @@ function startGame() {
     player.atk += 40;
     player.regen += 15;
     player.dmgReduction = 0.6; // survivable enough to watch the whole show
+  }
+  // 行前整备: shop-bought loadout, granted before the first frame
+  for (let i = 0; i < upgradeLevel("gear"); i++) {
+    rollEquipmentDrop().apply(player);
   }
   // warm-up ring: 8 frail slimes already closing in, so the mowing starts
   // the moment the intro fades instead of seconds of empty walking
@@ -1513,7 +1537,31 @@ function update(dt) {
   }
   if (hurtFlash > 0) hurtFlash -= dt;
 
-  if (player.hp <= 0) settleGame();
+  if (player.hp <= 0) {
+    if (player.revives > 0) {
+      // 重燃决心: one dramatic comeback, crowd shoved away
+      player.revives -= 1;
+      player.hp = Math.ceil(player.maxHp / 2);
+      player.invuln = 2.5;
+      player.activeInvuln = 2.5;
+      for (const e of enemies) {
+        if (e.boss) continue;
+        const dx = e.x - player.x;
+        const dy = e.y - player.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d < 240) {
+          e.x = player.x + (dx / d) * 280;
+          e.y = clamp(player.y + (dy / d) * 280, WALL_H + 20, HEIGHT - 20);
+        }
+      }
+      explosions.push(new Explosion(player.x, player.y, 200, "#ffffff", true));
+      floatingTexts.push(new FloatingText(player.x, player.y - 40, "★ 决心重燃！", "#ffffff"));
+      killFlash = 0.3;
+      sfxFanfare();
+    } else {
+      settleGame();
+    }
+  }
 }
 
 // ---- draw -------------------------------------------------------------
@@ -2246,7 +2294,7 @@ function draw() {
   }
 
   if (state === "title") {
-    drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans], getCoins());
+    drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans], getCoins(), codexCompletion());
   } else if (state === "shop") {
     drawShopScreen(ctx, WIDTH, HEIGHT, shopItems(), getCoins());
   } else if (state === "codex") {
@@ -2267,7 +2315,7 @@ function draw() {
         evoTotal: list.filter((w) => w.evolve).length,
       };
     });
-    drawCodexScreen(ctx, WIDTH, HEIGHT, monsters, st.bossKills, weaponRows);
+    drawCodexScreen(ctx, WIDTH, HEIGHT, monsters, st.bossKills, weaponRows, codexCompletion());
   } else if (state === "charselect") {
     drawCharSelect(
       ctx,

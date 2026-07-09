@@ -152,6 +152,11 @@ function run(seconds, onFrame) {
   check("difficulty multipliers wired", M.getDifficulty().hpMult === 1.6 && M.getDifficulty().coinMult === 1.6);
   check("cannot set locked difficulty", !M.setDifficulty(2));
   M.setDifficulty(0); // restore for the game-flow run below
+  // new shop items: 行前整备 (start gear) and 重燃决心 (revive)
+  M.addCoins(500);
+  check("gear upgrade buyable", M.buyUpgrade("gear") && M.upgradeLevel("gear") === 1);
+  check("revive upgrade buyable", M.buyUpgrade("revive") && M.upgradeLevel("revive") === 1);
+  check("revive maxes at 1", M.upgradeCost("revive") === null);
   // codex collection tracking
   M.recordRun({ killsByType: { slime: 10, bat: 3 }, weaponsUsed: ["bone", "orbit"], evolvedIds: ["bone"] });
   const st = M.getStats();
@@ -175,6 +180,14 @@ function run(seconds, onFrame) {
     ["spike", "targets", 7],
     ["laser", "beams", 7],
     ["boomerang", "boomerangs", 6],
+    ["bluebind", "targets", 12],
+    ["wave", "waves", 9],
+    ["cross", "bones", 20],
+    ["orbitburst", "count", 9],
+    ["shield", "duration", 6.0],
+    ["soundwave", "radius", 180],
+    ["chain", "chains", 9],
+    ["plaser", "beams", 9],
   ]) {
     const inst = W.createWeaponInstance(id);
     check(`${id}: not evolvable at start`, !W.canEvolve(inst));

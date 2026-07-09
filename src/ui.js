@@ -191,7 +191,7 @@ export function shopButtonRect(width, height) {
   return { x: 16, y: height - 52, w: 190, h: 34 };
 }
 
-export function drawTitleScreen(ctx, width, height, portraits, coins = 0) {
+export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexPct = 0) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.99)";
   ctx.fillRect(0, 0, width, height);
@@ -262,7 +262,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0) {
   ctx.strokeRect(cx.x, cx.y, cx.w, cx.h);
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 14px monospace";
-  ctx.fillText("图鉴", cx.x + cx.w / 2, cx.y + 22);
+  ctx.fillText(`图鉴 ${codexPct}%`, cx.x + cx.w / 2, cx.y + 22);
 
   // daily challenge: fixed seed, rotating character, local best
   const db = dailyButtonRect(width, height);
@@ -289,7 +289,7 @@ export function dailyButtonRect(width, height) {
 
 // monsters: [{name, sprite, kills}] (kills 0 => "???"),
 // weaponRows: [{charName, color, used, total, evolved, evoTotal}]
-export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponRows) {
+export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponRows, pct = 0) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
   ctx.fillRect(0, 0, width, height);
@@ -297,7 +297,10 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
   ctx.textAlign = "center";
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 30px monospace";
-  ctx.fillText("图 鉴", width / 2, 52);
+  ctx.fillText("图 鉴", width / 2, 46);
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 13px monospace";
+  ctx.fillText(`收集度 ${pct}%`, width / 2, 68);
 
   // monster grid: 4 x 2
   const cw = 168;
@@ -359,10 +362,13 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
 // ---- permanent upgrade shop ------------------------------------------------
 
 export function shopItemRect(i, width, height) {
-  const w = 560;
+  // two columns x four rows
+  const w = 430;
   const h = 56;
   const gap = 10;
-  return { x: width / 2 - w / 2, y: 120 + i * (h + gap), w, h };
+  const col = Math.floor(i / 4);
+  const x = col === 0 ? width / 2 - w - 8 : width / 2 + 8;
+  return { x, y: 120 + (i % 4) * (h + gap), w, h };
 }
 
 // items: [{name, desc, lvl, max, cost, color}], cost null = maxed
