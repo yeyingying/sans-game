@@ -259,6 +259,18 @@ if (MODE === "normal") {
   check("kills accumulated (mowing works)", bestKills > 15, `bestKills=${bestKills}`);
   const dEnd = dbg();
   check("coins earned and banked", dEnd.lastRunCoins > 0 && dEnd.wallet > 0, `last=${dEnd.lastRunCoins} wallet=${dEnd.wallet}`);
+
+  // daily challenge: seeded run with a rotating character, local best kept
+  key(" "); // gameover -> charselect
+  tap(84, 560); // back to title (back button)
+  check("back on title", dbg().state === "title");
+  tap(421, 565); // daily challenge button
+  check("daily run starts", dbg().state === "playing" && dbg().daily === true, JSON.stringify(dbg()));
+  key("ArrowRight");
+  run(150, (d) => d.state === "gameover");
+  keyUp("ArrowRight");
+  check("daily settled", dbg().state === "gameover" && dbg().daily === false);
+  check("daily best stored", Object.keys(storage).some((k) => k.startsWith("daily_")));
 } else {
   // ?boss route: starts 2s before the boss with a survival kit
   run(1);

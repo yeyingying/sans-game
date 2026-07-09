@@ -123,6 +123,7 @@ import {
   drawShopScreen,
   codexButtonRect,
   drawCodexScreen,
+  dailyButtonRect,
   volumeMinusRect,
   volumePlusRect,
   sfxMinusRect,
@@ -217,6 +218,9 @@ let runMaxStreak = 0; // best streak this run, shown on the gameover screen
 let lowHpPulse = 0.9; // heartbeat timer while hp < 25%
 let runCoins = 0; // coins collected this run (banked at settlement)
 let runKillsByType = {}; // bestiary counts for this run
+let wasDaily = false; // settled run was a daily challenge
+let dailyBestToday = 0;
+let dailyNewBest = false;
 let lastRunCoins = 0; // shown on the gameover screen
 let bossDefeated = false; // endless mode: the boss is down, the horde is not
 
@@ -405,6 +409,16 @@ function settleGame() {
   lastRunCoins = runCoins;
   addCoins(runCoins);
   runCoins = 0;
+  // daily challenge: keep the day's best score locally
+  wasDaily = dailyMode;
+  if (dailyMode) {
+    const key = "daily_" + todayKey();
+    const prev = parseInt(localStorage.getItem(key) || "0", 10) || 0;
+    dailyNewBest = lastScore > prev;
+    dailyBestToday = Math.max(prev, lastScore);
+    localStorage.setItem(key, String(dailyBestToday));
+  }
+  exitDailyMode();
   recordRun({
     kills: player.kills,
     bossKilled: bossDefeated,
@@ -418,6 +432,7 @@ function settleGame() {
 }
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
+  exitDailyMode(); // safety: never leak the seeded RNG into normal play
   reset(currentWeaponList()[0].id);
   bgm.pause();
   bgm.currentTime = 0;
@@ -426,6 +441,53 @@ function toCharSelect() {
 
 // debug: open the page with ?boss to skip to the boss, ?boss=weak for a frail one
 const DEBUG_BOSS = new URLSearchParams(location.search).get("boss");
+
+// ---- daily challenge -------------------------------------------------------
+// One fixed-seed run per calendar day: same spawns/cards for everyone, a
+// rotating character (locks bypassed — it doubles as a demo), local best kept.
+
+let dailyMode = false;
+const nativeRandom = Math.random.bind(Math);
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function dailySeed() {
+  let h = 2166136261;
+  for (const ch of todayKey()) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function startDailyChallenge() {
+  const seed = dailySeed();
+  selectedChar = seed % CHARACTERS.length;
+  selectedWeapon = (seed >>> 3) % currentWeaponList().length;
+  dailyMode = true;
+  Math.random = mulberry32(seed); // whole run becomes deterministic
+  startGame();
+}
+
+function exitDailyMode() {
+  if (!dailyMode) return;
+  dailyMode = false;
+  Math.random = nativeRandom;
+}
 
 function startGame() {
   reset(currentWeaponList()[selectedWeapon].id);
@@ -794,6 +856,9 @@ function handleCanvasTap(pos) {
       sfxClick();
     } else if (inRect(pos, codexButtonRect(WIDTH, HEIGHT))) {
       state = "codex";
+      sfxClick();
+    } else if (inRect(pos, dailyButtonRect(WIDTH, HEIGHT))) {
+      startDailyChallenge();
       sfxClick();
     } else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) {
       toCharSelect();
@@ -2147,6 +2212,10 @@ function draw() {
       ctx.fillStyle = "#ff8a5d";
       ctx.fillText("★ 无尽模式", WIDTH - 16, 86);
     }
+    if (dailyMode) {
+      ctx.fillStyle = "#c59bff";
+      ctx.fillText("✦ 每日挑战", WIDTH - 16, bossDefeated ? 104 : 86);
+    }
     ctx.restore();
     ctx.textAlign = "left";
   }
@@ -2247,6 +2316,15 @@ function draw() {
       { text: `存活时间 ${Math.floor(elapsed)} 秒${bossDefeated ? " · ★击败Boss" : ""}`, font: "16px monospace" },
       { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
       { text: `金币 +${lastRunCoins}  (钱包 ${getCoins()} · 标题页可进强化商店)`, font: "14px monospace", color: "#ffd166" },
+      ...(wasDaily
+        ? [
+            {
+              text: `✦ 每日挑战 ${todayKey()} · 今日最佳 ${dailyBestToday}${dailyNewBest ? " (新纪录!)" : ""}`,
+              font: "14px monospace",
+              color: "#c59bff",
+            },
+          ]
+        : []),
       { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
       { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
     ]);
@@ -2283,6 +2361,7 @@ window.__dbg = () => ({
   lastRunCoins,
   wallet: getCoins(),
   endless: bossDefeated,
+  daily: dailyMode,
 });
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });
 

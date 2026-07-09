@@ -263,11 +263,26 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0) {
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 14px monospace";
   ctx.fillText("图鉴", cx.x + cx.w / 2, cx.y + 22);
+
+  // daily challenge: fixed seed, rotating character, local best
+  const db = dailyButtonRect(width, height);
+  ctx.fillStyle = "#1f1626";
+  ctx.fillRect(db.x, db.y, db.w, db.h);
+  ctx.strokeStyle = "#c59bff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(db.x, db.y, db.w, db.h);
+  ctx.fillStyle = "#c59bff";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText("每日挑战 ✦", db.x + db.w / 2, db.y + 22);
   ctx.restore();
 }
 
 export function codexButtonRect(width, height) {
   return { x: 216, y: height - 52, w: 110, h: 34 };
+}
+
+export function dailyButtonRect(width, height) {
+  return { x: 336, y: height - 52, w: 170, h: 34 };
 }
 
 // ---- codex / collection ------------------------------------------------------
