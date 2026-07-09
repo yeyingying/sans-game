@@ -67,6 +67,7 @@ import {
   charUnlockInfo,
   isWeaponUnlocked,
   weaponUnlockInfo,
+  getStats,
   DIFFICULTIES,
   isDifficultyUnlocked,
   getDifficulty,
@@ -120,6 +121,8 @@ import {
   shopButtonRect,
   shopItemRect,
   drawShopScreen,
+  codexButtonRect,
+  drawCodexScreen,
   volumeMinusRect,
   volumePlusRect,
   sfxMinusRect,
@@ -213,6 +216,7 @@ let streakTier = 0;
 let runMaxStreak = 0; // best streak this run, shown on the gameover screen
 let lowHpPulse = 0.9; // heartbeat timer while hp < 25%
 let runCoins = 0; // coins collected this run (banked at settlement)
+let runKillsByType = {}; // bestiary counts for this run
 let lastRunCoins = 0; // shown on the gameover screen
 let bossDefeated = false; // endless mode: the boss is down, the horde is not
 
@@ -251,7 +255,7 @@ const BGM_TRACKS = {
 };
 // per-character loudness tweak (horror's track is a touch quiet)
 const CHAR_VOL = { horror: 1.4 };
-const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop"]);
+const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop", "codex"]);
 let bgmVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem("bgmVolume") ?? "0.5") || 0.5));
 
 // menu theme plays on the title / select screens with a gentle fade
@@ -379,6 +383,7 @@ function reset(weaponId) {
   runMaxStreak = 0;
   lowHpPulse = 0.9;
   runCoins = 0;
+  runKillsByType = {};
   bossDefeated = false;
   lastHitBy = null;
   lastDeathBy = null;
@@ -400,7 +405,16 @@ function settleGame() {
   lastRunCoins = runCoins;
   addCoins(runCoins);
   runCoins = 0;
-  recordRun({ kills: player.kills, bossKilled: bossDefeated, charId: player.character, difficulty: getDifficulty().id });
+  recordRun({
+    kills: player.kills,
+    bossKilled: bossDefeated,
+    charId: player.character,
+    difficulty: getDifficulty().id,
+    killsByType: runKillsByType,
+    weaponsUsed: player.weapons.map((i) => i.id),
+    evolvedIds: player.weapons.filter((i) => i.evolved).map((i) => i.id),
+  });
+  runKillsByType = {};
 }
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
@@ -778,8 +792,18 @@ function handleCanvasTap(pos) {
     } else if (inRect(pos, shopButtonRect(WIDTH, HEIGHT))) {
       state = "shop";
       sfxClick();
+    } else if (inRect(pos, codexButtonRect(WIDTH, HEIGHT))) {
+      state = "codex";
+      sfxClick();
     } else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) {
       toCharSelect();
+      sfxClick();
+    }
+    return;
+  }
+  if (state === "codex") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "title";
       sfxClick();
     }
     return;
@@ -947,7 +971,7 @@ window.addEventListener("keydown", (e) => {
     if (k === " " || k === "enter" || k === "escape") state = "title";
     return;
   }
-  if (state === "shop") {
+  if (state === "shop" || state === "codex") {
     if (k === "escape") state = "title";
     return;
   }
@@ -1334,6 +1358,7 @@ function update(dt) {
   const dead = enemies.filter((e) => e.hp <= 0 && !e.boss);
   for (const e of dead) {
     player.kills += 1;
+    runKillsByType[e.type] = (runKillsByType[e.type] || 0) + 1;
     if (!e.noXp) spawnDrops(e);
     if (e.elite) {
       // elites go out with a bang: shock ring + deep boom
@@ -2155,6 +2180,25 @@ function draw() {
     drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans], getCoins());
   } else if (state === "shop") {
     drawShopScreen(ctx, WIDTH, HEIGHT, shopItems(), getCoins());
+  } else if (state === "codex") {
+    const st = getStats();
+    const monsters = Object.keys(ENEMY_NAMES).map((t) => ({
+      name: ENEMY_NAMES[t],
+      sprite: ENEMY_SPRITES[t],
+      kills: st.killsByType[t] || 0,
+    }));
+    const weaponRows = CHARACTERS.map((c) => {
+      const list = WEAPON_LISTS[c.id];
+      return {
+        charName: c.name,
+        color: c.color,
+        used: list.filter((w) => st.weaponsUsed[w.id]).length,
+        total: list.length,
+        evolved: list.filter((w) => w.evolve && st.evolved[w.id]).length,
+        evoTotal: list.filter((w) => w.evolve).length,
+      };
+    });
+    drawCodexScreen(ctx, WIDTH, HEIGHT, monsters, st.bossKills, weaponRows);
   } else if (state === "charselect") {
     drawCharSelect(
       ctx,

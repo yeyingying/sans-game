@@ -152,6 +152,12 @@ function run(seconds, onFrame) {
   check("difficulty multipliers wired", M.getDifficulty().hpMult === 1.6 && M.getDifficulty().coinMult === 1.6);
   check("cannot set locked difficulty", !M.setDifficulty(2));
   M.setDifficulty(0); // restore for the game-flow run below
+  // codex collection tracking
+  M.recordRun({ killsByType: { slime: 10, bat: 3 }, weaponsUsed: ["bone", "orbit"], evolvedIds: ["bone"] });
+  const st = M.getStats();
+  check("bestiary counts", st.killsByType.slime === 10 && st.killsByType.bat === 3);
+  check("weapon codex tracked", st.weaponsUsed.bone === true && st.weaponsUsed.orbit === true);
+  check("evolution codex tracked", st.evolved.bone === true && !st.evolved.orbit);
   // note: module state stays warm for the game-flow run below (atk+2, ukb
   // unlocked) — none of the flow assertions depend on a cold wallet
 }
@@ -186,6 +192,23 @@ console.log(`--- mode: ${MODE} ---`);
 frame(); // first frame after module load
 
 check("boots to title", dbg().state === "title");
+
+// UI smoke: tap into the codex and the shop, render a frame in each, tap back
+function tap(x, y) {
+  for (const fn of listeners.canvas.pointerup || [])
+    fn({ clientX: x, clientY: y, isPrimary: true, button: 0, preventDefault: () => {} });
+}
+tap(271, 565); // codex button
+check("codex opens", dbg().state === "codex");
+frame(); // draws the codex screen (catches reference errors)
+tap(84, 560); // back
+check("codex closes", dbg().state === "title");
+tap(111, 565); // shop button
+check("shop opens", dbg().state === "shop");
+frame();
+tap(84, 560); // back
+check("shop closes", dbg().state === "title");
+frame();
 key(" "); // title -> charselect
 check("charselect", dbg().state === "charselect");
 key("Enter"); // -> weapon select

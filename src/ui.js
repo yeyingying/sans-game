@@ -252,6 +252,92 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0) {
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 14px monospace";
   ctx.fillText(`强化商店 · ⓖ ${coins}`, sb.x + sb.w / 2, sb.y + 22);
+
+  // codex button right next to the shop
+  const cx = codexButtonRect(width, height);
+  ctx.fillStyle = "#151d24";
+  ctx.fillRect(cx.x, cx.y, cx.w, cx.h);
+  ctx.strokeStyle = "#7ea8ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx.x, cx.y, cx.w, cx.h);
+  ctx.fillStyle = "#7ea8ff";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText("图鉴", cx.x + cx.w / 2, cx.y + 22);
+  ctx.restore();
+}
+
+export function codexButtonRect(width, height) {
+  return { x: 216, y: height - 52, w: 110, h: 34 };
+}
+
+// ---- codex / collection ------------------------------------------------------
+
+// monsters: [{name, sprite, kills}] (kills 0 => "???"),
+// weaponRows: [{charName, color, used, total, evolved, evoTotal}]
+export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponRows) {
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#7ea8ff";
+  ctx.font = "bold 30px monospace";
+  ctx.fillText("图 鉴", width / 2, 52);
+
+  // monster grid: 4 x 2
+  const cw = 168;
+  const chh = 108;
+  const gap = 12;
+  const gx = width / 2 - (cw * 4 + gap * 3) / 2;
+  const gy = 78;
+  monsters.forEach((m, i) => {
+    const x = gx + (i % 4) * (cw + gap);
+    const y = gy + Math.floor(i / 4) * (chh + gap);
+    const seen = m.kills > 0;
+    ctx.fillStyle = "#1d1828";
+    ctx.fillRect(x, y, cw, chh);
+    ctx.strokeStyle = seen ? "#5a5468" : "#2a2436";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, cw, chh);
+    if (seen && m.sprite) {
+      ctx.imageSmoothingEnabled = false;
+      const s = 44;
+      ctx.drawImage(m.sprite, x + cw / 2 - s / 2, y + 10, s, s);
+    } else {
+      ctx.fillStyle = "#453f52";
+      ctx.font = "bold 26px monospace";
+      ctx.fillText("?", x + cw / 2, y + 42);
+    }
+    ctx.fillStyle = seen ? "#f2ead8" : "#453f52";
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(seen ? m.name : "？？？", x + cw / 2, y + 74);
+    if (seen) {
+      ctx.fillStyle = "#9a93ab";
+      ctx.font = "11px monospace";
+      ctx.fillText(`击杀 ${m.kills}`, x + cw / 2, y + 92);
+    }
+  });
+
+  // boss line
+  const by = gy + 2 * (chh + gap) + 16;
+  ctx.fillStyle = bossKills > 0 ? "#ffd166" : "#453f52";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText(bossKills > 0 ? `☠ 天意侵蚀Sans · 击败 ${bossKills} 次` : "☠ ？？？（5:00 出现的存在）", width / 2, by);
+
+  // weapon collection rows
+  ctx.font = "13px monospace";
+  weaponRows.forEach((r, i) => {
+    const y = by + 26 + i * 22;
+    ctx.fillStyle = r.color;
+    ctx.textAlign = "right";
+    ctx.fillText(r.charName, width / 2 - 20, y);
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#c8c2d4";
+    ctx.fillText(`武器 ${r.used}/${r.total} · 进化 ${r.evolved}/${r.evoTotal}`, width / 2 - 4, y);
+  });
+  ctx.textAlign = "center";
+
+  drawBackButton(ctx, width, height);
   ctx.restore();
 }
 

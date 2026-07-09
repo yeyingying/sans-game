@@ -91,12 +91,23 @@ export function rerollBonus() {
 let stats = readJson("metaStats", { totalKills: 0, runs: 0, bossKills: 0 });
 if (!stats.charKills) stats.charKills = {}; // per-character kills (weapon unlocks)
 if (stats.diffCleared === undefined) stats.diffCleared = -1; // hardest difficulty with a boss kill
+if (!stats.killsByType) stats.killsByType = {}; // bestiary counts
+if (!stats.weaponsUsed) stats.weaponsUsed = {}; // codex: weapon ever owned
+if (!stats.evolved) stats.evolved = {}; // codex: evolution ever reached
 
 export function getStats() {
   return stats;
 }
 
-export function recordRun({ kills = 0, bossKilled = false, charId = null, difficulty = 0 } = {}) {
+export function recordRun({
+  kills = 0,
+  bossKilled = false,
+  charId = null,
+  difficulty = 0,
+  killsByType = null,
+  weaponsUsed = null,
+  evolvedIds = null,
+} = {}) {
   stats.totalKills += kills;
   stats.runs += 1;
   if (charId) stats.charKills[charId] = (stats.charKills[charId] || 0) + kills;
@@ -104,6 +115,13 @@ export function recordRun({ kills = 0, bossKilled = false, charId = null, diffic
     stats.bossKills += 1;
     stats.diffCleared = Math.max(stats.diffCleared, difficulty);
   }
+  if (killsByType) {
+    for (const [t, n] of Object.entries(killsByType)) {
+      stats.killsByType[t] = (stats.killsByType[t] || 0) + n;
+    }
+  }
+  if (weaponsUsed) for (const id of weaponsUsed) stats.weaponsUsed[id] = true;
+  if (evolvedIds) for (const id of evolvedIds) stats.evolved[id] = true;
   store.setItem("metaStats", JSON.stringify(stats));
 }
 
