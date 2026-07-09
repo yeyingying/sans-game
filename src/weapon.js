@@ -1900,7 +1900,7 @@ function updateInstance(player, inst, dt, world) {
     const dmg = weaponDmg(player, tier.dmgMult);
     const count = tier.smashes + extraAmmo;
     // fists only reach so far — cap the strike range near the player
-    const SLAM_RANGE = 100;
+    const SLAM_RANGE = 120;
     const picks = enemies
       .map((e) => ({ e, d: Math.hypot(e.x - player.x, e.y - player.y) }))
       .filter((o) => o.d <= SLAM_RANGE)
@@ -1925,7 +1925,7 @@ function updateInstance(player, inst, dt, world) {
     }
   } else if (weapon.id === "axes") {
     const dmg = weaponDmg(player, tier.dmgMult);
-    const count = tier.count + extraAmmo;
+    const count = Math.min(tier.count + extraAmmo, 5); // hard cap of 5 axes
     const spreadRad = 0.5 + count * 0.07;
     for (let i = 0; i < count; i++) {
       const t = count === 1 ? 0 : i / (count - 1) - 0.5;
@@ -1954,6 +1954,8 @@ function updateInstance(player, inst, dt, world) {
         shot.decel = (speed0 * speed0) / (2 * effRange * 1.4);
         shot.maxRange = Infinity;
         shot.bounces = inst.enhance - 1;
+        // 3+ stacks: pause in front of the body on each return, then relaunch
+        shot.frontHover = inst.enhance > 2;
       }
       world.spawnProjectile(shot);
     }
@@ -2102,8 +2104,26 @@ export function updateWeapons(player, dt, world) {
     }
   }
   // boomerang flight: decelerate outward, then fly back to the player
+  const relaunch = (p) => {
+    p.returning = false;
+    const t = findNearestEnemy(player.x, player.y, 500, world.enemies);
+    const ang = t ? Math.atan2(t.y - player.y, t.x - player.x) : Math.atan2(p.vy, p.vx);
+    p.dirX = Math.cos(ang);
+    p.dirY = Math.sin(ang);
+    p.vx = p.dirX * p.speed0;
+    p.vy = p.dirY * p.speed0;
+    p.hitSet.clear();
+  };
   for (const p of world.projectiles) {
     if (!p.boom) continue;
+    // paused in front of the body, then thrown out again
+    if (p.hoverTimer > 0) {
+      p.hoverTimer -= dt;
+      p.vx = 0;
+      p.vy = 0;
+      if (p.hoverTimer <= 0) relaunch(p);
+      continue;
+    }
     if (!p.returning) {
       p.vx -= p.dirX * p.decel * dt;
       p.vy -= p.dirY * p.decel * dt;
@@ -2116,20 +2136,15 @@ export function updateWeapons(player, dt, world) {
       const dx = player.x - p.x;
       const dy = player.y - p.y;
       const d = Math.hypot(dx, dy) || 1;
+      // front-hover axes stop ~44px short of the body instead of touching it
+      const arrive = p.frontHover ? 44 : player.radius + 12;
       p.vx = (dx / d) * p.speed0;
       p.vy = (dy / d) * p.speed0;
-      if (d < player.radius + 12) {
+      if (d < arrive) {
         if (p.bounces > 0) {
-          // relaunch toward the nearest enemy for another pass
           p.bounces -= 1;
-          p.returning = false;
-          const t = findNearestEnemy(player.x, player.y, 500, world.enemies);
-          const ang = t ? Math.atan2(t.y - player.y, t.x - player.x) : Math.atan2(p.vy, p.vx);
-          p.dirX = Math.cos(ang);
-          p.dirY = Math.sin(ang);
-          p.vx = p.dirX * p.speed0;
-          p.vy = p.dirY * p.speed0;
-          p.hitSet.clear();
+          if (p.frontHover) p.hoverTimer = 0.18; // pause in front, then relaunch
+          else relaunch(p);
         } else {
           p.pierce = 0; // caught
         }

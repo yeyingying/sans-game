@@ -155,6 +155,25 @@ export function creditsButtonRect(width, height) {
   return { x: width - 132, y: height - 52, w: 116, h: 34 };
 }
 
+export function backButtonRect(width, height) {
+  return { x: 24, y: height - 62, w: 120, h: 44 };
+}
+
+export function drawBackButton(ctx, width, height) {
+  const btn = backButtonRect(width, height);
+  ctx.save();
+  ctx.fillStyle = "#241f2b";
+  ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.strokeStyle = "#8fd6ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.fillStyle = "#8fd6ff";
+  ctx.font = "bold 17px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("← 返回", btn.x + btn.w / 2, btn.y + 28);
+  ctx.restore();
+}
+
 export function drawTitleScreen(ctx, width, height, portraits) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.99)";
@@ -289,6 +308,7 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
   ctx.fillText("确 定", width / 2, btn.y + 29);
+  drawBackButton(ctx, width, height);
   ctx.restore();
 }
 
@@ -367,6 +387,7 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
   ctx.fillText("确 定", width / 2, btn.y + 29);
+  drawBackButton(ctx, width, height);
   ctx.restore();
 }
 

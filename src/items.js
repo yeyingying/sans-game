@@ -68,13 +68,14 @@ export const EQUIPMENT_TYPES = [
     label: "WEAPON UP!",
     color: "#7ea8ff",
     sprite: PICKUP_CORE,
-    weight: 6,
+    weight: 2, // rarer than before (was 6)
     apply(player) {
+      // upgrade a random weapon that still has room to level up
       const upgradable = player.weapons.filter((w) => w.tier < 4);
       if (upgradable.length) {
         upgradable[Math.floor(Math.random() * upgradable.length)].tier += 1;
       } else {
-        player.atk += 3;
+        player.atk += 3; // all weapons maxed: fall back to a small atk boost
       }
     },
   },

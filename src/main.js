@@ -50,7 +50,8 @@ import {
   applyLevelUpBonus,
   weaponSummary,
 } from "./weapon.js";
-import { rollEquipmentDrop } from "./items.js";
+import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
+import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
 import {
   drawHud,
@@ -60,6 +61,7 @@ import {
   drawWeaponSelect,
   weaponBoxRect,
   confirmButtonRect,
+  backButtonRect,
   drawChoiceScreen,
   choiceBoxRect,
   rerollButtonRect,
@@ -201,6 +203,7 @@ function fadeAudio(audio, target, dt, speed) {
 }
 let introBlack = 0; // seconds of black-screen intro when a game begins
 let camX = 0; // world x of the view's left edge (map is infinite horizontally)
+let bossFight = null; // active 天意侵蚀Sans encounter, or null
 
 function currentCharacter() {
   return CHARACTERS[selectedChar];
@@ -223,6 +226,7 @@ function reset(weaponId) {
   pickups = [];
   floatingTexts = [];
   elapsed = 0;
+  bossFight = null;
   camX = player.x - WIDTH / 2;
   choiceInterval = CHOICE_INTERVAL;
   nextChoiceAt = choiceInterval;
@@ -231,8 +235,32 @@ function reset(weaponId) {
 
 reset(currentWeaponList()[0].id);
 
+function settleGame() {
+  // score settlement shown for both death and quitting from pause
+  state = "gameover";
+  bgm.pause();
+  lastScore = currentScore();
+  lastBest = bestScoreOf(player.character);
+  newRecord = lastScore > lastBest;
+  if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
+}
+function toCharSelect() {
+  // wipe the world so the old battlefield doesn't show behind the menu
+  reset(currentWeaponList()[0].id);
+  bgm.pause();
+  bgm.currentTime = 0;
+  state = "charselect";
+}
+
+// debug: open the page with ?boss to skip to the boss, ?boss=weak for a frail one
+const DEBUG_BOSS = new URLSearchParams(location.search).get("boss");
+
 function startGame() {
   reset(currentWeaponList()[selectedWeapon].id);
+  if (DEBUG_BOSS !== null) {
+    elapsed = BOSS_APPEAR_TIME - 2;
+    nextChoiceAt = 99999; // skip the backlog of choice screens
+  }
   timeScale = 1;
   state = "playing";
   introBlack = 1.5; // brief black screen while the music crossfades
@@ -522,7 +550,7 @@ function handleCanvasTap(pos) {
   }
   if (state === "title") {
     if (inRect(pos, creditsButtonRect(WIDTH, HEIGHT))) state = "credits";
-    else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) state = "charselect";
+    else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) toCharSelect();
     return;
   }
   if (state === "credits") {
@@ -530,6 +558,10 @@ function handleCanvasTap(pos) {
     return;
   }
   if (state === "charselect") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "title";
+      return;
+    }
     for (let i = 0; i < CHARACTERS.length; i++) {
       if (inRect(pos, charBoxRect(i, WIDTH, HEIGHT, CHARACTERS.length))) {
         selectedChar = i;
@@ -541,6 +573,10 @@ function handleCanvasTap(pos) {
       state = "select";
     }
   } else if (state === "select") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "charselect";
+      return;
+    }
     for (let i = 0; i < currentWeaponList().length; i++) {
       if (inRect(pos, weaponBoxRect(i, WIDTH))) {
         selectedWeapon = i;
@@ -561,9 +597,7 @@ function handleCanvasTap(pos) {
       state = "playing";
       bgmPlay();
     } else if (inRect(pos, quitButtonRect(WIDTH, HEIGHT))) {
-      state = "charselect";
-      bgm.pause();
-      bgm.currentTime = 0;
+      settleGame(); // show the score settlement before leaving
     }
   } else if (state === "choice") {
     if (choiceRerollAvailable && inRect(pos, rerollButtonRect(WIDTH, HEIGHT))) {
@@ -578,7 +612,7 @@ function handleCanvasTap(pos) {
       }
     }
   } else if (state === "gameover") {
-    state = "charselect";
+    toCharSelect();
   }
 }
 
@@ -643,7 +677,7 @@ window.addEventListener("keydown", (e) => {
   } else if (state === "choice") {
     if (k >= "1" && k <= "3") applyChoice(Number(k) - 1);
   } else if (state === "gameover" && (k === " " || k === "enter")) {
-    state = "charselect";
+    toCharSelect();
   }
 });
 
@@ -679,9 +713,9 @@ function explodeBomb(b) {
       e.takeDamage(b.dmg);
     }
   }
-  // 骨雷强化: echo explosions at the same spot
+  // 骨雷强化: echo explosions at the same spot (pure shockwave, no bone)
   for (let i = 1; i <= (b.echo || 0); i++) {
-    spikes.push(new Spike({ x: b.x, y: b.y, dmg: b.dmg, delay: 0.35 * i, wave: b.blast, knockback: 0, color: "#ffffff" }));
+    spikes.push(new Spike({ x: b.x, y: b.y, dmg: b.dmg, delay: 0.35 * i, wave: b.blast, knockback: 0, color: "#ffffff", noBone: true }));
   }
 }
 
@@ -709,14 +743,27 @@ function update(dt) {
   elapsed += dt;
   const hpBefore = player.hp;
 
-  if (elapsed >= nextChoiceAt) {
+  if (!bossFight && elapsed >= nextChoiceAt) {
     nextChoiceAt += choiceInterval;
     choiceOptions = rollChoices();
     choiceRerollAvailable = true;
     state = "choice";
   }
 
-  const moveVec = getMoveVector();
+  // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
+  if (!bossFight && elapsed >= BOSS_APPEAR_TIME) {
+    bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H);
+    enemies.length = 0;
+    pickups.length = 0;
+    enemies.push(bossFight.boss);
+    if (DEBUG_BOSS === "weak") {
+      bossFight.boss.maxHp = 500;
+      bossFight.boss.hp = 500;
+    }
+  }
+
+  const bossCutscene = bossFight && (bossFight.state === "intro" || bossFight.state === "transition");
+  const moveVec = bossCutscene ? { x: 0, y: 0 } : getMoveVector();
   const bounds = {
     left: -Infinity, // the hall stretches forever to both sides
     right: Infinity,
@@ -738,21 +785,24 @@ function update(dt) {
   player.regen = baseRegen;
   camX = player.x - WIDTH / 2;
 
-  updateWeapons(player, dt, {
-    enemies,
-    projectiles,
-    spawnProjectile,
-    spawnBomb,
-    spawnSpike,
-    spawnBlast,
-    bounds: { top: WALL_H + 20, bottom: HEIGHT - 16 }, // playfield, excluding the column wall
-  });
+  if (!bossCutscene) {
+    updateWeapons(player, dt, {
+      enemies,
+      projectiles,
+      spawnProjectile,
+      spawnBomb,
+      spawnSpike,
+      spawnBlast,
+      bounds: { top: WALL_H + 20, bottom: HEIGHT - 16 }, // playfield, excluding the column wall
+    });
+  }
 
-  for (const e of spawner.update(dt, camX)) enemies.push(e);
+  if (!bossFight) for (const e of spawner.update(dt, camX)) enemies.push(e);
 
   // enemies left far behind wrap around to just ahead of the view so
   // running sideways forever doesn't shake off the horde
   for (const e of enemies) {
+    if (e.boss) continue;
     const dx = e.x - player.x;
     if (Math.abs(dx) > WIDTH / 2 + 140) {
       e.x = player.x - Math.sign(dx) * (WIDTH / 2 + 60);
@@ -762,6 +812,7 @@ function update(dt) {
 
   const shieldUp = player.shieldTimer > 0;
   for (const e of enemies) {
+    if (e.boss) continue; // the boss is driven by its own controller
     e.update(dt, player);
     // teleporter arrival strike (fixed 30 dmg in a small zone)
     if (e.strike) {
@@ -894,12 +945,41 @@ function update(dt) {
   }
   spikes = spikes.filter((sp) => !sp.expired);
 
-  const dead = enemies.filter((e) => e.hp <= 0);
+  if (bossFight) {
+    bossFight.update(dt, {
+      player,
+      enemies,
+      projectiles,
+      camX,
+      WIDTH,
+      HEIGHT,
+      WALL_H,
+      summon: (n) => {
+        const types = ["slime", "bat", "ghost", "tank", "red", "orange", "blue", "purple"];
+        for (let i = 0; i < n; i++) {
+          const ty = types[Math.floor(Math.random() * types.length)];
+          const ex = camX + 40 + Math.random() * (WIDTH - 80);
+          const ey = WALL_H + 30 + Math.random() * (HEIGHT - WALL_H - 60);
+          const e = new Enemy(ty, ex, ey, spawner.scale(false));
+          e.noXp = true; // summoned monsters drop nothing
+          enemies.push(e);
+        }
+      },
+      dropHeart: (hx, hy) => {
+        const heart = new Pickup(hx, hy, "bossheart", {});
+        heart.radius = 12;
+        pickups.push(heart);
+      },
+    });
+    if (bossFight.done) enemies = enemies.filter((e) => !e.boss);
+  }
+
+  const dead = enemies.filter((e) => e.hp <= 0 && !e.boss);
   for (const e of dead) {
     player.kills += 1;
-    spawnDrops(e);
+    if (!e.noXp) spawnDrops(e);
   }
-  enemies = enemies.filter((e) => e.hp > 0);
+  enemies = enemies.filter((e) => (e.hp > 0 || e.boss));
 
   for (const pu of pickups) {
     pu.update(dt, player, player.magnetRadius);
@@ -908,6 +988,12 @@ function update(dt) {
       if (pu.kind === "xp") {
         const levels = player.addXp(pu.data.amount);
         if (levels > 0) onLevelUp(levels);
+      } else if (pu.kind === "bossheart") {
+        player.hp = player.maxHp; // full heal
+        for (const t of EQUIPMENT_TYPES) t.apply(player); // every gem's effect
+        player.kills += 50; // the boss counts as 50 kills
+        floatingTexts.push(new FloatingText(player.x, player.y - 26, "决心！全属性提升", "#ffffff"));
+        settleGame();
       } else {
         pu.data.type.apply(player);
         floatingTexts.push(new FloatingText(player.x, player.y - 26, pu.data.type.label, pu.data.type.color));
@@ -927,14 +1013,7 @@ function update(dt) {
   }
   if (hurtFlash > 0) hurtFlash -= dt;
 
-  if (player.hp <= 0) {
-    state = "gameover";
-    bgm.pause();
-    lastScore = currentScore();
-    lastBest = bestScoreOf(player.character);
-    newRecord = lastScore > lastBest;
-    if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
-  }
+  if (player.hp <= 0) settleGame();
 }
 
 // ---- draw -------------------------------------------------------------
@@ -1024,6 +1103,14 @@ function draw() {
   ctx.translate(-camX, 0); // world space from here
 
   for (const pu of pickups) {
+    if (pu.kind === "bossheart") {
+      ctx.save();
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 24;
+      drawSprite(ctx, PICKUP_XP, pu.x, pu.y, 26);
+      ctx.restore();
+      continue;
+    }
     const sprite = pu.kind === "xp" ? PICKUP_XP : pu.data.type.sprite;
     if (pu.kind !== "xp") {
       ctx.save();
@@ -1121,6 +1208,7 @@ function draw() {
   }
 
   for (const e of enemies) {
+    if (e.boss) continue; // the boss draws itself
     if (e.elite) {
       ctx.save();
       ctx.strokeStyle = "#ffd166";
@@ -1524,6 +1612,8 @@ function draw() {
   }
   ctx.textAlign = "left";
 
+  if (bossFight) bossFight.draw(ctx);
+
   ctx.restore(); // back to screen space for the HUD and overlays
 
   if (hurtFlash > 0 && (state === "playing" || state === "choice")) {
@@ -1534,6 +1624,7 @@ function draw() {
   }
 
   drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player), healFlash);
+  if (bossFight) bossFight.drawOverlay(ctx);
   if (state === "playing" || state === "paused" || state === "choice") {
     drawSpeedButton(ctx, WIDTH, timeScale);
     drawPauseButton(ctx, WIDTH, state === "paused");
@@ -1604,6 +1695,19 @@ function draw() {
     ]);
   }
 }
+
+// debug probe (dev only)
+window.__dbg = () => ({
+  state,
+  elapsed: Math.round(elapsed * 10) / 10,
+  introBlack: Math.round(introBlack * 100) / 100,
+  boss: bossFight ? bossFight.state + "/" + bossFight.step : null,
+  bossHp: bossFight ? bossFight.boss.hp : null,
+  hp: player ? Math.round(player.hp) : null,
+  px: player ? Math.round(player.x) : null,
+  camX: Math.round(camX),
+});
+window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });
 
 let lastTime = performance.now();
 function loop(now) {
