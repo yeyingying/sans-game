@@ -65,6 +65,12 @@ import {
   recordRun,
   isCharUnlocked,
   charUnlockInfo,
+  isWeaponUnlocked,
+  weaponUnlockInfo,
+  DIFFICULTIES,
+  isDifficultyUnlocked,
+  getDifficulty,
+  setDifficulty,
 } from "./meta.js";
 import {
   initSfx,
@@ -102,6 +108,7 @@ import {
   drawSpeedButton,
   pauseButtonRect,
   drawPauseButton,
+  diffPillRect,
   drawJoystick,
   quitButtonRect,
   drawQuitButton,
@@ -189,7 +196,7 @@ let lastScore = 0;
 let lastBest = 0;
 let newRecord = false;
 function currentScore() {
-  return Math.floor(player.kills * 5 + Math.floor(elapsed) * 2.5);
+  return Math.floor((player.kills * 5 + Math.floor(elapsed) * 2.5) * getDifficulty().scoreMult);
 }
 function bestScoreOf(charId) {
   return parseInt(localStorage.getItem("best_" + charId) || "0", 10) || 0;
@@ -295,6 +302,30 @@ function currentCharacter() {
   return CHARACTERS[selectedChar];
 }
 
+function weaponLocks() {
+  const cid = currentCharacter().id;
+  const locks = {};
+  currentWeaponList().forEach((w, i) => {
+    if (!isWeaponUnlocked(cid, i)) locks[i] = weaponUnlockInfo(cid, i);
+  });
+  return locks;
+}
+
+function diffPills() {
+  const active = getDifficulty().id;
+  return DIFFICULTIES.map((d) => ({
+    name: d.name,
+    active: d.id === active,
+    locked: !isDifficultyUnlocked(d.id),
+    hint:
+      d.id === active
+        ? d.id === 0
+          ? "标准体验"
+          : `怪物血×${d.hpMult} 伤×${d.dmgMult} · 金币×${d.coinMult} 分数×${d.scoreMult}`
+        : d.hint || "",
+  }));
+}
+
 function charLocks() {
   const locks = {};
   for (const c of CHARACTERS) {
@@ -324,7 +355,7 @@ function reset(weaponId) {
   player.character = currentCharacter().id;
   applyMetaUpgrades(player); // permanent shop upgrades kick in from second zero
   player.weapons = [createWeaponInstance(weaponId)];
-  spawner = new Spawner(WIDTH, HEIGHT, WALL_H);
+  spawner = new Spawner(WIDTH, HEIGHT, WALL_H, getDifficulty());
   enemies = [];
   projectiles = [];
   bombs = [];
@@ -369,7 +400,7 @@ function settleGame() {
   lastRunCoins = runCoins;
   addCoins(runCoins);
   runCoins = 0;
-  recordRun({ kills: player.kills, bossKilled: bossDefeated });
+  recordRun({ kills: player.kills, bossKilled: bossDefeated, charId: player.character, difficulty: getDifficulty().id });
 }
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
@@ -572,7 +603,11 @@ function buildChoicePool() {
     });
   }
 
-  const unowned = currentWeaponList().filter((w) => !player.weapons.some((i) => i.id === w.id));
+  // in-run new-weapon cards only offer weapons the player has unlocked
+  const cid = currentCharacter().id;
+  const unowned = currentWeaponList().filter(
+    (w, slot) => isWeaponUnlocked(cid, slot) && !player.weapons.some((i) => i.id === w.id)
+  );
   if (unowned.length) {
     pool.push({
       kind: "newWeapon",
@@ -783,6 +818,13 @@ function handleCanvasTap(pos) {
         return;
       }
     }
+    for (let i = 0; i < DIFFICULTIES.length; i++) {
+      if (inRect(pos, diffPillRect(i, WIDTH, HEIGHT))) {
+        if (setDifficulty(i)) sfxClick();
+        else sfxHurt(); // locked difficulty
+        return;
+      }
+    }
     if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) {
       if (charLocks()[currentCharacter().id]) {
         sfxHurt(); // locked character: show the condition, no entry
@@ -800,12 +842,20 @@ function handleCanvasTap(pos) {
     }
     for (let i = 0; i < currentWeaponList().length; i++) {
       if (inRect(pos, weaponBoxRect(i, WIDTH))) {
+        if (weaponLocks()[i]) {
+          sfxHurt(); // locked weapon: condition shown on the card
+          return;
+        }
         selectedWeapon = i;
         sfxClick();
         return;
       }
     }
     if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) {
+      if (weaponLocks()[selectedWeapon]) {
+        sfxHurt();
+        return;
+      }
       startGame();
       sfxClick();
     }
@@ -919,8 +969,13 @@ window.addEventListener("keydown", (e) => {
     else if (k === "arrowdown") selectedWeapon = (selectedWeapon + 1) % n;
     else if (k === "arrowleft" || k === "arrowright") selectedWeapon = (selectedWeapon + 4) % n;
     else if (k >= "1" && k <= String(n)) selectedWeapon = Number(k) - 1;
-    else if (k === " " || k === "enter") startGame();
-    else if (k === "escape") state = "charselect";
+    else if (k === " " || k === "enter") {
+      if (weaponLocks()[selectedWeapon]) {
+        sfxHurt(); // locked weapon can't start a run
+        return;
+      }
+      startGame();
+    } else if (k === "escape") state = "charselect";
   } else if (state === "choice") {
     if (k >= "1" && k <= "3") applyChoice(Number(k) - 1);
   } else if (state === "gameover" && (k === " " || k === "enter")) {
@@ -978,7 +1033,7 @@ function spawnDrops(enemy) {
   // coins: the between-runs currency. Value grows with the clock.
   if (enemy.elite || Math.random() < 0.13) {
     const base = (enemy.elite ? 6 : 1) * (1 + Math.floor(elapsed / 150));
-    const value = Math.max(1, Math.round(base * coinGainMult()));
+    const value = Math.max(1, Math.round(base * coinGainMult() * getDifficulty().coinMult));
     pickups.push(
       new Pickup(enemy.x + (Math.random() - 0.5) * 10, enemy.y + (Math.random() - 0.5) * 10, "coin", { value })
     );
@@ -1322,7 +1377,7 @@ function update(dt) {
         player.hp = player.maxHp;
         for (const t of EQUIPMENT_TYPES) t.apply(player);
         player.kills += 50; // the boss counts as 50 kills
-        runCoins += Math.round(80 * coinGainMult()); // boss bounty
+        runCoins += Math.round(80 * coinGainMult() * getDifficulty().coinMult); // boss bounty
         bossDefeated = true;
         bossFight = null; // hand the field back to the spawner
         spawner.endless = true; // elite pressure ramps up from here
@@ -2109,10 +2164,11 @@ function draw() {
       selectedChar,
       PLAYER_SPRITES,
       Object.fromEntries(CHARACTERS.map((c) => [c.id, bestScoreOf(c.id)])),
-      charLocks()
+      charLocks(),
+      diffPills()
     );
   } else if (state === "select") {
-    drawWeaponSelect(ctx, WIDTH, HEIGHT, currentWeaponList(), selectedWeapon, currentCharacter().name);
+    drawWeaponSelect(ctx, WIDTH, HEIGHT, currentWeaponList(), selectedWeapon, currentCharacter().name, weaponLocks());
   } else if (state === "paused") {
     drawCenterText(
       ctx,

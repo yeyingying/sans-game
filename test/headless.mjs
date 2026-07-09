@@ -137,6 +137,21 @@ function run(seconds, onFrame) {
   check("hard still locked", !M.isCharUnlocked("hard"));
   const info = M.charUnlockInfo("hard");
   check("unlock info present", !!info && info.hint.length > 0 && info.progress.length > 0);
+  // weapon unlocks (per-character kills)
+  check("weapon slots 0-2 free", M.isWeaponUnlocked("sans", 0) && M.isWeaponUnlocked("sans", 2));
+  check("weapon slot 3 locked at 0 kills", !M.isWeaponUnlocked("sans", 3));
+  M.recordRun({ kills: 300, charId: "sans" });
+  check("weapon slot 3 unlocks at 300 char kills", M.isWeaponUnlocked("sans", 3));
+  check("weapon slot 4 still locked", !M.isWeaponUnlocked("sans", 4));
+  const winfo = M.weaponUnlockInfo("sans", 4);
+  check("weapon unlock info present", !!winfo && winfo.progress === "300 / 800", winfo && winfo.progress);
+  // difficulty tiers
+  check("狂暴 unlocked after first boss", M.isDifficultyUnlocked(1));
+  check("地狱 locked until 狂暴 cleared", !M.isDifficultyUnlocked(2));
+  check("set difficulty works", M.setDifficulty(1) && M.getDifficulty().id === 1);
+  check("difficulty multipliers wired", M.getDifficulty().hpMult === 1.6 && M.getDifficulty().coinMult === 1.6);
+  check("cannot set locked difficulty", !M.setDifficulty(2));
+  M.setDifficulty(0); // restore for the game-flow run below
   // note: module state stays warm for the game-flow run below (atk+2, ukb
   // unlocked) — none of the flow assertions depend on a cold wallet
 }
@@ -148,6 +163,12 @@ function run(seconds, onFrame) {
     ["bone", "projectiles", 8],
     ["orbit", "count", 12],
     ["axes", "count", 8],
+    ["homing", "projectiles", 7],
+    ["bomb", "bombs", 5],
+    ["beam", "projectiles", 5],
+    ["spike", "targets", 7],
+    ["laser", "beams", 7],
+    ["boomerang", "boomerangs", 6],
   ]) {
     const inst = W.createWeaponInstance(id);
     check(`${id}: not evolvable at start`, !W.canEvolve(inst));

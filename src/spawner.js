@@ -6,10 +6,12 @@ export class Spawner {
   // each unlocks so the player clearly sees it enter the game
   static DEBUTS = { tank: 30, red: 60, orange: 105, blue: 120, purple: 150 };
 
-  constructor(width, height, top = 0) {
+  constructor(width, height, top = 0, diff = null) {
     this.width = width;
     this.height = height;
     this.top = top; // wall band at the top: no spawns, players can't enter
+    this.diffHp = diff ? diff.hpMult : 1; // difficulty tier multipliers
+    this.diffDmg = diff ? diff.dmgMult : 1;
     this.elapsed = 0;
     this.spawnTimer = 0;
     this.eliteTimer = 25;
@@ -49,8 +51,8 @@ export class Spawner {
     // warm-up minute: lots of frail enemies so the opening feels like mowing
     if (t < 60) hpMult *= 0.6 + 0.4 * (t / 60);
     return {
-      hpMult,
-      dmgMult: 1 + t / 50,
+      hpMult: hpMult * this.diffHp,
+      dmgMult: (1 + t / 50) * this.diffDmg,
       speedMult: 1 + Math.min(t / 90, 0.35),
       xpMult: 1 + t / 60,
       elite,

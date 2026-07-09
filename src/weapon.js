@@ -49,6 +49,11 @@ export const WEAPONS = {
     desc: "骨弹自动转向，追着敌人打",
     color: "#ff9e6b",
     enhance: { desc: "命中禁锢 0.5 秒", detail: "重复选择 +0.25s/层" },
+    evolve: {
+      name: "万骨归宗",
+      desc: "7发追魂骨弹，转向如影随形",
+      tier: { projectiles: 7, pierce: 5, dmgMult: 3.6, rateMult: 1.15, turn: 9, size: 14 },
+    },
     tiers: [
       { projectiles: 1, pierce: 1, dmgMult: 1.25, rateMult: 0.9, turn: 4.5, size: 9 },
       { projectiles: 2, pierce: 1, dmgMult: 1.35, rateMult: 0.95, turn: 5, size: 9 },
@@ -64,6 +69,11 @@ export const WEAPONS = {
     desc: "抛出骨雷，爆炸造成大范围伤害",
     color: "#ffd166",
     enhance: { desc: "爆炸次数 +2", detail: "重复选择爆炸次数 +1/层" },
+    evolve: {
+      name: "歼灭轰炸",
+      desc: "5连骨雷地毯式覆盖，半径暴涨",
+      tier: { bombs: 5, blast: 150, dmgMult: 5.5, rateMult: 0.65 },
+    },
     tiers: [
       { bombs: 1, blast: 64, dmgMult: 1.8, rateMult: 0.45 },
       { bombs: 1, blast: 76, dmgMult: 2.1, rateMult: 0.5 },
@@ -79,6 +89,11 @@ export const WEAPONS = {
     desc: "笔直飞行，无限穿透路径上所有敌人",
     color: "#c59bff",
     enhance: { desc: "每穿透一个敌人引发小爆炸", detail: "重复选择扩大爆炸范围" },
+    evolve: {
+      name: "审判之枪",
+      desc: "5道巨型骨矛，贯穿一切的白色审判",
+      tier: { projectiles: 5, spread: 24, dmgMult: 4.0, rateMult: 1.0, size: 17 },
+    },
     tiers: [
       { projectiles: 1, spread: 0, dmgMult: 1.1, rateMult: 0.7, size: 10 },
       { projectiles: 1, spread: 0, dmgMult: 1.4, rateMult: 0.75, size: 11 },
@@ -94,6 +109,11 @@ export const WEAPONS = {
     desc: "从地下召唤骨刺刺穿敌人，升级后骨刺和目标更多",
     color: "#d9c47a",
     enhance: { desc: "攻击时在身边召唤骨牢环", detail: "重复选择增加环上骨头数" },
+    evolve: {
+      name: "白骨刑场",
+      desc: "16根骨刺同时贯穿7个目标",
+      tier: { targets: 7, spikes: 16, dmgMult: 4.0, rateMult: 0.75 },
+    },
     tiers: [
       { targets: 1, spikes: 2, dmgMult: 1.4, rateMult: 0.55 },
       { targets: 2, spikes: 3, dmgMult: 1.55, rateMult: 0.55 },
@@ -109,6 +129,11 @@ export const WEAPONS = {
     desc: "低频率召唤旋转一整圈的激光风车，触碰持续掉血",
     color: "#9bd7ff",
     enhance: { desc: "激光待机时 +50% 减伤", detail: "每层 +10%，上限 90%" },
+    evolve: {
+      name: "湮灭风车",
+      desc: "7叶巨型光轮，触者皆熔",
+      tier: { beams: 7, dmgMult: 12, rateMult: 0.36, duration: 3.4, width: 20 },
+    },
     tiers: [
       { beams: 1, dmgMult: 4.5, rateMult: 0.28, duration: 2.6, width: 14 },
       { beams: 2, dmgMult: 5.2, rateMult: 0.28, duration: 2.6, width: 14 },
@@ -124,6 +149,11 @@ export const WEAPONS = {
     desc: "扔出后折返回手，去程回程各伤一次",
     color: "#7ce8a8",
     enhance: { desc: "回程伤害 +100%", detail: "重复选择 +20%/层" },
+    evolve: {
+      name: "无归之镖",
+      desc: "6把巨镖织成往返绞杀网",
+      tier: { boomerangs: 6, dmgMult: 3.2, rateMult: 0.95, size: 16 },
+    },
     tiers: [
       { boomerangs: 1, dmgMult: 1.3, rateMult: 0.8, size: 12 },
       { boomerangs: 2, dmgMult: 1.45, rateMult: 0.8, size: 12 },

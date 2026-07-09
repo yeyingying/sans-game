@@ -89,16 +89,70 @@ export function rerollBonus() {
 // ---- lifetime stats --------------------------------------------------------
 
 let stats = readJson("metaStats", { totalKills: 0, runs: 0, bossKills: 0 });
+if (!stats.charKills) stats.charKills = {}; // per-character kills (weapon unlocks)
+if (stats.diffCleared === undefined) stats.diffCleared = -1; // hardest difficulty with a boss kill
 
 export function getStats() {
   return stats;
 }
 
-export function recordRun({ kills = 0, bossKilled = false } = {}) {
+export function recordRun({ kills = 0, bossKilled = false, charId = null, difficulty = 0 } = {}) {
   stats.totalKills += kills;
   stats.runs += 1;
-  if (bossKilled) stats.bossKills += 1;
+  if (charId) stats.charKills[charId] = (stats.charKills[charId] || 0) + kills;
+  if (bossKilled) {
+    stats.bossKills += 1;
+    stats.diffCleared = Math.max(stats.diffCleared, difficulty);
+  }
   store.setItem("metaStats", JSON.stringify(stats));
+}
+
+// ---- weapon unlocks --------------------------------------------------------
+
+// per-character arsenal: first 3 weapons free, the rest earned with that
+// character's own kills — every run visibly ticks the next weapon closer
+const WEAPON_KILL_REQ = [0, 0, 0, 300, 800, 1500, 2500, 4000];
+
+export function charKills(charId) {
+  return stats.charKills[charId] || 0;
+}
+
+export function isWeaponUnlocked(charId, slot) {
+  return charKills(charId) >= (WEAPON_KILL_REQ[slot] ?? 0);
+}
+
+export function weaponUnlockInfo(charId, slot) {
+  const req = WEAPON_KILL_REQ[slot] ?? 0;
+  if (req <= 0) return null;
+  return { hint: `该角色累计击杀 ${req}`, progress: `${Math.min(charKills(charId), req)} / ${req}` };
+}
+
+// ---- difficulty tiers ------------------------------------------------------
+
+export const DIFFICULTIES = [
+  { id: 0, name: "普通", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, hint: null },
+  { id: 1, name: "狂暴", hpMult: 1.6, dmgMult: 1.4, coinMult: 1.6, scoreMult: 1.5, hint: "击败一次Boss解锁" },
+  { id: 2, name: "地狱", hpMult: 2.4, dmgMult: 1.9, coinMult: 2.5, scoreMult: 2.2, hint: "狂暴难度击败Boss解锁" },
+];
+
+export function isDifficultyUnlocked(id) {
+  if (id <= 0) return true;
+  if (id === 1) return stats.bossKills >= 1;
+  return stats.diffCleared >= id - 1;
+}
+
+let selectedDiff = parseInt(store.getItem("selectedDiff") || "0", 10) || 0;
+
+export function getDifficulty() {
+  if (!isDifficultyUnlocked(selectedDiff)) selectedDiff = 0; // stale save guard
+  return DIFFICULTIES[selectedDiff];
+}
+
+export function setDifficulty(id) {
+  if (!isDifficultyUnlocked(id)) return false;
+  selectedDiff = id;
+  store.setItem("selectedDiff", String(id));
+  return true;
 }
 
 // ---- character unlocks -----------------------------------------------------

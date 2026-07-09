@@ -323,8 +323,40 @@ export function charBoxRect(i, width, height, count = 2) {
   return { x: (width - total) / 2 + i * (w + gap), y: height / 2 - h / 2 - 20, w, h };
 }
 
+// difficulty pills on the character-select screen
+export function diffPillRect(i, width, height) {
+  const w = 130;
+  const h = 30;
+  const gap = 14;
+  const total = 3 * w + 2 * gap;
+  return { x: width / 2 - total / 2 + i * (w + gap), y: height - 106, w, h };
+}
+
+// diffs: [{name, active, locked, hint}]
+function drawDifficultyRow(ctx, width, height, diffs) {
+  ctx.save();
+  ctx.textAlign = "center";
+  const activeDiff = diffs.find((d) => d.active);
+  ctx.fillStyle = "#9a93ab";
+  ctx.font = "12px monospace";
+  ctx.fillText(`难度：${activeDiff ? activeDiff.hint : ""}`, width / 2, diffPillRect(0, width, height).y - 10);
+  for (let i = 0; i < diffs.length; i++) {
+    const d = diffs[i];
+    const box = diffPillRect(i, width, height);
+    ctx.fillStyle = d.active ? "#2e2748" : "#1a1622";
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeStyle = d.locked ? "#453f52" : d.active ? "#ffd166" : "#5a5468";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+    ctx.fillStyle = d.locked ? "#6b6578" : d.active ? "#ffd166" : "#c8c2d4";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText(d.locked ? `🔒 ${d.name}` : d.name, box.x + box.w / 2, box.y + 20);
+  }
+  ctx.restore();
+}
+
 // locks: {charId: {hint, progress}} — present only for still-locked characters
-export function drawCharSelect(ctx, width, height, characters, selected, sprites, bests = {}, locks = {}) {
+export function drawCharSelect(ctx, width, height, characters, selected, sprites, bests = {}, locks = {}, diffs = null) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
   ctx.fillRect(0, 0, width, height);
@@ -397,6 +429,8 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
     }
   }
 
+  if (diffs) drawDifficultyRow(ctx, width, height, diffs);
+
   // confirm button (shared rect with weapon select)
   const btn = confirmButtonRect(width, height);
   ctx.fillStyle = "#2e2748";
@@ -428,7 +462,8 @@ export function confirmButtonRect(width, height) {
   return { x: width / 2 - w / 2, y: height - h - 16, w, h };
 }
 
-export function drawWeaponSelect(ctx, width, height, weapons, selected, charName = "") {
+// locks: {slotIndex: {hint, progress}} — present only for locked weapon slots
+export function drawWeaponSelect(ctx, width, height, weapons, selected, charName = "", locks = {}) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.82)";
   ctx.fillRect(0, 0, width, height);
@@ -445,15 +480,28 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
     const w = weapons[i];
     const box = weaponBoxRect(i, width);
     const active = i === selected;
+    const lock = locks[i];
     ctx.fillStyle = active ? "#2e2748" : "#1d1828";
     ctx.fillRect(box.x, box.y, box.w, box.h);
-    ctx.strokeStyle = active ? w.color : "#3a2f4a";
+    ctx.strokeStyle = lock ? "#3a3444" : active ? w.color : "#3a2f4a";
     ctx.lineWidth = active ? 3 : 2;
     ctx.strokeRect(box.x, box.y, box.w, box.h);
 
-    // colored icon block
-    ctx.fillStyle = w.color;
+    // colored icon block (grey while locked)
+    ctx.fillStyle = lock ? "#453f52" : w.color;
     ctx.fillRect(box.x + 12, box.y + box.h / 2 - 8, 16, 16);
+
+    if (lock) {
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#7d7690";
+      ctx.font = "bold 14px monospace";
+      ctx.fillText(`${i + 1}. 🔒 ${w.name}`, box.x + 40, box.y + 25);
+      ctx.fillStyle = "#d9c47a";
+      ctx.font = "12px monospace";
+      ctx.fillText(`解锁：${lock.hint} · 进度 ${lock.progress}`, box.x + 40, box.y + 47);
+      ctx.textAlign = "center";
+      continue;
+    }
 
     ctx.textAlign = "left";
     ctx.fillStyle = active ? "#ffffff" : "#c8c2d4";
