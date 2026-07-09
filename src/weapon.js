@@ -247,7 +247,7 @@ export const WEAPONS = {
     id: "sweep",
     name: "横扫之骨",
     tag: "近战横扫",
-    desc: "巨骨向最近的敌人扫去，范围伤害并持续推挤，升级加范围和扫击次数",
+    desc: "巨骨扫向最近的敌人，范围伤害并持续推挤，升级加范围次数",
     color: "#ff5d5d",
     enhance: { desc: "击退 +50%", detail: "重复选择 +10%/层" },
     tiers: [
@@ -262,7 +262,7 @@ export const WEAPONS = {
     id: "feast",
     name: "噬骨归宗",
     tag: "吸血骨弹",
-    desc: "敌人背后召唤骨头飞回自己，沿途伤敌，回收时 20% 概率回血(每级+10%)",
+    desc: "敌人背后召唤骨头飞回，沿途伤敌，回收时概率回血",
     color: "#ff8f8f",
     enhance: { desc: "回血概率 +10%", detail: "重复选择 +5%/层" },
     tiers: [
@@ -277,7 +277,7 @@ export const WEAPONS = {
     id: "slam",
     name: "重砸",
     tag: "禁锢重击",
-    desc: "在自身周围连续砸击，高伤害并禁锢 0.5 秒，升级加砸击次数和禁锢",
+    desc: "周身连续砸击，高伤害并禁锢，升级加次数和禁锢",
     color: "#d63a3a",
     enhance: { desc: "每砸中一个敌人获得 0.15s 无敌", detail: "重复选择 +0.1s/层，累计上限 1.5s" },
     tiers: [
@@ -322,7 +322,7 @@ export const WEAPONS = {
     id: "lasso",
     name: "斧旋捕猎",
     tag: "环绕捕掷",
-    desc: "斧子急速绕身两圈，粘住命中的敌人后连人带斧掷出，升级加斧子大小",
+    desc: "斧子绕身两圈粘住敌人后连人掷出，升级加斧子大小",
     color: "#aab2c2",
     enhance: { desc: "每粘住一个敌人回复 1 血", detail: "重复选择 +1 回血/层" },
     tiers: [
@@ -413,7 +413,7 @@ export const WEAPONS = {
     id: "megabone",
     name: "天坠巨骨",
     tag: "坠地分裂",
-    desc: "头顶巨骨砸向地面爆炸，裂成 36 根小骨四射(不索敌)，升级多一圈骨头",
+    desc: "头顶巨骨砸地爆炸，裂成小骨四射，升级多一圈骨头",
     color: "#ffd166",
     enhance: { desc: "碎骨 3 层穿透且不消失", detail: "重复选择穿透 +2/层" },
     tiers: [
@@ -458,7 +458,7 @@ export const WEAPONS = {
     id: "ringlaser",
     name: "环阵闪射",
     tag: "环状激光",
-    desc: "36 根短激光按顺序绕圈依次闪射，命中禁锢 1 秒(不索敌)，升级加激光数",
+    desc: "36 根短激光绕圈依次闪射，命中禁锢，升级加激光数",
     color: "#8fd6ff",
     enhance: { desc: "激光命中处小爆炸", detail: "重复选择扩大爆炸半径" },
     tiers: [

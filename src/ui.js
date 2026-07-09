@@ -366,8 +366,20 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
     ctx.fillText(`[${w.tag}]`, box.x + box.w - 10, box.y + 25);
     ctx.textAlign = "left";
     ctx.fillStyle = active ? "#b9b2c9" : "#7d7690";
-    ctx.font = "12px monospace";
-    ctx.fillText(w.desc, box.x + 40, box.y + 47);
+    // auto-fit: shrink the font a little, then truncate if still too wide
+    const maxW = box.w - 50;
+    let descFont = 12;
+    ctx.font = `${descFont}px monospace`;
+    while (descFont > 9 && ctx.measureText(w.desc).width > maxW) {
+      descFont -= 1;
+      ctx.font = `${descFont}px monospace`;
+    }
+    let desc = w.desc;
+    while (desc.length > 1 && ctx.measureText(desc + "…").width > maxW) {
+      desc = desc.slice(0, -1);
+    }
+    if (desc !== w.desc) desc += "…";
+    ctx.fillText(desc, box.x + 40, box.y + 47);
     ctx.textAlign = "center";
 
     if (active) {
