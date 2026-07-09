@@ -178,6 +178,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
           this._slammed = true;
           this.boom(player.x, player.y, 90, 0);
           player.takeDamage(STRIKE_DMG);
+          if (player.hp <= 0) player.hp = 1; // the opening slam never kills
           knockback(player, boss, 70, ctx);
         }
         if (this.t > 0.9) {
