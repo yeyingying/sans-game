@@ -7,7 +7,8 @@ import { PROJECTILE_BONE_RED, GB_IDLE, GB_FIRE, WALK_SETS, BTN_FIGHT, BTN_MERCY 
 import { circleHit } from "./utils.js";
 
 export const BOSS_APPEAR_TIME = 300; // 5 minutes
-const BOSS_HP = 80000; // per phase
+const BOSS_HP = 50000; // phase 1
+const P2_SECONDS = 75; // phase 2 is tuned to last ~this long for YOUR build
 const STRIKE_DMG = 200; // intro slam (reducible)
 
 function dist(ax, ay, bx, by) {
@@ -210,6 +211,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
       boss.invulnTimer = 0;
       this.attackTimer = 1.2;
       this.t = 0;
+      if (phase === 1) this.p1Time = 0; // game-time spent in phase 1
     },
 
     // spray red dissolve pixels at a point
@@ -235,6 +237,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
     // ----- combat AI --------------------------------------------------------
     updateFight(dt, ctx) {
       const { player } = ctx;
+      if (this.phase === 1) this.p1Time = (this.p1Time || 0) + dt;
       const prevX = boss.x;
       const prevY = boss.y;
 
@@ -474,11 +477,15 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
         }
         if (this.t > 1.1) this.mercySmashed = true; // button breaks
         if (this.t > 2.0) {
-          // refill, return home, phase 2
+          // refill, return home, phase 2 — sized so it lasts ~P2_SECONDS
+          // against the DPS the player actually showed in phase 1
           this.mercyChoice = false;
           this.mercySmashed = false;
-          boss.maxHp = BOSS_HP;
-          boss.hp = BOSS_HP;
+          const p1Time = Math.max(10, this.p1Time || 60);
+          const dps = BOSS_HP / p1Time;
+          const p2hp = Math.round(Math.min(250000, Math.max(40000, dps * P2_SECONDS)));
+          boss.maxHp = p2hp;
+          boss.hp = p2hp;
           this.homeX = ctx.camX + this.WIDTH * 0.72;
           this.homeY = HEIGHT_MID(this);
           this.startFight(2);
