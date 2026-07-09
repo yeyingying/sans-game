@@ -171,8 +171,8 @@ export const WEAPONS = {
     color: "#4f9dff",
     enhance: { desc: "攻击附带小爆炸", detail: "爆炸波及的敌人禁锢 0.25s/层" },
     evolve: {
-      name: "万物皆缚",
-      desc: "12道蓝骨同时落下，禁锢4秒",
+      name: "蓝色审判",
+      desc: "蓝骨天降：这次轮到你们不许动了(禁锢4秒)",
       tier: { targets: 12, root: 4.0, dmgMult: 4.0, rateMult: 0.7 },
     },
     tiers: [
@@ -191,8 +191,8 @@ export const WEAPONS = {
     color: "#c59bff",
     enhance: { desc: "骨浪附带击退", detail: "重复选择击退 +10%/层" },
     evolve: {
-      name: "怒涛白骨",
-      desc: "9波14骨的白骨海啸",
+      name: "审判长廊",
+      desc: "9波白骨海啸淹没长廊，无处落脚",
       tier: { waves: 9, bones: 14, dmgMult: 3.2, rateMult: 0.7 },
     },
     tiers: [
@@ -211,8 +211,8 @@ export const WEAPONS = {
     color: "#f2ead8",
     enhance: { desc: "延长敌人的禁锢", detail: "命中禁锢中的敌人 +1s，每层再 +0.5s" },
     evolve: {
-      name: "米字天罚",
-      desc: "20根巨骨十六向齐射",
+      name: "业报乱刺·KR",
+      desc: "20根业骨十六向穿刺，伤口不会愈合",
       tier: { bones: 20, pierce: 5, dmgMult: 3.8, rateMult: 1.35, size: 16 },
     },
     tiers: [
@@ -231,8 +231,8 @@ export const WEAPONS = {
     color: "#ffd166",
     enhance: { desc: "环绕时周期小爆炸", detail: "每 0.5s 一次，每层提高频率" },
     evolve: {
-      name: "雷环净世",
-      desc: "9颗巨雷，爆炸半径翻倍",
+      name: "审判日轮",
+      desc: "9颗骨雷绕身引爆，半径140",
       tier: { count: 9, blast: 140, dmgMult: 4.5, rateMult: 0.65, size: 24 },
     },
     tiers: [
@@ -251,8 +251,8 @@ export const WEAPONS = {
     color: "#9a5df0",
     enhance: { desc: "开盾时狂化", detail: "+100% 移速和回血，每层 +25%" },
     evolve: {
-      name: "不灭魂壁",
-      desc: "护盾持续6秒，几乎无缝衔接",
+      name: "紫魂蛛网",
+      desc: "6秒紫网庇护，反弹一切恶意",
       tier: { duration: 6.0 },
     },
     tiers: [
@@ -271,8 +271,8 @@ export const WEAPONS = {
     color: "#e08fff",
     enhance: { desc: "巨大骨伤害 +100%", detail: "音波范围不变，每层再 +20%" },
     evolve: {
-      name: "天崩音爆",
-      desc: "6根天骨砸出半径180的音爆",
+      name: "MEGALOVANIA",
+      desc: "6根天骨奏响灭世强音，半径180音爆",
       tier: { bones: 6, radius: 180, dmgMult: 8.0, rateMult: 0.65 },
     },
     tiers: [
@@ -291,8 +291,8 @@ export const WEAPONS = {
     color: "#b8a5d0",
     enhance: { desc: "到达爆炸附带禁锢", detail: "波及的敌人禁锢 0.25s/层" },
     evolve: {
-      name: "亡魂囚笼",
-      desc: "9条锁链织成囚笼，无处可逃",
+      name: "蓝魂操纵",
+      desc: "9条魂链拖拽灵魂，傀儡任凭摆布",
       tier: { chains: 9, root: 2.5, dmgMult: 5.0, rateMult: 0.65 },
     },
     tiers: [
@@ -311,8 +311,8 @@ export const WEAPONS = {
     color: "#c95df0",
     enhance: { desc: "减速效果 +100%", detail: "重复选择每层再 +20%" },
     evolve: {
-      name: "湮紫洪流",
-      desc: "9道粗光洪流洗地",
+      name: "加斯特余响",
+      desc: "9道紫光洪流——来自虚空的注视",
       tier: { beams: 9, dmgMult: 6.0, width: 26, duration: 0.15, rateMult: 0.5 },
     },
     tiers: [
@@ -332,8 +332,8 @@ export const WEAPONS = {
     color: "#ff5d5d",
     enhance: { desc: "击退 +50%", detail: "重复选择 +10%/层" },
     evolve: {
-      name: "回天旋骨",
-      desc: "半径170的三连横扫风暴",
+      name: "猎杀时刻",
+      desc: "半径170的四连横扫，猎物无处可逃",
       tier: { radius: 170, swings: 4, dmgMult: 4.2, rateMult: 0.85 },
     },
     tiers: [
@@ -352,8 +352,8 @@ export const WEAPONS = {
     color: "#ff8f8f",
     enhance: { desc: "回血概率 +10%", detail: "重复选择 +5%/层" },
     evolve: {
-      name: "饕餮盛宴",
-      desc: "7目标必吸血，猎手永不饥饿",
+      name: "雪镇飨宴",
+      desc: "7目标必定吸血——今晚不会挨饿",
       tier: { targets: 7, bonesPer: 3, healChance: 1.0, dmgMult: 3.2, rateMult: 0.85, size: 14 },
     },
     tiers: [
@@ -372,8 +372,8 @@ export const WEAPONS = {
     color: "#d63a3a",
     enhance: { desc: "每砸中一个敌人获得 0.15s 无敌", detail: "重复选择 +0.1s/层，累计上限 1.5s" },
     evolve: {
-      name: "灭世重锤",
-      desc: "10连砸+2.5秒禁锢",
+      name: "开颅重锤",
+      desc: "10连重砸+禁锢2.5秒，给他们也开个洞",
       tier: { smashes: 10, root: 2.5, dmgMult: 5.5, rateMult: 0.6 },
     },
     tiers: [
@@ -412,8 +412,8 @@ export const WEAPONS = {
     color: "#ff5d5d",
     enhance: { desc: "被震波杀死的敌人爆炸", detail: "重复选择扩大爆炸半径" },
     evolve: {
-      name: "山崩地裂",
-      desc: "5波半径200的灭世震荡",
+      name: "雪镇崩塌",
+      desc: "5波半径200的塌方震荡",
       tier: { waves: 5, radius: 200, boneSize: 80, dmgMult: 4.5, rateMult: 0.55 },
     },
     tiers: [
@@ -432,8 +432,8 @@ export const WEAPONS = {
     color: "#aab2c2",
     enhance: { desc: "每粘住一个敌人回复 1 血", detail: "重复选择 +1 回血/层" },
     evolve: {
-      name: "死神收割",
-      desc: "巨斧尺寸翻倍，绞碎一切",
+      name: "屠夫巨斧",
+      desc: "斧刃尺寸翻倍，绞碎猎物",
       tier: { size: 52, dmgMult: 5.0, rateMult: 0.55 },
     },
     tiers: [
@@ -452,8 +452,8 @@ export const WEAPONS = {
     color: "#e8ecf4",
     enhance: { desc: "每次砸击分裂 2 个额外幻影", detail: "重复选择 +1 幻影" },
     evolve: {
-      name: "万象幻斧",
-      desc: "6连劈幻影风暴",
+      name: "断头幻影",
+      desc: "6连劈斩首风暴",
       tier: { combos: 6, dmgMult: 2.6, rateMult: 0.75 },
     },
     tiers: [
@@ -472,8 +472,8 @@ export const WEAPONS = {
     color: "#e8dcc0",
     enhance: { desc: "骨头圈数 +2", detail: "重复选择 +1 圈" },
     evolve: {
-      name: "白骨王座",
-      desc: "32根巨骨的死亡领域",
+      name: "白骨猎场",
+      desc: "32根巨骨圈出死亡猎场",
       tier: { bones: 32, ring: 150, dmgMult: 4.0, rateMult: 0.7 },
     },
     tiers: [
@@ -493,8 +493,8 @@ export const WEAPONS = {
     color: "#5db9ff",
     enhance: { desc: "突刺时减伤 +10%", detail: "重复选择 +5%/层" },
     evolve: {
-      name: "无影闪袭",
-      desc: "9连突刺，残影撕裂战场",
+      name: "橙魂疾冲",
+      desc: "9连突刺——橙色攻击，永不停步",
       tier: { dashes: 9, dmgMult: 4.0, rateMult: 0.75 },
     },
     tiers: [
@@ -513,8 +513,8 @@ export const WEAPONS = {
     color: "#f2ead8",
     enhance: { desc: "子骨再裂出 4 个子子骨", detail: "重复选择增加分裂数量" },
     evolve: {
-      name: "湮灭骨雨",
-      desc: "14裂变铺天盖地",
+      name: "蓝橙骤雨",
+      desc: "14裂变蓝橙弹幕铺天盖地",
       tier: { split: 14, dmgMult: 3.0, rateMult: 0.8, size: 14 },
     },
     tiers: [
@@ -533,8 +533,8 @@ export const WEAPONS = {
     color: "#4f9dff",
     enhance: { desc: "骨圈变蓝并禁锢 1 秒", detail: "重复选择禁锢 +0.5s/层" },
     evolve: {
-      name: "天罚洪流",
-      desc: "8目标大爆环阵降罚",
+      name: "静止蓝罚",
+      desc: "8目标蓝骨降罚+半径100爆环",
       tier: { targets: 8, blast: 100, ringBones: 14, dmgMult: 3.8, rateMult: 0.75 },
     },
     tiers: [
@@ -553,8 +553,8 @@ export const WEAPONS = {
     color: "#ffd166",
     enhance: { desc: "碎骨 3 层穿透且不消失", detail: "重复选择穿透 +2/层" },
     evolve: {
-      name: "陨骨灭世",
-      desc: "8环弹幕+半径160巨爆",
+      name: "终焉之骨",
+      desc: "8环弹幕+半径160巨爆——这是最后一根骨头",
       tier: { shards: 36, rings: 8, dmgMult: 5.5, rateMult: 0.42, blast: 160 },
     },
     tiers: [
@@ -573,8 +573,8 @@ export const WEAPONS = {
     color: "#2f6ea8",
     enhance: { desc: "敌人粘在光球上(上限 5)", detail: "重复选择上限 +3/层" },
     evolve: {
-      name: "群魂环舞",
-      desc: "9颗光球织成灵魂风暴",
+      name: "蓝魂引力",
+      desc: "9颗引力光球拖拽灵魂",
       tier: { orbs: 9, dmgMult: 3.6, rateMult: 0.62 },
     },
     tiers: [
@@ -593,8 +593,8 @@ export const WEAPONS = {
     color: "#fddefe",
     enhance: { desc: "龙骨炮体积 +50%", detail: "重复选择 +20%/层" },
     evolve: {
-      name: "审判龙阵",
-      desc: "9门龙骨炮齐轰",
+      name: "W.D.加斯特炮阵",
+      desc: "9门龙骨炮齐轰——记得那个被遗忘的人",
       tier: { count: 9, dmgMult: 8.0, rateMult: 0.65 },
     },
     tiers: [
@@ -613,8 +613,8 @@ export const WEAPONS = {
     color: "#8fd6ff",
     enhance: { desc: "激光命中处小爆炸", detail: "重复选择扩大爆炸半径" },
     evolve: {
-      name: "星环湮灭",
-      desc: "120道环射织成光之囚笼",
+      name: "最终审判环",
+      desc: "120道环射光刃，无处可躲",
       tier: { lasers: 120, dmgMult: 3.0, rateMult: 0.36 },
     },
     tiers: [
@@ -633,8 +633,8 @@ export const WEAPONS = {
     color: "#9be8a8",
     enhance: { desc: "撞击附带击退", detail: "重复选择提高击退力度" },
     evolve: {
-      name: "白骨绞盘",
-      desc: "20根骨桩的绞杀阵",
+      name: "白骨丛林",
+      desc: "20根骨桩拔地绞杀",
       tier: { bones: 20, dmgMult: 4.2, rateMult: 0.7 },
     },
     tiers: [

@@ -265,9 +265,16 @@ if (MODE === "normal") {
     }
     key("ArrowRight"); // hold right: kite instead of standing in the horde
     let runScreens = 0;
-    for (let i = 0; i < 30 * 120; i++) {
+    let kiting = true;
+    for (let i = 0; i < 30 * 180; i++) {
       frame();
       const d = dbg();
+      // once the guarantee screens are checked, stop kiting so the AFK
+      // player actually dies (meta upgrades made the kiter near-immortal)
+      if (kiting && (runScreens >= 3 || i > 30 * 50)) {
+        keyUp("ArrowRight");
+        kiting = false;
+      }
       if (d.state === "choice") {
         runScreens++;
         // the weapon-card guarantee only covers the first 3 screens of a run
@@ -299,8 +306,10 @@ if (MODE === "normal") {
   tap(421, 565); // daily challenge button
   check("daily run starts", dbg().state === "playing" && dbg().daily === true, JSON.stringify(dbg()));
   key("ArrowRight");
-  run(150, (d) => d.state === "gameover");
+  run(30); // play a slice of the daily run…
   keyUp("ArrowRight");
+  key("z"); // …then settle deterministically: pause -> quit
+  tap(480, 423); // quit button (works no matter how strong the build is)
   check("daily settled", dbg().state === "gameover" && dbg().daily === false);
   check("daily best stored", Object.keys(storage).some((k) => k.startsWith("daily_")));
 } else {
