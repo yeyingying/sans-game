@@ -66,6 +66,8 @@ import {
   sfxStreak,
   sfxAlarm,
   sfxFanfare,
+  sfxEliteDown,
+  sfxHeartbeat,
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
@@ -183,6 +185,8 @@ let streak = 0;
 let streakTimer = 0;
 let nextStreakAt = 10;
 let streakTier = 0;
+let runMaxStreak = 0; // best streak this run, shown on the gameover screen
+let lowHpPulse = 0.9; // heartbeat timer while hp < 25%
 
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
 const ENEMY_NAMES = {
@@ -299,6 +303,8 @@ function reset(weaponId) {
   streakTimer = 0;
   nextStreakAt = 10;
   streakTier = 0;
+  runMaxStreak = 0;
+  lowHpPulse = 0.9;
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -1003,6 +1009,18 @@ function update(dt) {
   for (const e of enemies) {
     if (e.boss) continue; // the boss is driven by its own controller
     e.update(dt, player);
+    // batched damage number: one floater per 0.3s window, tiny ticks stay silent
+    if (e.dmgFlushT > 0) {
+      e.dmgFlushT -= dt;
+      if (e.dmgFlushT <= 0) {
+        if (e.dmgAccum >= 18 && floatingTexts.length < 40) {
+          const v = Math.round(e.dmgAccum);
+          const col = v >= 300 ? "#ff8a5d" : v >= 100 ? "#ffd166" : "#f2ead8";
+          floatingTexts.push(new FloatingText(e.x + (Math.random() - 0.5) * 12, e.y - e.radius - 12, String(v), col));
+        }
+        e.dmgAccum = 0;
+      }
+    }
     // teleporter arrival strike (fixed 30 dmg in a small zone)
     if (e.strike) {
       const STRIKE_DMG = 20;
@@ -1174,12 +1192,18 @@ function update(dt) {
   for (const e of dead) {
     player.kills += 1;
     if (!e.noXp) spawnDrops(e);
+    if (e.elite) {
+      // elites go out with a bang: shock ring + deep boom
+      explosions.push(new Explosion(e.x, e.y, e.radius * 3.4, "#ffd166", true));
+      sfxEliteDown();
+    }
   }
   enemies = enemies.filter((e) => (e.hp > 0 || e.boss));
   if (dead.length > 0) {
     sfxKill(dead.length);
     // chained kills build the streak; milestones pop the screen
     streak += dead.length;
+    runMaxStreak = Math.max(runMaxStreak, streak);
     streakTimer = 1.6;
     while (streak >= nextStreakAt) {
       killFlash = 0.22;
@@ -1223,6 +1247,18 @@ function update(dt) {
 
   for (const ft of floatingTexts) ft.update(dt);
   floatingTexts = floatingTexts.filter((ft) => !ft.expired);
+  if (floatingTexts.length > 48) floatingTexts.splice(0, floatingTexts.length - 48);
+
+  // low-hp heartbeat: thumps while below a quarter health
+  if (player.hp > 0 && player.hp / player.maxHp < 0.25) {
+    lowHpPulse += dt;
+    if (lowHpPulse >= 0.9) {
+      lowHpPulse = 0;
+      sfxHeartbeat();
+    }
+  } else {
+    lowHpPulse = 0.9; // first thump lands the moment hp drops low
+  }
 
   if (player.hp - hpBefore > 0.9) healFlash = 0.45;
   if (healFlash > 0) healFlash -= dt;
@@ -1496,10 +1532,13 @@ function draw() {
         const a = elapsed * 2.4 + (i / Math.max(orbs, 1)) * Math.PI * 2;
         const ox = e.x + Math.cos(a) * (e.radius + 13);
         const oy = e.y + Math.sin(a) * (e.radius + 13) * 0.45 - 6;
+        // cheap two-circle glow (shadowBlur murders mobile framerates)
         ctx.save();
+        ctx.fillStyle = "rgba(155, 215, 255, 0.3)";
+        ctx.beginPath();
+        ctx.arc(ox, oy, 8, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = "#e8f4ff";
-        ctx.shadowColor = "#9bd7ff";
-        ctx.shadowBlur = 9;
         ctx.beginPath();
         ctx.arc(ox, oy, 4.5, 0, Math.PI * 2);
         ctx.fill();
@@ -1856,6 +1895,21 @@ function draw() {
     ctx.restore();
   }
 
+  // low-hp danger: dark red edges pulsing with the heartbeat
+  if (player.hp > 0 && player.hp / player.maxHp < 0.25 && (state === "playing" || state === "choice")) {
+    const pulse = 0.5 + 0.5 * Math.sin(elapsed * 7);
+    ctx.save();
+    const grad = ctx.createRadialGradient(
+      WIDTH / 2, HEIGHT / 2, HEIGHT * 0.42,
+      WIDTH / 2, HEIGHT / 2, HEIGHT * 0.8
+    );
+    grad.addColorStop(0, "rgba(140, 10, 10, 0)");
+    grad.addColorStop(1, `rgba(140, 10, 10, ${0.18 + pulse * 0.14})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.restore();
+  }
+
   // kill-streak milestone: quick white pop over the whole screen
   if (killFlash > 0 && (state === "playing" || state === "choice")) {
     ctx.save();
@@ -1936,6 +1990,11 @@ function draw() {
       [
         { text: "已 暂 停", font: "bold 32px monospace", color: "#8fd6ff" },
         { text: "按 Z 继续", font: "16px monospace", color: "#ffd166" },
+        {
+          text: `本局 ${Math.floor(elapsed)}s · 击杀 ${player.kills} · 最高连杀 ${runMaxStreak} · 得分 ${currentScore()}`,
+          font: "13px monospace",
+          color: "#9a93ab",
+        },
       ],
       -100 // keep clear of the volume control below
     );
@@ -1955,7 +2014,7 @@ function draw() {
         color: newRecord ? "#7cf28a" : "#9a93ab",
       },
       { text: `存活时间 ${Math.floor(elapsed)} 秒`, font: "16px monospace" },
-      { text: `击杀数 ${player.kills}  等级 ${player.level}`, font: "16px monospace" },
+      { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
       { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
       { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
     ]);

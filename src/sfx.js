@@ -88,10 +88,31 @@ export function sfxKill(count = 1) {
   if (count >= 3) blip({ type: "triangle", from: 340, to: 90, dur: 0.12, gain: 0.14, delay: 0.02 });
 }
 
-// xp soul absorbed: soft rising tick
+// xp soul absorbed: soft rising tick whose pitch climbs while souls
+// keep streaming in (coin-cascade feel), resetting after a quiet beat
+let pickupCombo = 0;
+let lastPickupAt = -10;
 export function sfxPickup() {
+  if (!ac) return;
+  const now = ac.currentTime;
+  pickupCombo = now - lastPickupAt > 0.8 ? 0 : Math.min(pickupCombo + 1, 20);
+  lastPickupAt = now;
   if (throttled("pickup", 0.045)) return;
-  blip({ type: "triangle", from: 900, to: 1500, dur: 0.05, gain: 0.07 });
+  const f = 880 * Math.pow(1.045, pickupCombo);
+  blip({ type: "triangle", from: f, to: f * 1.6, dur: 0.05, gain: 0.07 });
+}
+
+// elite goes down: deep two-layer boom
+export function sfxEliteDown() {
+  blip({ type: "sawtooth", from: 200, to: 40, dur: 0.25, gain: 0.26 });
+  noiseBurst({ dur: 0.16, gain: 0.14 });
+  blip({ type: "triangle", from: 500, to: 120, dur: 0.18, gain: 0.16, delay: 0.03 });
+}
+
+// low-hp heartbeat: lub-dub
+export function sfxHeartbeat() {
+  blip({ type: "sine", from: 72, to: 50, dur: 0.11, gain: 0.34 });
+  blip({ type: "sine", from: 62, to: 44, dur: 0.13, gain: 0.28, delay: 0.16 });
 }
 
 // equipment gem: classic two-note coin

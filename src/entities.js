@@ -145,6 +145,8 @@ export class Enemy {
     this.rootTimer = 0; // 禁锢: no move, no attack, invulnerability disabled
     this.rootImmune = 0; // diminishing returns: no new roots while this runs
     this.slowTimer = 0; // 减速: half speed
+    this.dmgAccum = 0; // damage batched into one floating number (main flushes)
+    this.dmgFlushT = 0;
   }
 
   // 禁锢 with diminishing returns: one root per window — while rootImmune
@@ -163,6 +165,8 @@ export class Enemy {
     if (this.invulnTimer > 0 && this.rootTimer <= 0) return false;
     this.hp -= dmg;
     this.hitFlash = 0.15;
+    this.dmgAccum += dmg;
+    if (this.dmgFlushT <= 0) this.dmgFlushT = 0.3;
     if (this.hp <= 0 && this.lives > 1) {
       this.lives -= 1;
       this.hp = this.maxHp;

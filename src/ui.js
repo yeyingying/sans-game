@@ -457,10 +457,12 @@ export function drawChoiceScreen(ctx, width, height, options, canReroll) {
     ctx.font = "bold 18px monospace";
     ctx.fillText(opt.title, box.x + box.w / 2, box.y + 76);
     ctx.fillStyle = "#b9b2c9";
-    ctx.font = "13px monospace";
+    // 4+ description lines shrink to stay inside the card
     const lines = opt.desc.split("\n");
+    const many = lines.length > 3;
+    ctx.font = many ? "12px monospace" : "13px monospace";
     lines.forEach((line, li) => {
-      ctx.fillText(line, box.x + box.w / 2, box.y + 108 + li * 20);
+      ctx.fillText(line, box.x + box.w / 2, box.y + (many ? 100 : 108) + li * (many ? 16 : 20));
     });
   }
 
