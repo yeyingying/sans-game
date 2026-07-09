@@ -1,6 +1,16 @@
 import { Enemy } from "./entities.js";
 import { pickWeighted, randRange } from "./utils.js";
 
+// endless-judgement coin decay by round (1-based).
+// Applied to the DROP CHANCE (not the value) so a 10% round really pays ~10%.
+export function roundCoinFactor(round) {
+  if (round <= 0) return 1; // not in endless
+  if (round === 1) return 0.5;
+  if (round === 2) return 0.25;
+  if (round === 3) return 0.1;
+  return 0; // round 4+: no more coins, score only
+}
+
 export class Spawner {
   // debut times for late-game enemy types; 3 are force-spawned the moment
   // each unlocks so the player clearly sees it enter the game
@@ -16,7 +26,8 @@ export class Spawner {
     this.spawnTimer = 0;
     this.eliteTimer = 25;
     this.introduced = new Set();
-    this.endless = false; // post-boss: elites come faster and bigger batches
+    this.endless = false; // post-boss endless judgement
+    this.round = 0; // current judgement round (1-based); set by main
   }
 
   // spawn just outside the camera's view (camX = world x of the view's left edge);
@@ -32,6 +43,8 @@ export class Spawner {
   typeWeights() {
     const t = this.elapsed;
     const after = (start, rate, cap) => Math.max(0, Math.min((t - start) / rate, cap));
+    // round 3+: ranged/teleport threats (blue reach, purple strikes) surge
+    const ranged = this.endless && this.round >= 3 ? 2.2 : 1;
     return [
       { value: "slime", weight: 50 },
       { value: "bat", weight: 20 + Math.min(t / 4, 35) },
@@ -39,8 +52,8 @@ export class Spawner {
       { value: "tank", weight: after(30, 3, 28) },
       { value: "red", weight: after(60, 3, 22) },
       { value: "orange", weight: after(105, 4, 16) },
-      { value: "blue", weight: after(120, 4, 18) },
-      { value: "purple", weight: after(150, 5, 10) },
+      { value: "blue", weight: after(120, 4, 18) * ranged },
+      { value: "purple", weight: after(150, 5, 10) * ranged },
     ];
   }
 
@@ -50,10 +63,19 @@ export class Spawner {
     let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.18, (t - 180) / 30) : 1 + t / 22;
     // warm-up minute: lots of frail enemies so the opening feels like mowing
     if (t < 60) hpMult *= 0.6 + 0.4 * (t / 60);
+    // endless judgement rounds: each round adds a pressure the player can
+    // feel, never just a bigger hp sponge (see main.js for round rules)
+    const r = this.endless ? this.round : 0;
+    // R2+: +15% move speed (then +3%/round past R4), capped for readability
+    const rSpeed = r >= 2 ? Math.min(1.15 * (1 + 0.03 * Math.max(0, r - 4)), 1.5) : 1;
+    // R3+: +20% damage, R5+: +8%/round on top, capped
+    const rDmg = r >= 3 ? Math.min(1.2 * (1 + 0.08 * Math.max(0, r - 4)), 2.5) : 1;
+    // R5+: hp finally starts climbing too, gently capped
+    const rHp = r >= 5 ? Math.min(1 + 0.1 * (r - 4), 3) : 1;
     return {
-      hpMult: hpMult * this.diffHp,
-      dmgMult: (1 + t / 50) * this.diffDmg,
-      speedMult: 1 + Math.min(t / 90, 0.35),
+      hpMult: hpMult * this.diffHp * rHp,
+      dmgMult: (1 + t / 50) * this.diffDmg * rDmg,
+      speedMult: (1 + Math.min(t / 90, 0.35)) * rSpeed,
       xpMult: 1 + t / 60,
       elite,
     };
@@ -89,8 +111,11 @@ export class Spawner {
     }
 
     if (this.eliteTimer <= 0) {
-      this.eliteTimer = this.endless ? 16 : 30;
-      const eliteCount = this.endless ? 2 : 1;
+      // endless: elites arrive faster and in bigger packs each round,
+      // capped so phones don't melt
+      const r = this.endless ? this.round : 0;
+      this.eliteTimer = this.endless ? Math.max(6, 15 - (r - 1) * 1.5) : 30;
+      const eliteCount = this.endless ? Math.min(2 + Math.floor((r - 1) / 2), 5) : 1;
       for (let i = 0; i < eliteCount; i++) {
         const type = pickWeighted(this.typeWeights());
         const pos = this.edgePosition(camX);

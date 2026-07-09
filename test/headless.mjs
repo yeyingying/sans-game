@@ -1,7 +1,9 @@
 // Headless integration test for the Sans survivor game.
 // Stubs the DOM/Audio just enough to import src/main.js and drive real
 // frames through the captured requestAnimationFrame callback.
-// Usage: node test/headless.mjs [boss]   — "boss" runs the ?boss debug route.
+// Usage: node test/headless.mjs [boss|clear]
+//   boss  — ?boss debug route (boss spawn/warning regression)
+//   clear — ?boss=weak route: full boss clear, bossclear choice, rounds
 
 const MODE = process.argv[2] || "normal";
 
@@ -53,7 +55,7 @@ globalThis.localStorage = {
   },
   removeItem: (k) => delete storage[k],
 };
-globalThis.location = { search: MODE === "boss" ? "?boss" : "" };
+globalThis.location = { search: MODE === "boss" ? "?boss" : MODE === "clear" ? "?boss=weak" : "" };
 globalThis.performance = { now: () => simNow };
 globalThis.requestAnimationFrame = (cb) => {
   rafCb = cb;
@@ -113,6 +115,15 @@ function run(seconds, onFrame) {
     if (dbg().state === "choice") key("1");
     if (onFrame && onFrame(dbg())) return;
   }
+}
+
+// endless round coin decay (pure function; round 4+ never pays out)
+{
+  const S = await import(new URL("../src/spawner.js", import.meta.url));
+  check("coin factor round1 = 50%", S.roundCoinFactor(1) === 0.5);
+  check("coin factor round2 = 25%", S.roundCoinFactor(2) === 0.25);
+  check("coin factor round3 = 10%", S.roundCoinFactor(3) === 0.1);
+  check("coin factor round4+ = 0", S.roundCoinFactor(4) === 0 && S.roundCoinFactor(9) === 0);
 }
 
 // meta-progression unit checks (coins / upgrades / unlocks)
@@ -312,6 +323,134 @@ if (MODE === "normal") {
   tap(480, 423); // quit button (works no matter how strong the build is)
   check("daily settled", dbg().state === "gameover" && dbg().daily === false);
   check("daily best stored", Object.keys(storage).some((k) => k.startsWith("daily_")));
+} else if (MODE === "clear") {
+  // ?boss=weak route: actually beat the boss, then exercise the boss-clear
+  // choice, the 90s judgement rounds and every settlement outcome.
+  const held = new Set();
+  const hold = (k) => { if (!held.has(k)) { held.add(k); key(k); } };
+  const release = (k) => { if (held.has(k)) { held.delete(k); keyUp(k); } };
+  const releaseAll = () => { for (const k of [...held]) release(k); };
+  function steer(tx, ty, px, py) {
+    if (tx > px + 10) { hold("ArrowRight"); release("ArrowLeft"); }
+    else if (tx < px - 10) { hold("ArrowLeft"); release("ArrowRight"); }
+    else { release("ArrowRight"); release("ArrowLeft"); }
+    if (ty > py + 10) { hold("ArrowDown"); release("ArrowUp"); }
+    else if (ty < py - 10) { hold("ArrowUp"); release("ArrowDown"); }
+    else { release("ArrowDown"); release("ArrowUp"); }
+  }
+  // play until the heart is taken and the bossclear screen appears
+  function reachBossClear(capSec = 360) {
+    for (let i = 0; i < 30 * capSec; i++) {
+      frame();
+      const d = dbg();
+      if (d.state === "choice") key("1");
+      // chase the heart once it drops; otherwise hug the boss so weapons
+      // target it instead of the summons
+      if (d.heart) steer(d.heart.x, d.heart.y, d.px, d.py);
+      else if (d.bossX !== null) steer(d.bossX, d.bossY, d.px, d.py);
+      else releaseAll();
+      if (d.state === "bossclear") { releaseAll(); return true; }
+      if (d.state === "gameover") { releaseAll(); return false; }
+    }
+    releaseAll();
+    return false;
+  }
+  function restart() {
+    key(" "); // gameover -> charselect
+    key("Enter");
+    key("Enter"); // -> playing (?boss=weak re-applies)
+  }
+
+  const stageScores = [];
+
+  // ---- run A: clear the boss, leave with the loot (victory) ----------------
+  check("run A reaches bossclear (not auto-endless)", reachBossClear(), JSON.stringify(dbg()));
+  let d = dbg();
+  check("bossclear: endless NOT started", d.endless === false && d.round === 0, JSON.stringify(d));
+  check("bossclear: stage snapshot taken", d.stageScore > 0 && d.bossDefeated === true);
+  stageScores.push(d.stageScore);
+  tap(350, 371); // “带着战利品离开”
+  d = dbg();
+  check("A: victory settlement", d.state === "gameover" && d.outcome === "victory", d.outcome);
+  check("A: no death cause on victory", d.deathBy === null);
+  check("A: normal best = stage score", storage.best_sans === String(stageScores[0]), storage.best_sans);
+  check("A: no endless best written", storage.best_endless_sans === undefined);
+  check("A: coins banked", d.lastRunCoins > 0 && d.wallet > 0, `last=${d.lastRunCoins}`);
+
+  // ---- run B: continue into rounds, clear round 1, enter round 2, quit -----
+  restart();
+  check("run B reaches bossclear", reachBossClear(), JSON.stringify(dbg()));
+  stageScores.push(dbg().stageScore);
+  key("ArrowRight"); // select “继续接受审判”
+  key("Enter");
+  d = dbg();
+  check("B: endless starts only after choosing continue", d.state === "playing" && d.endless === true && d.round === 1, JSON.stringify(d));
+  check("B: round1 coin factor 50%", d.coinFactor === 0.5);
+  // survive round 1 by kiting right; the wrapped-ahead champion gets mowed
+  hold("ArrowRight");
+  let sawBossAlive = false;
+  for (let i = 0; i < 30 * 300 && dbg().state !== "roundclear"; i++) {
+    frame();
+    const dd = dbg();
+    if (dd.state === "choice") key("1");
+    if (dd.roundBossAlive) sawBossAlive = true;
+    if (dd.state === "gameover") break;
+  }
+  releaseAll();
+  d = dbg();
+  check("B: round champion spawned", sawBossAlive);
+  check("B: roundclear reached (champion down + time up)", d.state === "roundclear", JSON.stringify(d));
+  const coinsBeforeBank = d.runCoins;
+  const pending1 = d.pending;
+  key("ArrowRight"); // select “进入下一轮”
+  key("Enter");
+  d = dbg();
+  check("B: round 2 begins", d.state === "playing" && d.round === 2, JSON.stringify(d));
+  check("B: round1 pending banked", d.runCoins === coinsBeforeBank + pending1 && d.pending === 0, `runCoins=${d.runCoins}`);
+  check("B: round2 coin factor 25%", d.coinFactor === 0.25);
+  run(6);
+  key("z"); // pause mid-round…
+  tap(480, 423); // …and quit: voluntary extraction
+  d = dbg();
+  check("B: mid-round quit = retreat", d.state === "gameover" && d.outcome === "retreat", d.outcome);
+  check("B: retreat shows no death cause", d.deathBy === null);
+  check("B: rounds cleared recorded", d.roundsCleared === 1, `cleared=${d.roundsCleared}`);
+  check("B: endless best written", storage.best_endless_sans !== undefined, storage.best_endless_sans);
+
+  // ---- run C: continue, then stand still and die (endlessDeath) ------------
+  restart();
+  check("run C reaches bossclear", reachBossClear(), JSON.stringify(dbg()));
+  stageScores.push(dbg().stageScore);
+  const coinsAtClear = dbg().runCoins; // pre-boss coins + bounty: always safe
+  key("ArrowRight");
+  key("Enter"); // continue into round 1, then AFK until the rounds kill us
+  // the debug kit + shop revive make this a long grind: the rounds wear the
+  // player down (~R5-6), the revive fires once, then the judgement finishes it
+  let lastLive = null;
+  for (let i = 0; i < 30 * 900 && dbg().state !== "gameover"; i++) {
+    frame();
+    const q = dbg();
+    if (q.state !== "gameover") lastLive = q;
+    if (q.state === "choice") key("1");
+    if (q.state === "roundclear") { key("ArrowRight"); key("Enter"); } // keep going until death
+    if (i % (30 * 60) === 0) console.log(`      C t=${i / 30}s round=${q.round} hp=${q.hp} enemies=${q.enemies}`);
+  }
+  d = dbg();
+  check("C: died in endless = endlessDeath", d.state === "gameover" && d.outcome === "endlessDeath", d.outcome);
+  check("C: death cause shown", typeof d.deathBy === "string" && d.deathBy.length > 0, `deathBy=${d.deathBy}`);
+  // banked money (pre-boss + bounty + completed rounds) survives; the pot of
+  // the round the player died in is NOT added on top at settlement
+  check(
+    "C: death keeps banked coins, adds no pending pot",
+    d.lastRunCoins === lastLive.runCoins && d.lastRunCoins >= coinsAtClear,
+    `last=${d.lastRunCoins} liveBank=${lastLive.runCoins} pendingAtDeath=${lastLive.pending} safeBase=${coinsAtClear}`
+  );
+  check(
+    "normal best never inflated by endless",
+    parseInt(storage.best_sans, 10) === Math.max(...stageScores),
+    `best=${storage.best_sans} stages=${stageScores.join(",")}`
+  );
+  console.log(`      stages=${stageScores.join(",")} endlessBest=${storage.best_endless_sans}`);
 } else {
   // ?boss route: starts 2s before the boss with a survival kit
   run(1);

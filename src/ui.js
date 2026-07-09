@@ -285,6 +285,102 @@ export function dailyButtonRect(width, height) {
   return { x: 336, y: height - 52, w: 170, h: 34 };
 }
 
+// ---- boss-clear choice screen ------------------------------------------------
+
+export function bossClearLeaveRect(width, height) {
+  return { x: width / 2 - 240, y: height / 2 + 42, w: 220, h: 58 };
+}
+
+export function bossClearContinueRect(width, height) {
+  return { x: width / 2 + 20, y: height / 2 + 42, w: 220, h: 58 };
+}
+
+// selected: 0 = leave with the loot, 1 = keep fighting (endless)
+export function drawBossClearScreen(ctx, width, height, selected) {
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 8, 16, 0.82)";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 40px monospace";
+  ctx.fillText("审 判 结 束", width / 2, height / 2 - 96);
+  ctx.fillStyle = "#f2ead8";
+  ctx.font = "16px monospace";
+  ctx.fillText("你击败了天意侵蚀Sans", width / 2, height / 2 - 58);
+  ctx.fillStyle = "#9a93ab";
+  ctx.font = "13px monospace";
+  ctx.fillText("←→ 选择 · Enter/空格 确认 · 或直接点击", width / 2, height / 2 - 30);
+
+  const buttons = [
+    { rect: bossClearLeaveRect(width, height), label: "带着战利品离开", color: "#7cf28a" },
+    { rect: bossClearContinueRect(width, height), label: "继续接受审判", color: "#ff8a5d" },
+  ];
+  buttons.forEach((b, i) => {
+    const active = i === selected;
+    ctx.fillStyle = active ? "#2e2748" : "#1d1828";
+    ctx.fillRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
+    ctx.strokeStyle = active ? b.color : "#5a5468";
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.strokeRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
+    ctx.fillStyle = active ? b.color : "#c8c2d4";
+    ctx.font = "bold 18px monospace";
+    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + 36);
+    if (active) {
+      ctx.font = "bold 16px monospace";
+      ctx.fillText("▼", b.rect.x + b.rect.w / 2, b.rect.y - 10);
+    }
+  });
+
+  ctx.fillStyle = "#d9c47a";
+  ctx.font = "12px monospace";
+  ctx.fillText("※ 无尽模式的金币收益会逐渐衰减", width / 2, height / 2 + 128);
+  ctx.restore();
+}
+
+// round-clear screen reuses the same two button slots (leave / continue)
+export function drawRoundClearScreen(ctx, width, height, round, selected, pendingCoins) {
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 8, 16, 0.82)";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#ff8a5d";
+  ctx.font = "bold 36px monospace";
+  ctx.fillText(`第 ${round} 轮审判完成`, width / 2, height / 2 - 96);
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "15px monospace";
+  ctx.fillText(`本轮待结算金币 ⓖ ${pendingCoins} —— 选择后保住`, width / 2, height / 2 - 60);
+  ctx.fillStyle = "#9a93ab";
+  ctx.font = "13px monospace";
+  ctx.fillText("←→ 选择 · Enter/空格 确认 · 或直接点击", width / 2, height / 2 - 32);
+
+  const buttons = [
+    { rect: bossClearLeaveRect(width, height), label: "撤离并结算", color: "#7cf28a" },
+    { rect: bossClearContinueRect(width, height), label: "进入下一轮", color: "#ff8a5d" },
+  ];
+  buttons.forEach((b, i) => {
+    const active = i === selected;
+    ctx.fillStyle = active ? "#2e2748" : "#1d1828";
+    ctx.fillRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
+    ctx.strokeStyle = active ? b.color : "#5a5468";
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.strokeRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
+    ctx.fillStyle = active ? b.color : "#c8c2d4";
+    ctx.font = "bold 18px monospace";
+    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + 36);
+    if (active) {
+      ctx.font = "bold 16px monospace";
+      ctx.fillText("▼", b.rect.x + b.rect.w / 2, b.rect.y - 10);
+    }
+  });
+
+  ctx.fillStyle = "#d9c47a";
+  ctx.font = "12px monospace";
+  ctx.fillText("※ 下一轮更危险：轮中死亡将丢失该轮待结算金币", width / 2, height / 2 + 128);
+  ctx.restore();
+}
+
 // ---- codex / collection ------------------------------------------------------
 
 // monsters: [{name, sprite, kills}] (kills 0 => "???"),

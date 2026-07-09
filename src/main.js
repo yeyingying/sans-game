@@ -28,7 +28,7 @@ import {
   tintSprite,
 } from "./sprites.js";
 import { Player, Enemy, Projectile, Bomb, Explosion, Spike, Pickup, FloatingText } from "./entities.js";
-import { Spawner } from "./spawner.js";
+import { Spawner, roundCoinFactor } from "./spawner.js";
 import {
   WEAPONS,
   CHARACTERS,
@@ -124,6 +124,10 @@ import {
   codexButtonRect,
   drawCodexScreen,
   dailyButtonRect,
+  bossClearLeaveRect,
+  bossClearContinueRect,
+  drawBossClearScreen,
+  drawRoundClearScreen,
   volumeMinusRect,
   volumePlusRect,
   sfxMinusRect,
@@ -184,7 +188,7 @@ const PLAYER_SPRITES = {
 // characters that radiate a glow, and its color
 const CHAR_GLOWS = { ukb: "#a55dff", hard: "#5db9ff" };
 
-let state = "title"; // title | charselect | select | playing | paused | choice | gameover | credits | shop
+let state = "title"; // title | charselect | select | playing | paused | choice | gameover | credits | shop | codex | bossclear
 let selectedChar = 0;
 let selectedWeapon = 0;
 let timeScale = 1; // 1x -> 2x -> 3x, applies to the whole simulation
@@ -222,7 +226,29 @@ let wasDaily = false; // settled run was a daily challenge
 let dailyBestToday = 0;
 let dailyNewBest = false;
 let lastRunCoins = 0; // shown on the gameover screen
-let bossDefeated = false; // endless mode: the boss is down, the horde is not
+let bossDefeated = false; // the heart was taken; endless only if the player opts in
+
+// boss-clear choice screen + stage/endless score separation
+let bossClearChoice = 0; // 0 = leave with the loot, 1 = continue (endless)
+let stageClearScore = 0; // snapshot at the moment the heart is taken
+let stageClearTime = 0;
+let stageClearKills = 0;
+let runOutcome = null; // "death" | "victory" | "endlessDeath" | "retreat" | "quit"
+let endlessResult = null; // {rounds, time, kills, score, best, newBest} for the settlement
+
+// 90-second judgement rounds (endless). Coins earned inside a round sit in
+// roundPendingCoins and are only banked when the round is survived — dying
+// mid-round loses them. Pre-boss coins and the boss bounty are always safe.
+const ROUND_LENGTH = 90;
+let endlessRound = 0; // 0 = not in endless; 1+ = current round
+let roundTimer = 0;
+let roundPendingCoins = 0;
+let roundBossSpawned = false;
+let roundBossDown = false;
+let roundsCleared = 0;
+let roundBanner = null; // {text, sub, t} full-screen announcement
+let hazardTimer = 0; // round 4+: periodic danger zones
+let hazards = []; // {x, y, t} telegraphed player-damaging zones
 
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
 const ENEMY_NAMES = {
@@ -409,6 +435,21 @@ function reset(weaponId) {
   runCoins = 0;
   runKillsByType = {};
   bossDefeated = false;
+  bossClearChoice = 0;
+  stageClearScore = 0;
+  stageClearTime = 0;
+  stageClearKills = 0;
+  runOutcome = null;
+  endlessResult = null;
+  endlessRound = 0;
+  roundTimer = 0;
+  roundPendingCoins = 0;
+  roundBossSpawned = false;
+  roundBossDown = false;
+  roundsCleared = 0;
+  roundBanner = null;
+  hazardTimer = 0;
+  hazards = [];
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -416,15 +457,53 @@ function reset(weaponId) {
 
 reset(currentWeaponList()[0].id);
 
-function settleGame() {
-  // score settlement shown for both death and quitting from pause
+function bestEndlessOf(charId) {
+  return parseInt(localStorage.getItem("best_endless_" + charId) || "0", 10) || 0;
+}
+
+// kind: "victory" when leaving from the boss-clear screen; otherwise derived.
+function settleGame(kind) {
+  runOutcome =
+    kind === "victory"
+      ? "victory"
+      : player.hp <= 0
+        ? bossDefeated
+          ? "endlessDeath" // died during endless
+          : "death"
+        : bossDefeated
+          ? "retreat" // quit from pause during endless: voluntary extraction
+          : "quit"; // quit from pause before the boss (classic GAME OVER card)
   lastDeathBy = player.hp <= 0 ? lastHitBy : null; // only real deaths get a recap
+  // voluntary extraction (round-end or pause-quit) keeps the pending pot;
+  // only death forfeits it
+  if (runOutcome === "retreat") {
+    runCoins += roundPendingCoins;
+    roundPendingCoins = 0;
+  }
   state = "gameover";
   bgm.pause();
-  lastScore = currentScore();
+  // the normal best NEVER absorbs endless-inflated scores: once the boss is
+  // down, the stage score is frozen at the moment the heart was taken
+  lastScore = bossDefeated ? stageClearScore : currentScore();
   lastBest = bestScoreOf(player.character);
   newRecord = lastScore > lastBest;
   if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
+  // endless gets its own ledger and its own best
+  endlessResult = null;
+  if (bossDefeated && runOutcome !== "victory") {
+    const eScore = Math.max(0, currentScore() - stageClearScore);
+    const eBestPrev = bestEndlessOf(player.character);
+    const eNew = eScore > eBestPrev;
+    if (eNew) localStorage.setItem("best_endless_" + player.character, String(eScore));
+    endlessResult = {
+      rounds: roundsCleared,
+      time: Math.max(0, Math.floor(elapsed - stageClearTime)),
+      kills: Math.max(0, player.kills - stageClearKills),
+      score: eScore,
+      best: Math.max(eBestPrev, eScore),
+      newBest: eNew,
+    };
+  }
   // bank the run: coins into the wallet, kills/boss into lifetime stats
   lastRunCoins = runCoins;
   addCoins(runCoins);
@@ -461,6 +540,68 @@ function toCharSelect() {
 
 // debug: open the page with ?boss to skip to the boss, ?boss=weak for a frail one
 const DEBUG_BOSS = new URLSearchParams(location.search).get("boss");
+
+// ---- boss-clear choices ----------------------------------------------------
+
+function bossClearLeave() {
+  // victory settlement: coins, boss kill, difficulty clear and the normal
+  // best all recorded by settleGame; title reads 通关成功, never GAME OVER
+  settleGame("victory");
+}
+
+function startRound(n) {
+  endlessRound = n;
+  roundTimer = ROUND_LENGTH;
+  roundPendingCoins = 0;
+  roundBossSpawned = false;
+  roundBossDown = false;
+  spawner.round = n;
+  const rules = [
+    "", // 1-based
+    "精英成群 · 金币收益 50%",
+    "怪物移速 +15% · 金币收益 25%",
+    "怪物伤害提升 · 治疗减半 · 远程怪增多 · 金币收益 10%",
+    "危险领域降临 · 金币不再掉落",
+    "全部审判叠加，且仍在加深",
+  ];
+  roundBanner = { text: `⚖ 审判第 ${n} 轮`, sub: rules[Math.min(n, 5)], t: 2.8 };
+  sfxAlarm();
+  nextChoiceAt = Math.max(nextChoiceAt, elapsed + 5); // no instant backlog
+  state = "playing";
+  bgmPlay();
+}
+
+function bossClearContinue() {
+  // full boss reward, then the judgement continues in 90s rounds
+  player.hp = player.maxHp;
+  for (const t of EQUIPMENT_TYPES) t.apply(player); // every gem's effect
+  spawner.endless = true;
+  nextChoiceAt = elapsed + choiceInterval; // no backlog of choice screens
+  floatingTexts.push(new FloatingText(player.x, player.y - 26, "决心！全属性提升", "#ffffff"));
+  startRound(1);
+}
+
+function roundRetreat() {
+  // voluntary extraction: this round's pending coins are banked, then settle
+  runCoins += roundPendingCoins;
+  roundPendingCoins = 0;
+  settleGame(); // hp > 0 && bossDefeated → "retreat", never a death cause
+}
+
+function roundNext() {
+  runCoins += roundPendingCoins; // the finished round's loot is now safe
+  startRound(endlessRound + 1);
+}
+
+// coin drop factor: 1 before the boss, per-round decay in endless
+function currentCoinFactor() {
+  return roundCoinFactor(endlessRound);
+}
+
+// round 3+: healing and regeneration are halved
+function healScale() {
+  return endlessRound >= 3 ? 0.5 : 1;
+}
 
 // ---- daily challenge -------------------------------------------------------
 // One fixed-seed run per calendar day: same spawns/cards for everyone, a
@@ -569,7 +710,7 @@ function buildChoicePool() {
         color: "#ff8fc7",
         apply: () => {
           player.maxHp += 25;
-          player.hp = Math.min(player.maxHp, player.hp + 25);
+          player.hp = Math.min(player.maxHp, player.hp + Math.round(25 * healScale()));
         },
       }),
     },
@@ -632,7 +773,7 @@ function buildChoicePool() {
       desc: "立即恢复 50 点生命",
       color: "#7cf28a",
       apply: () => {
-        player.hp = Math.min(player.maxHp, player.hp + 50);
+        player.hp = Math.min(player.maxHp, player.hp + Math.round(50 * healScale()));
       },
     }),
   });
@@ -890,6 +1031,18 @@ function handleCanvasTap(pos) {
     }
     return;
   }
+  if (state === "bossclear" || state === "roundclear") {
+    const leave = state === "bossclear" ? bossClearLeave : roundRetreat;
+    const cont = state === "bossclear" ? bossClearContinue : roundNext;
+    if (inRect(pos, bossClearLeaveRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      leave();
+    } else if (inRect(pos, bossClearContinueRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      cont();
+    }
+    return;
+  }
   if (state === "codex") {
     if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
       state = "title";
@@ -1064,6 +1217,19 @@ window.addEventListener("keydown", (e) => {
     if (k === "escape") state = "title";
     return;
   }
+  if (state === "bossclear" || state === "roundclear") {
+    if (k === "arrowleft" || k === "arrowright") {
+      bossClearChoice = 1 - bossClearChoice;
+      sfxClick();
+    } else if (k === " " || k === "enter") {
+      sfxClick();
+      const leave = state === "bossclear" ? bossClearLeave : roundRetreat;
+      const cont = state === "bossclear" ? bossClearContinue : roundNext;
+      if (bossClearChoice === 0) leave();
+      else cont();
+    }
+    return;
+  }
   if (state === "charselect") {
     const n = CHARACTERS.length;
     if (k === "arrowleft" || k === "arrowright") selectedChar = (selectedChar + 1) % n;
@@ -1143,8 +1309,11 @@ function spawnDrops(enemy) {
       new Pickup(enemy.x + (Math.random() - 0.5) * 14, enemy.y + (Math.random() - 0.5) * 14, "equipment", { type })
     );
   }
-  // coins: the between-runs currency. Value grows with the clock.
-  if (enemy.elite || Math.random() < 0.13) {
+  // coins: the between-runs currency. Value grows with the clock. In endless
+  // the DROP CHANCE decays (50%→25%→10%→0) — chance, not value, so the decay
+  // can't be defeated by Math.max(1) rounding on tiny values.
+  const coinFactor = currentCoinFactor();
+  if (coinFactor > 0 && (enemy.elite || Math.random() < 0.13) && Math.random() < coinFactor) {
     const base = (enemy.elite ? 6 : 1) * (1 + Math.floor(elapsed / 150));
     const value = Math.max(1, Math.round(base * coinGainMult() * getDifficulty().coinMult));
     pickups.push(
@@ -1230,7 +1399,7 @@ function update(dt) {
   const baseMove = player.moveSpeed;
   const baseRegen = player.regen;
   player.moveSpeed *= shieldBuff;
-  player.regen *= shieldBuff;
+  player.regen *= shieldBuff * healScale(); // round 3+: regeneration halved
   player.update(dt, moveVec, bounds);
   player.moveSpeed = baseMove;
   player.regen = baseRegen;
@@ -1248,7 +1417,68 @@ function update(dt) {
     });
   }
 
-  if (!bossFight) for (const e of spawner.update(dt, camX)) enemies.push(e);
+  if (!bossFight) {
+    for (const e of spawner.update(dt, camX)) {
+      if (enemies.length >= 220) break; // hard cap: keep phones alive in endless
+      enemies.push(e);
+    }
+  }
+
+  // ---- endless judgement rounds -------------------------------------------
+  if (endlessRound > 0) {
+    if (roundTimer > 0) roundTimer -= dt;
+    // T-15s: the round's champion — a souped-up elite of an existing monster
+    if (!roundBossSpawned && roundTimer <= 15) {
+      roundBossSpawned = true;
+      const types = ["tank", "red", "orange", "blue", "purple", "ghost"];
+      const ty = types[Math.floor(Math.random() * types.length)];
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const b = new Enemy(
+        ty,
+        camX + WIDTH / 2 + side * (WIDTH / 2 + 60),
+        WALL_H + 40 + Math.random() * (HEIGHT - WALL_H - 80),
+        spawner.scale(true)
+      );
+      b.roundBoss = true;
+      b.maxHp = Math.round(b.maxHp * (4 + endlessRound));
+      b.hp = b.maxHp;
+      b.dmg = Math.round(b.dmg * 1.5);
+      b.radius = Math.round(b.radius * 1.35);
+      b.xp = Math.round(b.xp * 4);
+      enemies.push(b);
+      roundBanner = { text: "⚠ 首领接近", sub: `消灭它以完成第 ${endlessRound} 轮审判`, t: 2.2 };
+      sfxAlarm();
+    }
+    // the round ends when the clock is out AND the champion is down
+    if (roundTimer <= 0 && roundBossSpawned && roundBossDown) {
+      roundsCleared = endlessRound;
+      bossClearChoice = 0;
+      state = "roundclear";
+    }
+    // round 4+: periodic danger zones (existing telegraph + blast visuals)
+    if (endlessRound >= 4) {
+      hazardTimer -= dt;
+      if (hazardTimer <= 0) {
+        hazardTimer = Math.max(2.2, 4.2 - 0.2 * (endlessRound - 4));
+        hazards.push({
+          x: player.x + (Math.random() - 0.5) * 320,
+          y: clamp(player.y + (Math.random() - 0.5) * 260, WALL_H + 30, HEIGHT - 30),
+          t: 1.15,
+        });
+      }
+    }
+    for (const hz of hazards) {
+      hz.t -= dt;
+      if (hz.t <= 0) {
+        explosions.push(new Explosion(hz.x, hz.y, 75, "#ff5d5d"));
+        if (circleHit(hz.x, hz.y, 75, player.x, player.y, player.radius)) {
+          if (player.takeDamage(12 + 4 * endlessRound)) lastHitBy = "审判领域";
+        }
+      }
+    }
+    hazards = hazards.filter((hz) => hz.t > 0);
+  }
+  if (roundBanner && (roundBanner.t -= dt) <= 0) roundBanner = null;
 
   // enemies left far behind wrap around to just ahead of the view so
   // running sideways forever doesn't shake off the horde
@@ -1360,6 +1590,7 @@ function update(dt) {
 
   for (const ex of explosions) ex.update(dt);
   explosions = explosions.filter((ex) => !ex.expired);
+  if (explosions.length > 40) explosions.splice(0, explosions.length - 40); // particle cap
 
   for (const sp of spikes) {
     sp.update(dt);
@@ -1425,6 +1656,7 @@ function update(dt) {
       summon: (n) => {
         const types = ["slime", "bat", "ghost", "tank", "red", "orange", "blue", "purple"];
         for (let i = 0; i < n; i++) {
+          if (enemies.length >= 220) break; // same on-screen cap as the spawner
           const ty = types[Math.floor(Math.random() * types.length)];
           const ex = camX + 40 + Math.random() * (WIDTH - 80);
           const ey = WALL_H + 30 + Math.random() * (HEIGHT - WALL_H - 60);
@@ -1442,6 +1674,12 @@ function update(dt) {
     if (bossFight.done) enemies = enemies.filter((e) => !e.boss);
     // boss attacks apply damage inside bossFight.update — tag them here
     if (player.hp < hpBeforeBoss - 0.001) lastHitBy = "天意侵蚀Sans";
+    // debug-only: ?boss=weak keeps phase 2 frail as well (the adaptive
+    // formula reads BOSS_HP/p1Time, which explodes when phase 1 is weak)
+    if (DEBUG_BOSS === "weak" && bossFight && bossFight.boss.maxHp > 600) {
+      bossFight.boss.maxHp = 500;
+      bossFight.boss.hp = Math.min(bossFight.boss.hp, 500);
+    }
   }
 
   const dead = enemies.filter((e) => e.hp <= 0 && !e.boss);
@@ -1449,6 +1687,10 @@ function update(dt) {
     player.kills += 1;
     runKillsByType[e.type] = (runKillsByType[e.type] || 0) + 1;
     if (!e.noXp) spawnDrops(e);
+    if (e.roundBoss) {
+      roundBossDown = true;
+      floatingTexts.push(new FloatingText(e.x, e.y - 30, "★ 首领被击败！", "#ffd166"));
+    }
     if (e.elite) {
       // elites go out with a bang: shock ring + deep boom
       explosions.push(new Explosion(e.x, e.y, e.radius * 3.4, "#ffd166", true));
@@ -1487,20 +1729,23 @@ function update(dt) {
         const levels = player.addXp(pu.data.amount);
         if (levels > 0) onLevelUp(levels);
       } else if (pu.kind === "bossheart") {
-        // victory! full heal + every gem, then the run rolls on: endless mode
-        player.hp = player.maxHp;
-        for (const t of EQUIPMENT_TYPES) t.apply(player);
+        // the judgement is over: freeze the stage result and let the player
+        // choose — leave with the loot, or opt into endless
         player.kills += 50; // the boss counts as 50 kills
         runCoins += Math.round(80 * coinGainMult() * getDifficulty().coinMult); // boss bounty
         bossDefeated = true;
         bossFight = null; // hand the field back to the spawner
-        spawner.endless = true; // elite pressure ramps up from here
-        nextChoiceAt = elapsed + choiceInterval; // no backlog of choice screens
-        floatingTexts.push(new FloatingText(player.x, player.y - 26, "决心！全属性提升", "#ffffff"));
-        floatingTexts.push(new FloatingText(player.x, player.y - 48, "★ 无尽模式开启：怪物无限增强", "#ffd166"));
+        stageClearScore = currentScore();
+        stageClearTime = elapsed;
+        stageClearKills = player.kills;
+        bossClearChoice = 0;
+        state = "bossclear"; // world pauses behind the choice
         sfxFanfare();
       } else if (pu.kind === "coin") {
-        runCoins += pu.data.value;
+        // in endless the coin rides in the round's pending pot: banked only
+        // when the round is survived, lost if the player dies mid-round
+        if (endlessRound > 0) roundPendingCoins += pu.data.value;
+        else runCoins += pu.data.value;
         sfxCoin();
       } else {
         pu.data.type.apply(player);
@@ -1752,6 +1997,22 @@ function draw() {
     }
   }
 
+  // round 4+ danger zones: pulsing red telegraph before the blast
+  for (const hz of hazards) {
+    const t = 1 - hz.t / 1.15;
+    ctx.save();
+    ctx.strokeStyle = "#ff5d5d";
+    ctx.globalAlpha = 0.35 + t * 0.55;
+    ctx.lineWidth = 2 + t * 2;
+    ctx.beginPath();
+    ctx.arc(hz.x, hz.y, 75 * (0.5 + t * 0.5), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.10 + t * 0.14;
+    ctx.fillStyle = "#ff5d5d";
+    ctx.fill();
+    ctx.restore();
+  }
+
   // teleporter marks (drawn under everything else)
   for (const e of enemies) {
     if (!e.mark) continue;
@@ -1781,6 +2042,14 @@ function draw() {
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.radius + 5, 0, Math.PI * 2);
       ctx.stroke();
+      // round champion: an extra pulsing ring marks the kill target
+      if (e.roundBoss) {
+        ctx.globalAlpha = 0.6 + 0.4 * Math.sin(elapsed * 6);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius + 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.restore();
     }
     // extended attack range ring (blue enemy)
@@ -2217,6 +2486,24 @@ function draw() {
     ctx.restore();
   }
 
+  // endless round banner: loud full-screen announcement + red pulse
+  if (roundBanner && (state === "playing" || state === "choice")) {
+    const a = Math.min(1, roundBanner.t / 0.6);
+    ctx.save();
+    ctx.fillStyle = `rgba(200, 30, 30, ${0.14 * a})`;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.textAlign = "center";
+    ctx.globalAlpha = a;
+    ctx.fillStyle = "#ff8a5d";
+    ctx.font = "bold 34px monospace";
+    ctx.fillText(roundBanner.text, WIDTH / 2, HEIGHT / 2 - 90);
+    ctx.font = "bold 14px monospace";
+    ctx.fillStyle = "#f2ead8";
+    ctx.fillText(roundBanner.sub, WIDTH / 2, HEIGHT / 2 - 62);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
   // kill-streak milestone: quick white pop over the whole screen
   if (killFlash > 0 && (state === "playing" || state === "choice")) {
     ctx.save();
@@ -2256,13 +2543,24 @@ function draw() {
     ctx.fillStyle = "#ffd166";
     ctx.font = "12px monospace";
     ctx.fillText(`ⓖ ${runCoins}`, WIDTH - 16, 68);
-    if (bossDefeated) {
+    if (endlessRound > 0) {
       ctx.fillStyle = "#ff8a5d";
-      ctx.fillText("★ 无尽模式", WIDTH - 16, 86);
+      const clock =
+        roundTimer > 0
+          ? `剩余 ${Math.ceil(roundTimer)}s`
+          : roundBossDown
+            ? "完成"
+            : "消灭首领！";
+      ctx.fillText(`⚖ 审判第 ${endlessRound} 轮 · ${clock}`, WIDTH - 16, 86);
+      const cf = currentCoinFactor();
+      ctx.fillStyle = cf > 0 ? "#ffd166" : "#8d8798";
+      ctx.fillText(cf > 0 ? `金币收益 ${Math.round(cf * 100)}%` : "金币收益已停止", WIDTH - 16, 104);
+      ctx.fillStyle = "#ffd166";
+      ctx.fillText(`本轮待结算 ⓖ ${roundPendingCoins}`, WIDTH - 16, 122);
     }
     if (dailyMode) {
       ctx.fillStyle = "#c59bff";
-      ctx.fillText("✦ 每日挑战", WIDTH - 16, bossDefeated ? 104 : 86);
+      ctx.fillText("✦ 每日挑战", WIDTH - 16, endlessRound > 0 ? 140 : 86);
     }
     ctx.restore();
     ctx.textAlign = "left";
@@ -2351,17 +2649,48 @@ function draw() {
     drawQuitButton(ctx, WIDTH, HEIGHT);
   } else if (state === "choice") {
     drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollsLeft);
+  } else if (state === "bossclear") {
+    drawBossClearScreen(ctx, WIDTH, HEIGHT, bossClearChoice);
+  } else if (state === "roundclear") {
+    drawRoundClearScreen(ctx, WIDTH, HEIGHT, endlessRound, bossClearChoice, roundPendingCoins);
   } else if (state === "gameover") {
+    const title =
+      runOutcome === "victory"
+        ? { text: "通关成功！", font: "bold 32px monospace", color: "#7cf28a" }
+        : runOutcome === "endlessDeath"
+          ? { text: "无尽终局", font: "bold 32px monospace", color: "#ff8a5d" }
+          : runOutcome === "retreat"
+            ? { text: "主动撤离", font: "bold 32px monospace", color: "#8fd6ff" }
+            : { text: "GAME OVER", font: "bold 32px monospace", color: "#ff5d73" };
     drawCenterText(ctx, WIDTH, HEIGHT, [
-      { text: "GAME OVER", font: "bold 32px monospace", color: "#ff5d73" },
-      ...(lastDeathBy ? [{ text: `死于:${lastDeathBy}`, font: "14px monospace", color: "#c95d5d" }] : []),
-      { text: `得分 ${lastScore}`, font: "bold 24px monospace", color: "#ffd166" },
+      title,
+      ...(lastDeathBy && runOutcome !== "retreat"
+        ? [{ text: `死于:${lastDeathBy}`, font: "14px monospace", color: "#c95d5d" }]
+        : []),
+      { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore}`, font: "bold 24px monospace", color: "#ffd166" },
       {
         text: newRecord ? "★ 新纪录！" : `历史最高 ${lastBest}`,
         font: "14px monospace",
         color: newRecord ? "#7cf28a" : "#9a93ab",
       },
-      { text: `存活时间 ${Math.floor(elapsed)} 秒${bossDefeated ? " · ★击败Boss" : ""}`, font: "16px monospace" },
+      ...(endlessResult
+        ? [
+            {
+              text: `完成审判 ${endlessResult.rounds} 轮 · 无尽存活 ${endlessResult.time} 秒 · 无尽新增击杀 ${endlessResult.kills}`,
+              font: "14px monospace",
+              color: "#ff8a5d",
+            },
+            {
+              text: `无尽得分 ${endlessResult.score}  历史最佳 ${endlessResult.best}${endlessResult.newBest ? " ★新纪录！" : ""}`,
+              font: "14px monospace",
+              color: endlessResult.newBest ? "#7cf28a" : "#ff8a5d",
+            },
+          ]
+        : []),
+      {
+        text: `存活时间 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒${bossDefeated ? " · ★击败Boss" : ""}`,
+        font: "16px monospace",
+      },
       { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
       { text: `金币 +${lastRunCoins}  (钱包 ${getCoins()} · 标题页可进强化商店)`, font: "14px monospace", color: "#ffd166" },
       ...(wasDaily
@@ -2396,6 +2725,8 @@ window.__dbg = () => ({
   introBlack: Math.round(introBlack * 100) / 100,
   boss: bossFight ? bossFight.state + "/" + bossFight.step : null,
   bossHp: bossFight ? bossFight.boss.hp : null,
+  bossX: bossFight ? Math.round(bossFight.boss.x) : null,
+  bossY: bossFight ? Math.round(bossFight.boss.y) : null,
   hp: player ? Math.round(player.hp) : null,
   px: player ? Math.round(player.x) : null,
   camX: Math.round(camX),
@@ -2408,8 +2739,22 @@ window.__dbg = () => ({
   runCoins,
   lastRunCoins,
   wallet: getCoins(),
-  endless: bossDefeated,
+  endless: spawner ? spawner.endless : false,
+  bossDefeated,
   daily: dailyMode,
+  py: player ? Math.round(player.y) : null,
+  heart: (() => {
+    const h = pickups && pickups.find((p) => p.kind === "bossheart");
+    return h ? { x: Math.round(h.x), y: Math.round(h.y) } : null;
+  })(),
+  outcome: runOutcome,
+  stageScore: stageClearScore,
+  round: endlessRound,
+  roundTimer: Math.round(roundTimer * 10) / 10,
+  roundBossAlive: roundBossSpawned && !roundBossDown,
+  pending: roundPendingCoins,
+  roundsCleared,
+  coinFactor: currentCoinFactor(),
 });
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });
 
