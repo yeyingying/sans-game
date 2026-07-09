@@ -1,0 +1,59 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #0c0a10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  /* stop the page from scrolling, bouncing, or pinch-zooming on mobile */
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#wrap {
+  width: 100%;
+  max-width: 960px;
+  padding: 12px;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 2px solid #3a2f4a;
+  cursor: pointer;
+  background: #181321;
+  touch-action: none;
+}
+
+/* on small screens in portrait, ask the player to rotate */
+#rotate-hint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: #0c0a10;
+  color: #f2ead8;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 20px;
+  padding: 24px;
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  #rotate-hint {
+    display: flex;
+  }
+}
