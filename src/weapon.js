@@ -8,6 +8,12 @@ export const WEAPONS = {
     desc: "向最近的敌人投出骨头，升级后扇形多发",
     color: "#f2ead8",
     enhance: { desc: "骨头穿透 +2", detail: "重复选择穿透 +1/层" },
+    // evolution: max tier + 3 enhance stacks unlocks the awakened form
+    evolve: {
+      name: "灭骨风暴",
+      desc: "8连赤骨齐射，穿透与攻速全面觉醒",
+      tier: { projectiles: 8, spread: 36, pierce: 6, dmgMult: 3.2, rateMult: 1.4, size: 14 },
+    },
     tiers: [
       { projectiles: 1, spread: 0, pierce: 1, dmgMult: 1.0, rateMult: 1.0, size: 8 },
       { projectiles: 2, spread: 12, pierce: 1, dmgMult: 1.15, rateMult: 1.05, size: 8 },
@@ -23,6 +29,11 @@ export const WEAPONS = {
     desc: "骨头环绕自身旋转，把靠近的敌人撞飞出去",
     color: "#8fd6ff",
     enhance: { desc: "骨环固定大小，击退 +50%", detail: "重复选择击退 +10%/层" },
+    evolve: {
+      name: "白骨领域",
+      desc: "12根巨骨织成绞杀领域，靠近者皆碎",
+      tier: { count: 12, radius: 98, spin: 5.2, dmgMult: 5.0, size: 24 },
+    },
     tiers: [
       { count: 3, radius: 44, spin: 2.6, dmgMult: 1.5, size: 16 },
       { count: 4, radius: 50, spin: 2.9, dmgMult: 1.7, size: 16 },
@@ -295,6 +306,11 @@ export const WEAPONS = {
     desc: "掷出穿透一切的飞斧，升级加飞斧数量",
     color: "#c7cdd8",
     enhance: { desc: "飞斧变为回旋镖，去而复返", detail: "重复选择 +1 次回旋" },
+    evolve: {
+      name: "千斧断魂",
+      desc: "8把巨斧撕裂全场，伤害翻倍",
+      tier: { count: 8, dmgMult: 4.0, rateMult: 0.95, size: 24 },
+    },
     tiers: [
       { count: 2, dmgMult: 1.5, rateMult: 0.75, size: 14 },
       { count: 3, dmgMult: 1.65, rateMult: 0.75, size: 14 },
@@ -562,6 +578,7 @@ export function createWeaponInstance(id) {
     shieldT: 0, // remaining shield uptime
     chainTargets: [], // enemies currently being dragged in
     enhance: 0, // stacks of the weapon's exclusive enhancement card
+    evolved: false, // awakened form (max tier + 3 enhance stacks required)
     enhanceTick: 0,
     bonusRange: 0,
     bonusProjectiles: 0,
@@ -574,7 +591,14 @@ export function createWeaponInstance(id) {
 }
 
 export function instTier(inst) {
-  return WEAPONS[inst.id].tiers[inst.tier];
+  const w = WEAPONS[inst.id];
+  if (inst.evolved && w.evolve) return w.evolve.tier;
+  return w.tiers[inst.tier];
+}
+
+// evolution unlock check shared by the card pool
+export function canEvolve(inst) {
+  return !!WEAPONS[inst.id].evolve && !inst.evolved && inst.tier >= MAX_TIER && inst.enhance >= 3;
 }
 
 export function applyLevelUpBonus(inst) {
@@ -605,7 +629,9 @@ export function applyLevelUpBonus(inst) {
 }
 
 export function weaponSummary(player, sep = " · ") {
-  return player.weapons.map((i) => `${WEAPONS[i.id].name} Lv${i.tier + 1}`).join(sep);
+  return player.weapons
+    .map((i) => (i.evolved ? `★${WEAPONS[i.id].evolve.name}` : `${WEAPONS[i.id].name} Lv${i.tier + 1}`))
+    .join(sep);
 }
 
 // all weapon damage funnels through this so 增伤 cards affect everything
@@ -1668,8 +1694,10 @@ function updateInstance(player, inst, dt, world) {
 
   if (weapon.id === "bone") {
     const extraPierce = inst.enhance > 0 ? inst.enhance + 1 : 0;
-    for (const s of fireSpread(player, inst, tier, baseAngle, effRange, { pierce: tier.pierce + extraPierce }))
+    for (const s of fireSpread(player, inst, tier, baseAngle, effRange, { pierce: tier.pierce + extraPierce })) {
+      if (inst.evolved) s.red = true; // awakened bones burn red
       world.spawnProjectile(s);
+    }
   } else if (weapon.id === "homing") {
     const rootOnHit = inst.enhance > 0 ? 0.5 + 0.25 * (inst.enhance - 1) : 0;
     for (const s of fireSpread(player, inst, tier, baseAngle, effRange, { turn: tier.turn, rootOnHit })) {
@@ -1925,7 +1953,7 @@ function updateInstance(player, inst, dt, world) {
     }
   } else if (weapon.id === "axes") {
     const dmg = weaponDmg(player, tier.dmgMult);
-    const count = Math.min(tier.count + extraAmmo, 5); // hard cap of 5 axes
+    const count = Math.min(tier.count + extraAmmo, inst.evolved ? 9 : 5); // axe cap lifts when awakened
     const spreadRad = 0.5 + count * 0.07;
     for (let i = 0; i < count; i++) {
       const t = count === 1 ? 0 : i / (count - 1) - 0.5;

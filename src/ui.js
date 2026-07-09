@@ -64,21 +64,26 @@ export function drawSpeedButton(ctx, width, timeScale) {
   ctx.restore();
 }
 
+// two volume rows on the pause screen: music (BGM) and sound effects
 export function volumeMinusRect(width, height) {
-  return { x: width / 2 - 130, y: height / 2 - 4, w: 32, h: 30 };
+  return { x: width / 2 - 130, y: height / 2 - 26, w: 32, h: 26 };
 }
 
 export function volumePlusRect(width, height) {
-  return { x: width / 2 + 98, y: height / 2 - 4, w: 32, h: 30 };
+  return { x: width / 2 + 98, y: height / 2 - 26, w: 32, h: 26 };
 }
 
-export function drawVolumeControl(ctx, width, height, volume) {
-  const minus = volumeMinusRect(width, height);
-  const plus = volumePlusRect(width, height);
-  ctx.save();
+export function sfxMinusRect(width, height) {
+  return { x: width / 2 - 130, y: height / 2 + 10, w: 32, h: 26 };
+}
+
+export function sfxPlusRect(width, height) {
+  return { x: width / 2 + 98, y: height / 2 + 10, w: 32, h: 26 };
+}
+
+function drawVolumeRow(ctx, width, minus, plus, label, volume) {
   ctx.textAlign = "center";
-  // buttons
-  for (const [btn, label] of [
+  for (const [btn, sign] of [
     [minus, "−"],
     [plus, "+"],
   ]) {
@@ -88,13 +93,18 @@ export function drawVolumeControl(ctx, width, height, volume) {
     ctx.lineWidth = 2;
     ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
     ctx.fillStyle = "#8fd6ff";
-    ctx.font = "bold 18px monospace";
-    ctx.fillText(label, btn.x + btn.w / 2, btn.y + 21);
+    ctx.font = "bold 17px monospace";
+    ctx.fillText(sign, btn.x + btn.w / 2, btn.y + 19);
   }
-  // volume bar between the buttons
-  const barX = minus.x + minus.w + 10;
+  // label + bar between the buttons
+  const barX = minus.x + minus.w + 74;
   const barW = plus.x - 10 - barX;
-  const barY = minus.y + 8;
+  const barY = minus.y + 6;
+  ctx.fillStyle = "#c8c2d4";
+  ctx.font = "12px monospace";
+  ctx.textAlign = "left";
+  ctx.fillText(`${label} ${Math.round(volume * 100)}%`, minus.x + minus.w + 8, barY + 11);
+  ctx.textAlign = "center";
   ctx.fillStyle = "#241f2b";
   ctx.fillRect(barX, barY, barW, 14);
   ctx.fillStyle = "#8fd6ff";
@@ -102,9 +112,12 @@ export function drawVolumeControl(ctx, width, height, volume) {
   ctx.strokeStyle = "#5a5468";
   ctx.lineWidth = 1;
   ctx.strokeRect(barX, barY, barW, 14);
-  ctx.fillStyle = "#c8c2d4";
-  ctx.font = "12px monospace";
-  ctx.fillText(`音量 ${Math.round(volume * 100)}%`, width / 2, minus.y - 8);
+}
+
+export function drawVolumeControl(ctx, width, height, volume, sfxVolume) {
+  ctx.save();
+  drawVolumeRow(ctx, width, volumeMinusRect(width, height), volumePlusRect(width, height), "音乐", volume);
+  drawVolumeRow(ctx, width, sfxMinusRect(width, height), sfxPlusRect(width, height), "音效", sfxVolume);
   ctx.restore();
 }
 

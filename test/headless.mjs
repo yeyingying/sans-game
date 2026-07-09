@@ -115,6 +115,26 @@ function run(seconds, onFrame) {
   }
 }
 
+// weapon-module unit checks (evolution rules)
+{
+  const W = await import(new URL("../src/weapon.js", import.meta.url));
+  for (const [id, field, want] of [
+    ["bone", "projectiles", 8],
+    ["orbit", "count", 12],
+    ["axes", "count", 8],
+  ]) {
+    const inst = W.createWeaponInstance(id);
+    check(`${id}: not evolvable at start`, !W.canEvolve(inst));
+    inst.tier = 4;
+    inst.enhance = 3;
+    check(`${id}: evolvable at max tier + 3 stacks`, W.canEvolve(inst));
+    inst.evolved = true;
+    check(`${id}: evolved tier active`, W.instTier(inst)[field] === want, JSON.stringify(W.instTier(inst)));
+    check(`${id}: no longer evolvable`, !W.canEvolve(inst));
+    check(`${id}: summary shows evolved name`, W.weaponSummary({ weapons: [inst] }).startsWith("★"));
+  }
+}
+
 console.log(`--- mode: ${MODE} ---`);
 frame(); // first frame after module load
 

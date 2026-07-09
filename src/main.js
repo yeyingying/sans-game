@@ -49,11 +49,13 @@ import {
   createWeaponInstance,
   applyLevelUpBonus,
   weaponSummary,
+  canEvolve,
 } from "./weapon.js";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
 import {
   initSfx,
   setSfxVolume,
+  sfxClick,
   sfxHit,
   sfxKill,
   sfxPickup,
@@ -93,6 +95,8 @@ import {
   drawTitleScreen,
   volumeMinusRect,
   volumePlusRect,
+  sfxMinusRect,
+  sfxPlusRect,
   drawVolumeControl,
 } from "./ui.js";
 
@@ -240,9 +244,15 @@ function gameVolTarget() {
 function setBgmVolume(v) {
   bgmVolume = Math.min(1, Math.max(0, Math.round(v * 10) / 10));
   localStorage.setItem("bgmVolume", String(bgmVolume));
-  setSfxVolume(Math.min(1, bgmVolume * 1.4)); // sfx rides the same volume knob
 }
-setSfxVolume(Math.min(1, bgmVolume * 1.4));
+// sound effects have their own knob on the pause screen
+let sfxVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem("sfxVolume") ?? "0.7") || 0.7));
+function updateSfxVolume(v) {
+  sfxVolume = Math.min(1, Math.max(0, Math.round(v * 10) / 10));
+  localStorage.setItem("sfxVolume", String(sfxVolume));
+  setSfxVolume(sfxVolume);
+}
+setSfxVolume(sfxVolume);
 // ease an audio element's volume toward a target; auto play/pause at the ends
 function fadeAudio(audio, target, dt, speed) {
   const cur = audio.volume;
@@ -535,12 +545,35 @@ function buildChoicePool() {
         const inst = enhanceable[Math.floor(Math.random() * enhanceable.length)];
         const w = WEAPONS[inst.id];
         const stacks = inst.enhance;
+        const evoHint = w.evolve && !inst.evolved && stacks < 3 ? "\n(满品阶+3层强化 → 可进化)" : "";
         return {
           title: `专属强化·${w.name}`,
-          desc: `${w.enhance.desc}\n${w.enhance.detail}${stacks > 0 ? `\n(当前 ${stacks} 层)` : ""}`,
+          desc: `${w.enhance.desc}\n${w.enhance.detail}${stacks > 0 ? `\n(当前 ${stacks} 层)` : ""}${evoHint}`,
           color: w.color,
           apply: () => {
             inst.enhance += 1;
+          },
+        };
+      },
+    });
+  }
+
+  // 武器进化: max tier + 3 enhance stacks awakens a whole new form
+  const evolvable = player.weapons.filter(canEvolve);
+  if (evolvable.length) {
+    pool.push({
+      kind: "evolve",
+      weight: 60,
+      make: () => {
+        const inst = evolvable[Math.floor(Math.random() * evolvable.length)];
+        const w = WEAPONS[inst.id];
+        return {
+          title: `武器进化·${w.evolve.name}`,
+          desc: `${w.name} 觉醒为 ${w.evolve.name}！\n${w.evolve.desc}`,
+          color: "#ffd166",
+          fanfare: true,
+          apply: () => {
+            inst.evolved = true;
           },
         };
       },
@@ -606,7 +639,12 @@ function applyChoice(i) {
   const opt = choiceOptions[i];
   if (!opt) return;
   opt.apply();
-  sfxChoice();
+  if (opt.fanfare) {
+    sfxFanfare(); // weapon evolution deserves the full jingle
+    killFlash = 0.3;
+  } else {
+    sfxChoice();
+  }
   floatingTexts.push(new FloatingText(player.x, player.y - 26, opt.title, opt.color));
   choiceOptions = [];
   state = "playing";
@@ -629,9 +667,11 @@ function inRect(p, r) {
 function handleCanvasTap(pos) {
   if ((state === "playing" || state === "paused" || state === "choice") && inRect(pos, speedButtonRect(WIDTH))) {
     cycleSpeed();
+    sfxClick();
     return;
   }
   if ((state === "playing" || state === "paused") && inRect(pos, pauseButtonRect(WIDTH))) {
+    sfxClick();
     if (state === "playing") {
       state = "paused";
       bgm.pause();
@@ -642,41 +682,55 @@ function handleCanvasTap(pos) {
     return;
   }
   if (state === "title") {
-    if (inRect(pos, creditsButtonRect(WIDTH, HEIGHT))) state = "credits";
-    else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) toCharSelect();
+    if (inRect(pos, creditsButtonRect(WIDTH, HEIGHT))) {
+      state = "credits";
+      sfxClick();
+    } else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) {
+      toCharSelect();
+      sfxClick();
+    }
     return;
   }
   if (state === "credits") {
     state = "title";
+    sfxClick();
     return;
   }
   if (state === "charselect") {
     if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
       state = "title";
+      sfxClick();
       return;
     }
     for (let i = 0; i < CHARACTERS.length; i++) {
       if (inRect(pos, charBoxRect(i, WIDTH, HEIGHT, CHARACTERS.length))) {
         selectedChar = i;
+        sfxClick();
         return;
       }
     }
     if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) {
       selectedWeapon = 0;
       state = "select";
+      sfxClick();
     }
   } else if (state === "select") {
     if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
       state = "charselect";
+      sfxClick();
       return;
     }
     for (let i = 0; i < currentWeaponList().length; i++) {
       if (inRect(pos, weaponBoxRect(i, WIDTH))) {
         selectedWeapon = i;
+        sfxClick();
         return;
       }
     }
-    if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) startGame();
+    if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) {
+      startGame();
+      sfxClick();
+    }
   } else if (state === "paused") {
     if (inRect(pos, volumeMinusRect(WIDTH, HEIGHT))) {
       setBgmVolume(bgmVolume - 0.1);
@@ -684,6 +738,16 @@ function handleCanvasTap(pos) {
     }
     if (inRect(pos, volumePlusRect(WIDTH, HEIGHT))) {
       setBgmVolume(bgmVolume + 0.1);
+      return;
+    }
+    if (inRect(pos, sfxMinusRect(WIDTH, HEIGHT))) {
+      updateSfxVolume(sfxVolume - 0.1);
+      sfxClick(); // audible feedback at the new level
+      return;
+    }
+    if (inRect(pos, sfxPlusRect(WIDTH, HEIGHT))) {
+      updateSfxVolume(sfxVolume + 0.1);
+      sfxClick();
       return;
     }
     if (inRect(pos, resumeButtonRect(WIDTH, HEIGHT))) {
@@ -696,6 +760,7 @@ function handleCanvasTap(pos) {
     if (choiceRerollAvailable && inRect(pos, rerollButtonRect(WIDTH, HEIGHT))) {
       choiceOptions = rollChoices();
       choiceRerollAvailable = false;
+      sfxClick();
       return;
     }
     for (let i = 0; i < choiceOptions.length; i++) {
@@ -1823,6 +1888,17 @@ function draw() {
   }
 
   drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player), healFlash);
+  // live kill-streak counter: grows with the streak, pops on fresh kills
+  if (streak >= 5 && (state === "playing" || state === "choice")) {
+    const pop = 1 + Math.max(0, streakTimer - 1.35) * 1.6;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.fillStyle = streakTier >= 3 ? "#ff8a5d" : "#ffd166";
+    ctx.font = `bold ${Math.round((15 + Math.min(streak, 80) * 0.08) * pop)}px monospace`;
+    ctx.fillText(`${streak} 连杀`, WIDTH / 2, 82);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
   if (bossFight) bossFight.drawOverlay(ctx);
   if (state === "playing" || state === "paused" || state === "choice") {
     drawSpeedButton(ctx, WIDTH, timeScale);
@@ -1863,7 +1939,7 @@ function draw() {
       ],
       -100 // keep clear of the volume control below
     );
-    drawVolumeControl(ctx, WIDTH, HEIGHT, bgmVolume);
+    drawVolumeControl(ctx, WIDTH, HEIGHT, bgmVolume, sfxVolume);
     drawResumeButton(ctx, WIDTH, HEIGHT);
     drawQuitButton(ctx, WIDTH, HEIGHT);
   } else if (state === "choice") {

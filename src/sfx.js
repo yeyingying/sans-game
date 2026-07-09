@@ -70,6 +70,11 @@ function noiseBurst({ dur = 0.12, gain = 0.2, delay = 0 } = {}) {
   src.start(t0);
 }
 
+// menu button tap: single soft tick
+export function sfxClick() {
+  blip({ type: "triangle", from: 840, dur: 0.05, gain: 0.12 });
+}
+
 // weapon lands on an enemy: tiny quiet tick, heavily throttled
 export function sfxHit() {
   if (throttled("hit", 0.055)) return;
