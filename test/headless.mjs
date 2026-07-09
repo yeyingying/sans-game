@@ -115,6 +115,32 @@ function run(seconds, onFrame) {
   }
 }
 
+// meta-progression unit checks (coins / upgrades / unlocks)
+{
+  const M = await import(new URL("../src/meta.js", import.meta.url));
+  check("wallet starts empty", M.getCoins() === 0);
+  M.addCoins(100);
+  check("coins added", M.getCoins() === 100);
+  check("upgrade cost scales", M.upgradeCost("atk") === 30);
+  check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 70);
+  check("next level costs more", M.upgradeCost("atk") === 60);
+  check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 70);
+  const p = { atk: 6, maxHp: 100, hp: 100, moveSpeed: 165, magnetRadius: 90 };
+  M.applyMetaUpgrades(p);
+  check("upgrade applies to player", p.atk === 8, `atk=${p.atk}`);
+  check("sans always unlocked", M.isCharUnlocked("sans"));
+  check("ukb locked at zero kills", !M.isCharUnlocked("ukb"));
+  check("grandfathered by best score", M.isCharUnlocked("ukb", 500));
+  M.recordRun({ kills: 1500, bossKilled: true });
+  check("ukb unlocks via kills", M.isCharUnlocked("ukb"));
+  check("horror unlocks via boss", M.isCharUnlocked("horror"));
+  check("hard still locked", !M.isCharUnlocked("hard"));
+  const info = M.charUnlockInfo("hard");
+  check("unlock info present", !!info && info.hint.length > 0 && info.progress.length > 0);
+  // note: module state stays warm for the game-flow run below (atk+2, ukb
+  // unlocked) — none of the flow assertions depend on a cold wallet
+}
+
 // weapon-module unit checks (evolution rules)
 {
   const W = await import(new URL("../src/weapon.js", import.meta.url));
@@ -187,6 +213,8 @@ if (MODE === "normal") {
   check("death recap present", firstDeath && typeof firstDeath.deathBy === "string" && firstDeath.deathBy.length > 0, `deathBy=${firstDeath && firstDeath.deathBy}`);
   if (firstDeath) console.log(`      死于:${firstDeath.deathBy}, kills=${firstDeath.kills}, elapsed=${firstDeath.elapsed}s`);
   check("kills accumulated (mowing works)", bestKills > 15, `bestKills=${bestKills}`);
+  const dEnd = dbg();
+  check("coins earned and banked", dEnd.lastRunCoins > 0 && dEnd.wallet > 0, `last=${dEnd.lastRunCoins} wallet=${dEnd.wallet}`);
 } else {
   // ?boss route: starts 2s before the boss with a survival kit
   run(1);

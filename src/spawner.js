@@ -14,6 +14,7 @@ export class Spawner {
     this.spawnTimer = 0;
     this.eliteTimer = 25;
     this.introduced = new Set();
+    this.endless = false; // post-boss: elites come faster and bigger batches
   }
 
   // spawn just outside the camera's view (camX = world x of the view's left edge);
@@ -86,10 +87,13 @@ export class Spawner {
     }
 
     if (this.eliteTimer <= 0) {
-      this.eliteTimer = 30;
-      const type = pickWeighted(this.typeWeights());
-      const pos = this.edgePosition(camX);
-      spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true)));
+      this.eliteTimer = this.endless ? 16 : 30;
+      const eliteCount = this.endless ? 2 : 1;
+      for (let i = 0; i < eliteCount; i++) {
+        const type = pickWeighted(this.typeWeights());
+        const pos = this.edgePosition(camX);
+        spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true)));
+      }
     }
 
     return spawned;

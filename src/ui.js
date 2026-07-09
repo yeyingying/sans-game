@@ -187,7 +187,11 @@ export function drawBackButton(ctx, width, height) {
   ctx.restore();
 }
 
-export function drawTitleScreen(ctx, width, height, portraits) {
+export function shopButtonRect(width, height) {
+  return { x: 16, y: height - 52, w: 190, h: 34 };
+}
+
+export function drawTitleScreen(ctx, width, height, portraits, coins = 0) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.99)";
   ctx.fillRect(0, 0, width, height);
@@ -237,6 +241,77 @@ export function drawTitleScreen(ctx, width, height, portraits) {
   ctx.fillStyle = "#b9b2c9";
   ctx.font = "bold 14px monospace";
   ctx.fillText("制作名单", cb.x + cb.w / 2, cb.y + 22);
+
+  // upgrade shop entrance, bottom-left, with the wallet on display
+  const sb = shopButtonRect(width, height);
+  ctx.fillStyle = "#241c10";
+  ctx.fillRect(sb.x, sb.y, sb.w, sb.h);
+  ctx.strokeStyle = "#ffd166";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(sb.x, sb.y, sb.w, sb.h);
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText(`强化商店 · ⓖ ${coins}`, sb.x + sb.w / 2, sb.y + 22);
+  ctx.restore();
+}
+
+// ---- permanent upgrade shop ------------------------------------------------
+
+export function shopItemRect(i, width, height) {
+  const w = 560;
+  const h = 56;
+  const gap = 10;
+  return { x: width / 2 - w / 2, y: 120 + i * (h + gap), w, h };
+}
+
+// items: [{name, desc, lvl, max, cost, color}], cost null = maxed
+export function drawShopScreen(ctx, width, height, items, coins) {
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 30px monospace";
+  ctx.fillText("强 化 商 店", width / 2, 58);
+  ctx.fillStyle = "#f2ead8";
+  ctx.font = "14px monospace";
+  ctx.fillText(`金币 ⓖ ${coins} · 升级永久生效`, width / 2, 88);
+
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const box = shopItemRect(i, width, height);
+    const affordable = it.cost !== null && coins >= it.cost;
+    ctx.fillStyle = "#1d1828";
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeStyle = it.cost === null ? "#453f52" : affordable ? it.color : "#5a5468";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = it.color;
+    ctx.font = "bold 16px monospace";
+    ctx.fillText(it.name, box.x + 16, box.y + 24);
+    ctx.fillStyle = "#b9b2c9";
+    ctx.font = "12px monospace";
+    ctx.fillText(it.desc, box.x + 16, box.y + 44);
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#f2ead8";
+    ctx.font = "bold 14px monospace";
+    // level pips
+    ctx.fillText(`${"■".repeat(it.lvl)}${"□".repeat(it.max - it.lvl)}`, box.x + box.w - 118, box.y + 24);
+    ctx.fillStyle = it.cost === null ? "#7cf28a" : affordable ? "#ffd166" : "#6b6578";
+    ctx.fillText(it.cost === null ? "已满级" : `ⓖ ${it.cost}`, box.x + box.w - 16, box.y + 24);
+    if (it.cost !== null) {
+      ctx.fillStyle = affordable ? "#7d7690" : "#5a5468";
+      ctx.font = "11px monospace";
+      ctx.fillText(affordable ? "点击购买" : "金币不足", box.x + box.w - 16, box.y + 44);
+    }
+  }
+
+  ctx.textAlign = "center";
+  drawBackButton(ctx, width, height);
   ctx.restore();
 }
 
@@ -248,7 +323,8 @@ export function charBoxRect(i, width, height, count = 2) {
   return { x: (width - total) / 2 + i * (w + gap), y: height / 2 - h / 2 - 20, w, h };
 }
 
-export function drawCharSelect(ctx, width, height, characters, selected, sprites, bests = {}) {
+// locks: {charId: {hint, progress}} — present only for still-locked characters
+export function drawCharSelect(ctx, width, height, characters, selected, sprites, bests = {}, locks = {}) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
   ctx.fillRect(0, 0, width, height);
@@ -271,12 +347,14 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
     ctx.lineWidth = active ? 3 : 2;
     ctx.strokeRect(box.x, box.y, box.w, box.h);
 
+    const lock = locks[c.id];
     const sprite = sprites[c.id];
     if (sprite) {
       ctx.save();
       ctx.imageSmoothingEnabled = false;
+      if (lock) ctx.filter = "brightness(0.28)"; // locked: silhouette
       const glow = { ukb: "#a55dff", hard: "#5db9ff" }[c.id];
-      if (glow) {
+      if (glow && !lock) {
         ctx.shadowColor = glow;
         ctx.shadowBlur = 22;
       }
@@ -291,15 +369,23 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
       ctx.restore();
     }
 
-    ctx.fillStyle = active ? "#ffffff" : "#c8c2d4";
+    ctx.fillStyle = lock ? "#7d7690" : active ? "#ffffff" : "#c8c2d4";
     ctx.font = "bold 22px monospace";
-    ctx.fillText(c.name, box.x + box.w / 2, box.y + 228);
-    ctx.fillStyle = active ? "#b9b2c9" : "#7d7690";
-    ctx.font = "12px monospace";
-    ctx.fillText(c.desc, box.x + box.w / 2, box.y + 250);
-    ctx.fillStyle = "#ffd166";
-    ctx.font = "12px monospace";
-    ctx.fillText(bests[c.id] > 0 ? `历史最高 ${bests[c.id]}` : "历史最高 --", box.x + box.w / 2, box.y + 270);
+    ctx.fillText(lock ? `🔒 ${c.name}` : c.name, box.x + box.w / 2, box.y + 228);
+    if (lock) {
+      ctx.fillStyle = "#d9c47a";
+      ctx.font = "12px monospace";
+      ctx.fillText(`解锁：${lock.hint}`, box.x + box.w / 2, box.y + 250);
+      ctx.fillStyle = "#9a93ab";
+      ctx.fillText(`进度：${lock.progress}`, box.x + box.w / 2, box.y + 270);
+    } else {
+      ctx.fillStyle = active ? "#b9b2c9" : "#7d7690";
+      ctx.font = "12px monospace";
+      ctx.fillText(c.desc, box.x + box.w / 2, box.y + 250);
+      ctx.fillStyle = "#ffd166";
+      ctx.font = "12px monospace";
+      ctx.fillText(bests[c.id] > 0 ? `历史最高 ${bests[c.id]}` : "历史最高 --", box.x + box.w / 2, box.y + 270);
+    }
     ctx.fillStyle = c.color;
     ctx.font = "bold 13px monospace";
     ctx.fillText(`[${i + 1}]`, box.x + box.w / 2, box.y + 290);
@@ -428,7 +514,7 @@ export function rerollButtonRect(width, height) {
   return { x: width / 2 - 70, y: height / 2 + 110, w: 140, h: 40 };
 }
 
-export function drawChoiceScreen(ctx, width, height, options, canReroll) {
+export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.78)";
   ctx.fillRect(0, 0, width, height);
@@ -466,7 +552,8 @@ export function drawChoiceScreen(ctx, width, height, options, canReroll) {
     });
   }
 
-  // reroll button: one use per choice
+  // reroll button (rerolls = uses left this screen; 备用骰子 upgrade adds more)
+  const canReroll = rerolls > 0;
   const btn = rerollButtonRect(width, height);
   ctx.fillStyle = canReroll ? "#241f2b" : "#181521";
   ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
@@ -475,7 +562,7 @@ export function drawChoiceScreen(ctx, width, height, options, canReroll) {
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = canReroll ? "#5ee6e6" : "#6b6578";
   ctx.font = "bold 15px monospace";
-  ctx.fillText(canReroll ? "刷新" : "已刷新", btn.x + btn.w / 2, btn.y + 25);
+  ctx.fillText(canReroll ? (rerolls > 1 ? `刷新 ×${rerolls}` : "刷新") : "已刷新", btn.x + btn.w / 2, btn.y + 25);
   ctx.restore();
 }
 

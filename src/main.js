@@ -53,6 +53,20 @@ import {
 } from "./weapon.js";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
 import {
+  getCoins,
+  addCoins,
+  UPGRADES,
+  upgradeLevel,
+  upgradeCost,
+  buyUpgrade,
+  applyMetaUpgrades,
+  coinGainMult,
+  rerollBonus,
+  recordRun,
+  isCharUnlocked,
+  charUnlockInfo,
+} from "./meta.js";
+import {
   initSfx,
   setSfxVolume,
   sfxClick,
@@ -68,6 +82,7 @@ import {
   sfxFanfare,
   sfxEliteDown,
   sfxHeartbeat,
+  sfxCoin,
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
@@ -95,6 +110,9 @@ import {
   startButtonRect,
   creditsButtonRect,
   drawTitleScreen,
+  shopButtonRect,
+  shopItemRect,
+  drawShopScreen,
   volumeMinusRect,
   volumePlusRect,
   sfxMinusRect,
@@ -155,12 +173,12 @@ const PLAYER_SPRITES = {
 // characters that radiate a glow, and its color
 const CHAR_GLOWS = { ukb: "#a55dff", hard: "#5db9ff" };
 
-let state = "title"; // title | charselect | select | playing | paused | choice | gameover
+let state = "title"; // title | charselect | select | playing | paused | choice | gameover | credits | shop
 let selectedChar = 0;
 let selectedWeapon = 0;
 let timeScale = 1; // 1x -> 2x -> 3x, applies to the whole simulation
 let choiceOptions = [];
-let choiceRerollAvailable = false; // one reroll per choice screen
+let choiceRerollsLeft = 0; // rerolls per choice screen (1 + 备用骰子 upgrade)
 let nextChoiceAt = CHOICE_INTERVAL;
 let choiceInterval = CHOICE_INTERVAL;
 let player, spawner, enemies, projectiles, bombs, explosions, spikes, pickups, floatingTexts, elapsed;
@@ -187,6 +205,9 @@ let nextStreakAt = 10;
 let streakTier = 0;
 let runMaxStreak = 0; // best streak this run, shown on the gameover screen
 let lowHpPulse = 0.9; // heartbeat timer while hp < 25%
+let runCoins = 0; // coins collected this run (banked at settlement)
+let lastRunCoins = 0; // shown on the gameover screen
+let bossDefeated = false; // endless mode: the boss is down, the horde is not
 
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
 const ENEMY_NAMES = {
@@ -223,7 +244,7 @@ const BGM_TRACKS = {
 };
 // per-character loudness tweak (horror's track is a touch quiet)
 const CHAR_VOL = { horror: 1.4 };
-const MENU_STATES = new Set(["title", "charselect", "select", "credits"]);
+const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop"]);
 let bgmVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem("bgmVolume") ?? "0.5") || 0.5));
 
 // menu theme plays on the title / select screens with a gentle fade
@@ -274,6 +295,26 @@ function currentCharacter() {
   return CHARACTERS[selectedChar];
 }
 
+function charLocks() {
+  const locks = {};
+  for (const c of CHARACTERS) {
+    if (!isCharUnlocked(c.id, bestScoreOf(c.id))) locks[c.id] = charUnlockInfo(c.id);
+  }
+  return locks;
+}
+
+function shopItems() {
+  return UPGRADES.map((u) => ({
+    id: u.id,
+    name: u.name,
+    desc: u.desc,
+    lvl: upgradeLevel(u.id),
+    max: u.max,
+    cost: upgradeCost(u.id),
+    color: u.color,
+  }));
+}
+
 function currentWeaponList() {
   return WEAPON_LISTS[currentCharacter().id];
 }
@@ -281,6 +322,7 @@ function currentWeaponList() {
 function reset(weaponId) {
   player = new Player(WIDTH / 2, HEIGHT / 2);
   player.character = currentCharacter().id;
+  applyMetaUpgrades(player); // permanent shop upgrades kick in from second zero
   player.weapons = [createWeaponInstance(weaponId)];
   spawner = new Spawner(WIDTH, HEIGHT, WALL_H);
   enemies = [];
@@ -305,6 +347,8 @@ function reset(weaponId) {
   streakTier = 0;
   runMaxStreak = 0;
   lowHpPulse = 0.9;
+  runCoins = 0;
+  bossDefeated = false;
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -321,6 +365,11 @@ function settleGame() {
   lastBest = bestScoreOf(player.character);
   newRecord = lastScore > lastBest;
   if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
+  // bank the run: coins into the wallet, kills/boss into lifetime stats
+  lastRunCoins = runCoins;
+  addCoins(runCoins);
+  runCoins = 0;
+  recordRun({ kills: player.kills, bossKilled: bossDefeated });
 }
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
@@ -691,9 +740,28 @@ function handleCanvasTap(pos) {
     if (inRect(pos, creditsButtonRect(WIDTH, HEIGHT))) {
       state = "credits";
       sfxClick();
+    } else if (inRect(pos, shopButtonRect(WIDTH, HEIGHT))) {
+      state = "shop";
+      sfxClick();
     } else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) {
       toCharSelect();
       sfxClick();
+    }
+    return;
+  }
+  if (state === "shop") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "title";
+      sfxClick();
+      return;
+    }
+    const items = shopItems();
+    for (let i = 0; i < items.length; i++) {
+      if (inRect(pos, shopItemRect(i, WIDTH, HEIGHT))) {
+        if (buyUpgrade(items[i].id)) sfxEquip();
+        else sfxHurt(); // maxed or broke: denial buzz
+        return;
+      }
     }
     return;
   }
@@ -716,6 +784,10 @@ function handleCanvasTap(pos) {
       }
     }
     if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) {
+      if (charLocks()[currentCharacter().id]) {
+        sfxHurt(); // locked character: show the condition, no entry
+        return;
+      }
       selectedWeapon = 0;
       state = "select";
       sfxClick();
@@ -763,9 +835,9 @@ function handleCanvasTap(pos) {
       settleGame(); // show the score settlement before leaving
     }
   } else if (state === "choice") {
-    if (choiceRerollAvailable && inRect(pos, rerollButtonRect(WIDTH, HEIGHT))) {
+    if (choiceRerollsLeft > 0 && inRect(pos, rerollButtonRect(WIDTH, HEIGHT))) {
       choiceOptions = rollChoices();
-      choiceRerollAvailable = false;
+      choiceRerollsLeft -= 1;
       sfxClick();
       return;
     }
@@ -825,11 +897,19 @@ window.addEventListener("keydown", (e) => {
     if (k === " " || k === "enter" || k === "escape") state = "title";
     return;
   }
+  if (state === "shop") {
+    if (k === "escape") state = "title";
+    return;
+  }
   if (state === "charselect") {
     const n = CHARACTERS.length;
     if (k === "arrowleft" || k === "arrowright") selectedChar = (selectedChar + 1) % n;
     else if (k >= "1" && k <= String(n)) selectedChar = Number(k) - 1;
     else if (k === " " || k === "enter") {
+      if (charLocks()[currentCharacter().id]) {
+        sfxHurt(); // locked: stay on the select screen
+        return;
+      }
       selectedWeapon = 0;
       state = "select";
     }
@@ -895,6 +975,14 @@ function spawnDrops(enemy) {
       new Pickup(enemy.x + (Math.random() - 0.5) * 14, enemy.y + (Math.random() - 0.5) * 14, "equipment", { type })
     );
   }
+  // coins: the between-runs currency. Value grows with the clock.
+  if (enemy.elite || Math.random() < 0.13) {
+    const base = (enemy.elite ? 6 : 1) * (1 + Math.floor(elapsed / 150));
+    const value = Math.max(1, Math.round(base * coinGainMult()));
+    pickups.push(
+      new Pickup(enemy.x + (Math.random() - 0.5) * 10, enemy.y + (Math.random() - 0.5) * 10, "coin", { value })
+    );
+  }
 }
 
 function onLevelUp(levels) {
@@ -915,7 +1003,7 @@ function update(dt) {
     nextChoiceAt += choiceInterval;
     choiceScreens += 1;
     choiceOptions = rollChoices();
-    choiceRerollAvailable = true;
+    choiceRerollsLeft = 1 + rerollBonus();
     state = "choice";
   }
 
@@ -946,7 +1034,7 @@ function update(dt) {
   }
 
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
-  if (!bossFight && elapsed >= BOSS_APPEAR_TIME) {
+  if (!bossFight && !bossDefeated && elapsed >= BOSS_APPEAR_TIME) {
     bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H);
     enemies.length = 0;
     pickups.length = 0;
@@ -1230,12 +1318,21 @@ function update(dt) {
         const levels = player.addXp(pu.data.amount);
         if (levels > 0) onLevelUp(levels);
       } else if (pu.kind === "bossheart") {
-        player.hp = player.maxHp; // full heal
-        for (const t of EQUIPMENT_TYPES) t.apply(player); // every gem's effect
+        // victory! full heal + every gem, then the run rolls on: endless mode
+        player.hp = player.maxHp;
+        for (const t of EQUIPMENT_TYPES) t.apply(player);
         player.kills += 50; // the boss counts as 50 kills
+        runCoins += Math.round(80 * coinGainMult()); // boss bounty
+        bossDefeated = true;
+        bossFight = null; // hand the field back to the spawner
+        spawner.endless = true; // elite pressure ramps up from here
+        nextChoiceAt = elapsed + choiceInterval; // no backlog of choice screens
         floatingTexts.push(new FloatingText(player.x, player.y - 26, "决心！全属性提升", "#ffffff"));
+        floatingTexts.push(new FloatingText(player.x, player.y - 48, "★ 无尽模式开启：怪物无限增强", "#ffd166"));
         sfxFanfare();
-        settleGame();
+      } else if (pu.kind === "coin") {
+        runCoins += pu.data.value;
+        sfxCoin();
       } else {
         pu.data.type.apply(player);
         sfxEquip();
@@ -1366,6 +1463,23 @@ function draw() {
       ctx.shadowColor = "#ffffff";
       ctx.shadowBlur = 24;
       drawSprite(ctx, PICKUP_XP, pu.x, pu.y, 26);
+      ctx.restore();
+      continue;
+    }
+    if (pu.kind === "coin") {
+      // gold coin: disc + rim + a little shine, no sprite needed
+      ctx.save();
+      ctx.fillStyle = "#ffd166";
+      ctx.beginPath();
+      ctx.arc(pu.x, pu.y, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#a97b1e";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = "#fff3c4";
+      ctx.beginPath();
+      ctx.arc(pu.x - 1.7, pu.y - 1.7, 1.6, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
       continue;
     }
@@ -1942,6 +2056,20 @@ function draw() {
   }
 
   drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player), healFlash);
+  // run coins, top-right under the kill counter
+  if (state === "playing" || state === "paused" || state === "choice") {
+    ctx.save();
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "12px monospace";
+    ctx.fillText(`ⓖ ${runCoins}`, WIDTH - 16, 68);
+    if (bossDefeated) {
+      ctx.fillStyle = "#ff8a5d";
+      ctx.fillText("★ 无尽模式", WIDTH - 16, 86);
+    }
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
   // live kill-streak counter: grows with the streak, pops on fresh kills
   if (streak >= 5 && (state === "playing" || state === "choice")) {
     const pop = 1 + Math.max(0, streakTimer - 1.35) * 1.6;
@@ -1969,7 +2097,9 @@ function draw() {
   }
 
   if (state === "title") {
-    drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans]);
+    drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans], getCoins());
+  } else if (state === "shop") {
+    drawShopScreen(ctx, WIDTH, HEIGHT, shopItems(), getCoins());
   } else if (state === "charselect") {
     drawCharSelect(
       ctx,
@@ -1978,7 +2108,8 @@ function draw() {
       CHARACTERS,
       selectedChar,
       PLAYER_SPRITES,
-      Object.fromEntries(CHARACTERS.map((c) => [c.id, bestScoreOf(c.id)]))
+      Object.fromEntries(CHARACTERS.map((c) => [c.id, bestScoreOf(c.id)])),
+      charLocks()
     );
   } else if (state === "select") {
     drawWeaponSelect(ctx, WIDTH, HEIGHT, currentWeaponList(), selectedWeapon, currentCharacter().name);
@@ -2002,7 +2133,7 @@ function draw() {
     drawResumeButton(ctx, WIDTH, HEIGHT);
     drawQuitButton(ctx, WIDTH, HEIGHT);
   } else if (state === "choice") {
-    drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollAvailable);
+    drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollsLeft);
   } else if (state === "gameover") {
     drawCenterText(ctx, WIDTH, HEIGHT, [
       { text: "GAME OVER", font: "bold 32px monospace", color: "#ff5d73" },
@@ -2013,8 +2144,9 @@ function draw() {
         font: "14px monospace",
         color: newRecord ? "#7cf28a" : "#9a93ab",
       },
-      { text: `存活时间 ${Math.floor(elapsed)} 秒`, font: "16px monospace" },
+      { text: `存活时间 ${Math.floor(elapsed)} 秒${bossDefeated ? " · ★击败Boss" : ""}`, font: "16px monospace" },
       { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
+      { text: `金币 +${lastRunCoins}  (钱包 ${getCoins()} · 标题页可进强化商店)`, font: "14px monospace", color: "#ffd166" },
       { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
       { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
     ]);
@@ -2047,6 +2179,10 @@ window.__dbg = () => ({
   deathBy: lastDeathBy,
   warn: bossWarnActive(),
   choices: choiceOptions.map((o) => o.title),
+  runCoins,
+  lastRunCoins,
+  wallet: getCoins(),
+  endless: bossDefeated,
 });
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });
 

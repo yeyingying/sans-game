@@ -102,6 +102,13 @@ export function sfxPickup() {
   blip({ type: "triangle", from: f, to: f * 1.6, dur: 0.05, gain: 0.07 });
 }
 
+// coin collected: bright little ching
+export function sfxCoin() {
+  if (throttled("coin", 0.05)) return;
+  blip({ from: 1319, dur: 0.05, gain: 0.09 });
+  blip({ from: 1760, dur: 0.09, gain: 0.08, delay: 0.05 });
+}
+
 // elite goes down: deep two-layer boom
 export function sfxEliteDown() {
   blip({ type: "sawtooth", from: 200, to: 40, dur: 0.25, gain: 0.26 });
