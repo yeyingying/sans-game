@@ -348,13 +348,10 @@ function currentCharacter() {
   return CHARACTERS[selectedChar];
 }
 
+// 2026-07-10 user decision: weapons are fully open too — every weapon is
+// selectable from the start, same as characters.
 function weaponLocks() {
-  const cid = currentCharacter().id;
-  const locks = {};
-  currentWeaponList().forEach((w, i) => {
-    if (!isWeaponUnlocked(cid, i)) locks[i] = weaponUnlockInfo(cid, i);
-  });
-  return locks;
+  return {};
 }
 
 function diffPills() {
@@ -901,11 +898,8 @@ function buildChoicePool() {
     });
   }
 
-  // in-run new-weapon cards only offer weapons the player has unlocked
-  const cid = currentCharacter().id;
-  const unowned = currentWeaponList().filter(
-    (w, slot) => isWeaponUnlocked(cid, slot) && !player.weapons.some((i) => i.id === w.id)
-  );
+  // in-run new-weapon cards: the whole arsenal is open
+  const unowned = currentWeaponList().filter((w) => !player.weapons.some((i) => i.id === w.id));
   if (unowned.length) {
     pool.push({
       kind: "newWeapon",
