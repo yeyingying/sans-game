@@ -167,6 +167,8 @@ import {
   drawBossClearScreen,
   drawDailyIntro,
   echoButtonRect,
+  menuButtonRect,
+  titleMenuItemRect,
   questButtonRect,
   shareButtonRect,
   drawShareButton,
@@ -1113,6 +1115,7 @@ function healScale() {
 // One fixed-seed run per calendar day: same spawns/cards for everyone, a
 // rotating character (locks bypassed — it doubles as a demo), local best kept.
 
+let titleMenuOpen = false; // ☰ drawer on the title screen
 let dailyMode = false;
 const nativeRandom = Math.random.bind(Math);
 
@@ -1585,29 +1588,35 @@ function handleCanvasTap(pos) {
     return;
   }
   if (state === "title") {
-    if (inRect(pos, creditsButtonRect(WIDTH, HEIGHT))) {
+    if (titleMenuOpen) {
+      const targets = ["shop", "codex", "echoes", "quests"];
+      for (let i = 0; i < targets.length; i++) {
+        if (inRect(pos, titleMenuItemRect(i, WIDTH, HEIGHT))) {
+          state = targets[i];
+          titleMenuOpen = false;
+          sfxClick();
+          return;
+        }
+      }
+    }
+    if (inRect(pos, menuButtonRect(WIDTH, HEIGHT))) {
+      titleMenuOpen = !titleMenuOpen;
+      sfxClick();
+    } else if (inRect(pos, creditsButtonRect(WIDTH, HEIGHT))) {
       state = "credits";
-      sfxClick();
-    } else if (inRect(pos, shopButtonRect(WIDTH, HEIGHT))) {
-      state = "shop";
-      sfxClick();
-    } else if (inRect(pos, codexButtonRect(WIDTH, HEIGHT))) {
-      state = "codex";
-      sfxClick();
-    } else if (inRect(pos, questButtonRect(WIDTH, HEIGHT))) {
-      state = "quests";
-      sfxClick();
-    } else if (inRect(pos, echoButtonRect(WIDTH, HEIGHT))) {
-      state = "echoes";
+      titleMenuOpen = false;
       sfxClick();
     } else if (inRect(pos, dailyButtonRect(WIDTH, HEIGHT))) {
       state = "dailyintro"; // explain the mode first — never start cold
       bossClearChoice = 1;
-      sfxClick();
+      titleMenuOpen = false;
       sfxClick();
     } else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) {
       toCharSelect();
+      titleMenuOpen = false;
       sfxClick();
+    } else {
+      titleMenuOpen = false; // tap empty space: fold the drawer
     }
     return;
   }
@@ -3788,7 +3797,9 @@ function draw() {
       codexCompletion(),
       `${unlockedAllEchoCount()}/${ALL_ECHOES.length}`,
       `${questView().filter((q) => q.done).length}/3`,
-      flowerGiftLine
+      flowerGiftLine,
+      titleMenuOpen,
+      questView().some((q) => !q.done) // gold dot: bounties waiting
     );
   } else if (state === "shop") {
     drawShopScreen(

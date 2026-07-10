@@ -191,7 +191,7 @@ export function shopButtonRect(width, height) {
   return { x: 16, y: height - 52, w: 190, h: 34 };
 }
 
-export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexPct = 0, echoCount = "", questDone = "", giftLine = "") {
+export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexPct = 0, echoCount = "", questDone = "", giftLine = "", menuOpen = false, menuBadge = false) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.99)";
   ctx.fillRect(0, 0, width, height);
@@ -242,59 +242,45 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.font = "bold 14px monospace";
   ctx.fillText("制作名单", cb.x + cb.w / 2, cb.y + 22);
 
-  // daily bounties
-  const qb = questButtonRect(width, height);
-  ctx.fillStyle = "#1f1a10";
-  ctx.fillRect(qb.x, qb.y, qb.w, qb.h);
-  ctx.strokeStyle = "#ffd166";
+  // collapsed drawer: ☰ 菜单 holds shop/codex/echoes/quests
+  const mb = menuButtonRect(width, height);
+  ctx.fillStyle = "#1d1828";
+  ctx.fillRect(mb.x, mb.y, mb.w, mb.h);
+  ctx.strokeStyle = menuOpen ? "#ffd166" : "#8fd6ff";
   ctx.lineWidth = 2;
-  ctx.strokeRect(qb.x, qb.y, qb.w, qb.h);
-  ctx.fillStyle = "#ffd166";
+  ctx.strokeRect(mb.x, mb.y, mb.w, mb.h);
+  ctx.fillStyle = menuOpen ? "#ffd166" : "#8fd6ff";
   ctx.font = "bold 14px monospace";
-  ctx.fillText(`📜 悬赏 ${questDone}`, qb.x + qb.w / 2, qb.y + 22);
-
-  // 连日之花 greeting sits just above the bottom button bar,
-  // clear of the portrait
-  if (giftLine) {
-    ctx.fillStyle = "#ffd93d";
-    ctx.font = "bold 13px monospace";
-    ctx.fillText(giftLine, width / 2, height - 66);
+  ctx.fillText(menuOpen ? "☰ 收起" : "☰ 菜单", mb.x + mb.w / 2, mb.y + 22);
+  if (menuBadge && !menuOpen) {
+    // gold dot: today's bounties aren't cleared yet
+    ctx.fillStyle = "#ffd166";
+    ctx.beginPath();
+    ctx.arc(mb.x + mb.w - 8, mb.y + 8, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (menuOpen) {
+    const items = [
+      { label: `强化商店 · ⓖ ${coins}`, color: "#ffd166" },
+      { label: `图鉴 ${codexPct}%`, color: "#7ea8ff" },
+      { label: `❀ 回响 ${echoCount}`, color: "#6bd0ff" },
+      { label: `📜 悬赏 ${questDone}`, color: "#ffd166" },
+    ];
+    items.forEach((it, i) => {
+      const r = titleMenuItemRect(i, width, height);
+      ctx.fillStyle = "rgba(20, 16, 30, 0.97)";
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = it.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = it.color;
+      ctx.font = "bold 14px monospace";
+      ctx.fillText(it.label, r.x + r.w / 2, r.y + 26);
+    });
   }
 
-  // echo flowers (story fragments), between daily and credits
-  const eb = echoButtonRect(width, height);
-  ctx.fillStyle = "#10141f";
-  ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
-  ctx.strokeStyle = "#6bd0ff";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(eb.x, eb.y, eb.w, eb.h);
-  ctx.fillStyle = "#6bd0ff";
-  ctx.font = "bold 14px monospace";
-  ctx.fillText(`❀ 回响 ${echoCount}`, eb.x + eb.w / 2, eb.y + 22);
-
-  // upgrade shop entrance, bottom-left, with the wallet on display
-  const sb = shopButtonRect(width, height);
-  ctx.fillStyle = "#241c10";
-  ctx.fillRect(sb.x, sb.y, sb.w, sb.h);
-  ctx.strokeStyle = "#ffd166";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(sb.x, sb.y, sb.w, sb.h);
-  ctx.fillStyle = "#ffd166";
-  ctx.font = "bold 14px monospace";
-  ctx.fillText(`强化商店 · ⓖ ${coins}`, sb.x + sb.w / 2, sb.y + 22);
-
-  // codex button right next to the shop
-  const cx = codexButtonRect(width, height);
-  ctx.fillStyle = "#151d24";
-  ctx.fillRect(cx.x, cx.y, cx.w, cx.h);
-  ctx.strokeStyle = "#7ea8ff";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(cx.x, cx.y, cx.w, cx.h);
-  ctx.fillStyle = "#7ea8ff";
-  ctx.font = "bold 14px monospace";
-  ctx.fillText(`图鉴 ${codexPct}%`, cx.x + cx.w / 2, cx.y + 22);
-
-  // daily challenge: fixed seed, rotating character, local best
+  // daily challenge stays outside the drawer — time-limited hooks are
+  // never hidden behind a fold
   const db = dailyButtonRect(width, height);
   ctx.fillStyle = "#1f1626";
   ctx.fillRect(db.x, db.y, db.w, db.h);
@@ -303,7 +289,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(db.x, db.y, db.w, db.h);
   ctx.fillStyle = "#c59bff";
   ctx.font = "bold 14px monospace";
-  ctx.fillText("每日挑战 ✦", db.x + db.w / 2, db.y + 22);
+  ctx.fillText("✦ 每日挑战", db.x + db.w / 2, db.y + 22);
   ctx.restore();
 }
 
@@ -363,6 +349,15 @@ export function drawShareButton(ctx, width, height) {
   ctx.textAlign = "center";
   ctx.fillText("📤 分享战绩", btn.x + btn.w / 2, btn.y + 28);
   ctx.restore();
+}
+
+export function menuButtonRect(width, height) {
+  return { x: 16, y: height - 52, w: 110, h: 34 };
+}
+
+// drawer items stack upward from the menu button: 0=商店 … 3=悬赏
+export function titleMenuItemRect(i, width, height) {
+  return { x: 16, y: height - 98 - 46 * i, w: 236, h: 40 };
 }
 
 export function questButtonRect(width, height) {
@@ -525,7 +520,7 @@ export function codexButtonRect(width, height) {
 }
 
 export function dailyButtonRect(width, height) {
-  return { x: 336, y: height - 52, w: 170, h: 34 };
+  return { x: 136, y: height - 52, w: 170, h: 34 };
 }
 
 // ---- boss-clear choice screen ------------------------------------------------

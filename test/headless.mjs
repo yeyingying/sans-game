@@ -352,22 +352,26 @@ function tap(x, y) {
   for (const fn of listeners.canvas.pointerup || [])
     fn({ clientX: x, clientY: y, isPrimary: true, button: 0, preventDefault: () => {} });
 }
-tap(271, 565); // codex button
+tap(71, 565); // ☰ 菜单
+tap(134, 476); // 图鉴 (drawer item 1)
 check("codex opens", dbg().state === "codex");
 frame(); // draws the codex screen (catches reference errors)
 tap(84, 560); // back
 check("codex closes", dbg().state === "title");
-tap(716, 565); // daily bounties button
+tap(71, 565); // ☰ 菜单
+tap(134, 384); // 📜 悬赏 (drawer item 3)
 check("quests screen opens", dbg().state === "quests");
 frame(); // render it once
 tap(84, 560); // back
 check("quests screen closes", dbg().state === "title");
-tap(581, 565); // echo flowers button
+tap(71, 565); // ☰ 菜单
+tap(134, 430); // ❀ 回响 (drawer item 2)
 check("echo field opens", dbg().state === "echoes");
 frame(); // render the flower field once
 tap(84, 560); // back
 check("echo field closes", dbg().state === "title");
-tap(111, 565); // shop button
+tap(71, 565); // ☰ 菜单
+tap(134, 522); // 强化商店 (drawer item 0)
 check("shop opens", dbg().state === "shop");
 frame();
 tap(84, 560); // back
@@ -451,7 +455,7 @@ if (MODE === "normal") {
   key(" "); // gameover -> charselect
   tap(84, 560); // back to title (back button)
   check("back on title", dbg().state === "title");
-  tap(421, 565); // daily challenge button
+  tap(221, 565); // ✦ 每日挑战 button
   check("daily intro shows first", dbg().state === "dailyintro", dbg().state);
   frame(); // render the intro screen once (catches reference errors)
   tap(610, 371); // 开始挑战
