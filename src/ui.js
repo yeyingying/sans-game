@@ -306,6 +306,25 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.restore();
 }
 
+export function shareButtonRect(width, height) {
+  return { x: 24, y: height - 62, w: 150, h: 44 };
+}
+
+export function drawShareButton(ctx, width, height) {
+  const btn = shareButtonRect(width, height);
+  ctx.save();
+  ctx.fillStyle = "#1f1a10";
+  ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.strokeStyle = "#ffd166";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 15px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("📤 分享战绩", btn.x + btn.w / 2, btn.y + 28);
+  ctx.restore();
+}
+
 export function questButtonRect(width, height) {
   return { x: 656, y: height - 52, w: 120, h: 34 };
 }

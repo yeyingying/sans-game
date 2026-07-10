@@ -156,7 +156,78 @@ export const ELITE_MONSTERS = [
   },
 ];
 
-export const CODEX_MONSTERS = [...BASE_MONSTERS, ...ELITE_MONSTERS];
+export const ROUND_CHAMPIONS = [
+  {
+    key: "champion_greater_dog",
+    championId: "greaterDog",
+    baseType: "tank",
+    type: "champion",
+    name: "大犬汪",
+    english: "Greater Dog",
+    region: "雪镇",
+    title: "把战斗当成游戏的皇家守卫犬",
+    lore: "盔甲看起来威风凛凛，里面却是一只渴望玩耍和摸头的大狗。",
+    skill: "蓝枪冲锋：锁定直线后猛冲；蓝色长枪只会伤害仍在移动的目标。",
+    color: "#8fd6ff",
+    unlock: "无尽审判第 1 轮首领",
+    skillId: "dogCharge",
+    hpFactor: 0.9,
+    dmgFactor: 1,
+  },
+  {
+    key: "champion_mad_dummy",
+    championId: "madDummy",
+    baseType: "ghost",
+    type: "champion",
+    name: "愤怒假人",
+    english: "Mad Dummy",
+    region: "瀑布垃圾场",
+    title: "气到和假人身体融为一体的幽灵",
+    lore: "普通攻击无法让它冷静。最好的办法，是让它召来的火力打回自己身上。",
+    skill: "假人齐射：锁定玩家位置轰炸；把锁定圈引到首领脚下可以造成反伤。",
+    color: "#ffd166",
+    unlock: "无尽审判第 2 轮首领",
+    skillId: "dummyVolley",
+    hpFactor: 1.35,
+    dmgFactor: 0.95,
+  },
+  {
+    key: "champion_knight_knight",
+    championId: "knightKnight",
+    baseType: "tank",
+    type: "champion",
+    name: "骑士骑士",
+    english: "Knight Knight",
+    region: "核心",
+    title: "在日月魔法中沉睡的重甲骑士",
+    lore: "核心的佣兵战士。低声吟唱古老歌谣，让太阳与月亮替她作战。",
+    skill: "月陨星落：连续标记五片区域，月光按标记顺序坠落爆炸。",
+    color: "#c9b6ff",
+    unlock: "无尽审判第 3 轮首领",
+    skillId: "moonfall",
+    hpFactor: 1.25,
+    dmgFactor: 1.1,
+  },
+  {
+    key: "champion_muffet",
+    championId: "muffet",
+    baseType: "red",
+    type: "champion",
+    name: "玛菲特",
+    english: "Muffet",
+    region: "热域",
+    title: "为蜘蛛家族筹款的甜点老板",
+    lore: "笑容甜美，蛛网和点心却一点也不温柔。她会把猎物固定在紫色丝线上。",
+    skill: "蛛网宴席：铺开三条紫色轨道，其中一条亮起后会被蜘蛛群横扫。",
+    color: "#d67cff",
+    unlock: "无尽审判第 4 轮首领",
+    skillId: "webFeast",
+    hpFactor: 1.8,
+    dmgFactor: 1.05,
+  },
+];
+
+export const CODEX_MONSTERS = [...BASE_MONSTERS, ...ELITE_MONSTERS, ...ROUND_CHAMPIONS];
 export const MONSTER_BY_TYPE = Object.fromEntries(BASE_MONSTERS.map((m) => [m.type, m]));
 
 const ELITE_BY_TYPE = Object.fromEntries(ELITE_MONSTERS.map((m) => [m.type, m]));
@@ -175,5 +246,9 @@ export function eliteTypePool(difficultyId, elapsed = Infinity) {
 }
 
 export function codexKeyForEnemy(enemy) {
-  return enemy.eliteProfile?.key || enemy.type;
+  return enemy.championProfile?.key || enemy.eliteProfile?.key || enemy.type;
+}
+
+export function championForRound(round) {
+  return ROUND_CHAMPIONS[(Math.max(1, round) - 1) % ROUND_CHAMPIONS.length];
 }

@@ -132,8 +132,11 @@ function run(seconds, onFrame) {
   const C = await import(new URL("../src/codex.js", import.meta.url));
   const keys = C.CODEX_MONSTERS.map((m) => m.key);
   const names = C.CODEX_MONSTERS.map((m) => m.name);
-  check("codex has 8 base + 4 named elites", C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 4);
-  check("codex keys and names are unique", new Set(keys).size === 12 && new Set(names).size === 12);
+  check(
+    "codex has 8 base + 4 named elites + 4 round champions",
+    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 4 && C.ROUND_CHAMPIONS.length === 4
+  );
+  check("codex keys and names are unique", new Set(keys).size === 16 && new Set(names).size === 16);
   check("狂暴 named elite waits until 1:30", C.eliteTypePool(1, 89) === null && C.eliteTypePool(1, 90).join(",") === "slime");
   check("狂暴 second elite waits until 2:15", C.eliteTypePool(1, 134).length === 1 && C.eliteTypePool(1, 135).join(",") === "slime,bat");
   check("地狱 elites phase in at 3:00 / 3:45", !C.eliteTypePool(2, 179).includes("red") && C.eliteTypePool(2, 180).includes("red") && C.eliteTypePool(2, 225).includes("ghost"));
@@ -429,6 +432,9 @@ if (MODE === "normal") {
   if (firstDeath) console.log(`      死于:${firstDeath.deathBy}, kills=${firstDeath.kills}, elapsed=${firstDeath.elapsed}s`);
   check("kills accumulated (mowing works)", bestKills > 15, `bestKills=${bestKills}`);
   check("first-death echo unlocked", (JSON.parse(storage.metaEchoes || "{}").stay || false) === true, storage.metaEchoes);
+  // share button: tapping it must not leave the gameover card nor crash
+  tap(99, 560); // 分享战绩
+  check("share tap stays on gameover", dbg().state === "gameover");
   {
     // character echoes: 8 entries, unique ids, mastery-gated unlock works
     const E = await import(new URL(`../src/echo.js?unit=${MODE}`, import.meta.url));

@@ -122,8 +122,10 @@ import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
   codexKeyForEnemy,
+  championForRound,
   eliteTypePool,
 } from "./codex.js";
+import { CHAMPION_SPRITES } from "./champion_sprites.js";
 import {
   drawHud,
   drawCenterText,
@@ -164,6 +166,8 @@ import {
   drawDailyIntro,
   echoButtonRect,
   questButtonRect,
+  shareButtonRect,
+  drawShareButton,
   questRowRect,
   drawQuestsScreen,
   echoFlowerRect,
@@ -364,6 +368,7 @@ function queueTipOnce(flag, title, lines) {
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
 const ENEMY_NAMES = Object.fromEntries(BASE_MONSTERS.map((m) => [m.type, m.name]));
 function enemyDisplayName(e) {
+  if (e.championProfile) return e.championProfile.name;
   if (e.eliteProfile) return `${e.eliteTier >= 3 ? "处决态·" : ""}${e.eliteProfile.name}`;
   return (e.elite ? "精英·" : "") + (ENEMY_NAMES[e.type] || "怪物");
 }
@@ -810,6 +815,102 @@ function questToasts(completed) {
       tipQueue.push({ title: "📜 悬赏完成!", lines: [`${line} —— 赏金 ${q.reward} 金币已入账`], t: 7 });
     }
     sfxEquip();
+  }
+}
+
+// ---- 结算分享卡: a 720x960 pixel-styled run card --------------------------
+function buildShareCard() {
+  const c = document.createElement("canvas");
+  c.width = 720;
+  c.height = 960;
+  const g = c.getContext("2d");
+  if (!g || !g.fillRect) return null; // headless stubs bail out gracefully
+  g.fillStyle = "#0e0b16";
+  g.fillRect(0, 0, 720, 960);
+  g.strokeStyle = "rgba(242,234,216,0.05)";
+  for (let x = 0; x < 720; x += 40) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 960); g.stroke(); }
+  for (let y = 0; y < 960; y += 40) { g.beginPath(); g.moveTo(0, y); g.lineTo(720, y); g.stroke(); }
+  g.strokeStyle = "#ffd166";
+  g.lineWidth = 4;
+  g.strokeRect(14, 14, 692, 932);
+  g.textAlign = "center";
+  g.fillStyle = "#7ea8ff";
+  g.font = "bold 24px monospace";
+  g.fillText("我做了一个Sans割草游戏.", 360, 72);
+  const oc =
+    runOutcome === "victory" ? ["通关成功！", "#7cf28a"]
+    : runOutcome === "endlessDeath" ? ["无尽终局", "#ff8a5d"]
+    : runOutcome === "retreat" ? ["主动撤离", "#8fd6ff"]
+    : ["GAME OVER", "#ff5d73"];
+  g.fillStyle = oc[1];
+  g.font = "bold 52px monospace";
+  g.fillText(oc[0], 360, 140);
+  g.fillStyle = "#9a93ab";
+  g.font = "18px monospace";
+  g.fillText(`${todayKey()} · ${currentCharacter().name} · ${getDifficulty().name}难度${wasDaily ? " · ✦每日挑战" : ""}`, 360, 176);
+  // portrait with soul glow
+  const spr = PLAYER_SPRITES[player.character] || PLAYER_SPRITES.sans;
+  const scale = 9;
+  g.save();
+  g.imageSmoothingEnabled = false;
+  const soul = equippedCosmetic();
+  if (soul) { g.shadowColor = soul.color; g.shadowBlur = 34; }
+  g.drawImage(spr, 360 - (spr.width * scale) / 2, 210, spr.width * scale, spr.height * scale);
+  g.restore();
+  const lines = [
+    [`得分 ${lastScore}`, "#ffd166", "bold 40px monospace"],
+    [`存活 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒 · 击杀 ${player.kills} · 最高连杀 ${runMaxStreak}`, "#f2ead8", "22px monospace"],
+  ];
+  if (endlessResult) lines.push([`无尽审判 ${endlessResult.rounds} 轮 · 无尽得分 ${endlessResult.score}`, "#ff8a5d", "22px monospace"]);
+  lines.push([`金币 +${lastRunCoins}`, "#ffd166", "22px monospace"]);
+  if (bestTitle()) lines.push([`称号「${bestTitle().name}」`, "#c59bff", "22px monospace"]);
+  if (deathQuote) lines.push([deathQuote, "#8fa8c9", "20px monospace"]);
+  else if (lastDeathBy && runOutcome !== "retreat") lines.push([`死于:${lastDeathBy}`, "#c95d5d", "20px monospace"]);
+  let ly = 480;
+  for (const [text, color, font] of lines) {
+    g.fillStyle = color;
+    g.font = font;
+    g.fillText(text, 360, ly);
+    ly += font.startsWith("bold 40") ? 58 : 40;
+  }
+  // echo flowers deco + link
+  g.imageSmoothingEnabled = false;
+  for (let i = 0; i < 5; i++) {
+    g.save();
+    g.globalAlpha = 0.85;
+    g.shadowColor = "#6bd0ff";
+    g.shadowBlur = 10;
+    g.drawImage(ECHO_BLOOM, 240 + i * 52, 830, 40, (ECHO_BLOOM.height / ECHO_BLOOM.width) * 40);
+    g.restore();
+  }
+  g.fillStyle = "#7d7690";
+  g.font = "18px monospace";
+  g.fillText("yeyingying.github.io/sans-game", 360, 928);
+  return c;
+}
+
+function shareRun() {
+  try {
+    const card = buildShareCard();
+    if (!card || typeof card.toBlob !== "function") return;
+    card.toBlob((blob) => {
+      if (!blob) return;
+      const file = typeof File !== "undefined" ? new File([blob], "sans-run.png", { type: "image/png" }) : null;
+      const text = runOutcome === "victory"
+        ? `我在审判廊通关了审判,得分 ${lastScore}!`
+        : `我在审判廊拿下 ${lastScore} 分!`;
+      if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], text, title: "Sans割草游戏" }).catch(() => {});
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "sans-run.png";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }
+    }, "image/png");
+  } catch (err) {
+    /* sharing must never break the game */
   }
 }
 
@@ -1588,6 +1689,11 @@ function handleCanvasTap(pos) {
       }
     }
   } else if (state === "gameover") {
+    if (inRect(pos, shareButtonRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      shareRun();
+      return; // stay on the card
+    }
     toCharSelect();
   }
 }
@@ -1789,16 +1895,43 @@ function spawnDrops(enemy) {
 function startEliteCast(e) {
   const skill = e.eliteProfile?.skillId;
   if (!skill) return;
-  const duration = { leap: 0.9, rush: 0.7, gaze: 1.15, roots: 1.05 }[skill];
-  const cast = { skill, t: duration, maxT: duration, x: player.x, y: player.y, marks: [] };
+  const duration = {
+    leap: 0.9,
+    rush: 0.7,
+    gaze: 1.15,
+    roots: 1.05,
+    dogCharge: 0.95,
+    dummyVolley: 1.1,
+    moonfall: 1.2,
+    webFeast: 1.1,
+  }[skill];
+  const cast = { skill, t: duration, maxT: duration, x: player.x, y: player.y, fromX: e.x, fromY: e.y, marks: [] };
   if (skill === "roots") {
     const a0 = (e.id % 8) * (Math.PI / 4);
     for (let i = 0; i < 3; i++) {
       const a = a0 + (i / 3) * Math.PI * 2;
       cast.marks.push({ x: player.x + Math.cos(a) * 58, y: player.y + Math.sin(a) * 48 });
     }
+  } else if (skill === "moonfall") {
+    for (let i = 0; i < 5; i++) {
+      const a = (e.id * 0.7 + i * 2.4) % (Math.PI * 2);
+      const r = i === 0 ? 0 : 52 + (i % 2) * 34;
+      cast.marks.push({ x: player.x + Math.cos(a) * r, y: clamp(player.y + Math.sin(a) * r, WALL_H + 34, HEIGHT - 34) });
+    }
+  } else if (skill === "webFeast") {
+    cast.lanes = [-72, 0, 72].map((dy) => clamp(player.y + dy, WALL_H + 30, HEIGHT - 30));
+    cast.dangerY = cast.lanes[(e.id + (e.championCastCount || 0)) % cast.lanes.length];
   }
+  e.championCastCount = (e.championCastCount || 0) + 1;
   e.eliteCast = cast;
+}
+
+function pointSegmentDistance(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy || 1;
+  const t = clamp(((px - ax) * dx + (py - ay) * dy) / len2, 0, 1);
+  return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
 }
 
 function eliteHitPlayer(e, amount, label, color) {
@@ -1833,6 +1966,32 @@ function resolveEliteCast(e, cast) {
       explosions.push(new Explosion(mark.x, mark.y, 44, e.eliteProfile.color));
       if (circleHit(mark.x, mark.y, 44, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.65 * tierPower, "根须盛宴", e.eliteProfile.color);
     }
+  } else if (cast.skill === "dogCharge") {
+    e.x = cast.x;
+    e.y = clamp(cast.y, WALL_H + e.radius, HEIGHT - e.radius);
+    explosions.push(new Explosion(e.x, e.y, 62, e.eliteProfile.color, true));
+    const inLane = pointSegmentDistance(player.x, player.y, cast.fromX, cast.fromY, e.x, e.y) <= 30;
+    if (inLane && player.moving) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, "蓝枪冲锋", e.eliteProfile.color);
+  } else if (cast.skill === "dummyVolley") {
+    explosions.push(new Explosion(cast.x, cast.y, 76, e.eliteProfile.color));
+    if (circleHit(cast.x, cast.y, 76, e.x, e.y, e.radius)) {
+      const reflected = Math.max(1, Math.round(e.maxHp * 0.08));
+      e.takeDamage(reflected);
+      floatingTexts.push(new FloatingText(e.x, e.y - e.radius - 18, `反伤 ${reflected}`, "#ffd166"));
+    }
+    if (circleHit(cast.x, cast.y, 76, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.8 * tierPower, "假人齐射", "#ffd166");
+  } else if (cast.skill === "moonfall") {
+    let hit = false;
+    for (const mark of cast.marks) {
+      explosions.push(new Explosion(mark.x, mark.y, 48, e.eliteProfile.color));
+      if (!hit && circleHit(mark.x, mark.y, 48, player.x, player.y, player.radius)) {
+        hit = true;
+        eliteHitPlayer(e, e.dmg * 0.85 * tierPower, "月陨星落", e.eliteProfile.color);
+      }
+    }
+  } else if (cast.skill === "webFeast") {
+    explosions.push(new Explosion(player.x, cast.dangerY, 54, e.eliteProfile.color, true));
+    if (Math.abs(player.y - cast.dangerY) <= 25) eliteHitPlayer(e, e.dmg * 0.75 * tierPower, "蛛网宴席", e.eliteProfile.color);
   }
 }
 
@@ -1849,7 +2008,9 @@ function updateEliteSkill(e, dt) {
     if (e.eliteCast.t <= 0) {
       resolveEliteCast(e, e.eliteCast);
       e.eliteCast = null;
-      e.eliteSkillTimer = Math.max(3.2, 6.2 - e.eliteTier * 0.65) + Math.random() * 0.8;
+      e.eliteSkillTimer = e.championProfile
+        ? Math.max(3.4, 5.8 - (e.championRound || 1) * 0.22) + Math.random() * 0.6
+        : Math.max(3.2, 6.2 - e.eliteTier * 0.65) + Math.random() * 0.8;
     }
     return;
   }
@@ -3599,6 +3760,7 @@ function draw() {
       { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
       { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
     ]);
+    drawShareButton(ctx, WIDTH, HEIGHT);
   }
   // UT-style soul shatter: black cover, the soul cracks, pieces fly, fade out
   if (deathShatter && state === "gameover" && deathShatter.t < 2.0) {
