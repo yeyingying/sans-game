@@ -253,11 +253,12 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.font = "bold 14px monospace";
   ctx.fillText(`📜 悬赏 ${questDone}`, qb.x + qb.w / 2, qb.y + 22);
 
-  // 连日之花 greeting under the subtitle
+  // 连日之花 greeting sits just above the bottom button bar,
+  // clear of the portrait
   if (giftLine) {
     ctx.fillStyle = "#ffd93d";
     ctx.font = "bold 13px monospace";
-    ctx.fillText(giftLine, width / 2, height / 2 - 70);
+    ctx.fillText(giftLine, width / 2, height - 66);
   }
 
   // echo flowers (story fragments), between daily and credits
