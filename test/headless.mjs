@@ -164,13 +164,13 @@ function run(seconds, onFrame) {
   const M = await import(new URL(`../src/meta.js?unit=${MODE}`, import.meta.url));
   check("wallet starts empty", M.getCoins() === 0);
   const permanentShopTotal = M.UPGRADES.reduce((sum, u) => sum + u.base * ((u.max * (u.max + 1)) / 2), 0);
-  check("permanent shop price curve totals 7530", permanentShopTotal === 7530, `total=${permanentShopTotal}`);
+  check("permanent shop price curve totals 12060", permanentShopTotal === 12060, `total=${permanentShopTotal}`);
   M.addCoins(300);
   check("coins added", M.getCoins() === 300);
-  check("upgrade cost scales", M.upgradeCost("atk") === 80);
-  check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 220);
-  check("next level costs more", M.upgradeCost("atk") === 160);
-  check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 220);
+  check("upgrade cost scales", M.upgradeCost("atk") === 130);
+  check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 170);
+  check("next level costs more", M.upgradeCost("atk") === 260);
+  check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 170);
   const p = { atk: 6, maxHp: 100, hp: 100, moveSpeed: 165, magnetRadius: 90 };
   M.applyMetaUpgrades(p);
   check("upgrade applies to player", p.atk === 8, `atk=${p.atk}`);
@@ -199,7 +199,7 @@ function run(seconds, onFrame) {
   check("cannot set locked difficulty", !M.setDifficulty(2));
   M.setDifficulty(0); // restore for the game-flow run below
   // new shop items: 行前整备 (start gear) and 重燃决心 (revive)
-  M.addCoins(900);
+  M.addCoins(1400); // gear 320 + revives 3×300
   check("gear upgrade buyable", M.buyUpgrade("gear") && M.upgradeLevel("gear") === 1);
   check("revive consumable buyable", M.buyReviveStock() && M.reviveStock() === 1);
   M.buyReviveStock();

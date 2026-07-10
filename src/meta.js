@@ -42,13 +42,13 @@ export function spendCoins(n) {
 
 // cost = base * (level+1); apply() runs once at the start of every run
 export const UPGRADES = [
-  { id: "atk", name: "力量刻印", desc: "初始攻击 +2 / 级", max: 5, base: 80, color: "#ff6b6b" },
-  { id: "hp", name: "决心之心", desc: "初始生命上限 +25 / 级", max: 5, base: 70, color: "#ff8fc7" },
-  { id: "speed", name: "疾行之靴", desc: "初始移速 +8 / 级", max: 3, base: 100, color: "#8fd6ff" },
-  { id: "magnet", name: "引魂磁石", desc: "初始磁吸范围 +25 / 级", max: 3, base: 80, color: "#c59bff" },
-  { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", max: 5, base: 150, color: "#ffd166" },
-  { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", max: 2, base: 250, color: "#5ee6e6" },
-  { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", max: 3, base: 200, color: "#7ea8ff" },
+  { id: "atk", name: "力量刻印", desc: "初始攻击 +2 / 级", max: 5, base: 130, color: "#ff6b6b" },
+  { id: "hp", name: "决心之心", desc: "初始生命上限 +25 / 级", max: 5, base: 110, color: "#ff8fc7" },
+  { id: "speed", name: "疾行之靴", desc: "初始移速 +8 / 级", max: 3, base: 160, color: "#8fd6ff" },
+  { id: "magnet", name: "引魂磁石", desc: "初始磁吸范围 +25 / 级", max: 3, base: 130, color: "#c59bff" },
+  { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", max: 5, base: 240, color: "#ffd166" },
+  { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", max: 2, base: 400, color: "#5ee6e6" },
+  { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", max: 3, base: 320, color: "#7ea8ff" },
 ];
 
 let upgrades = readJson("metaUpgrades", {});
@@ -84,7 +84,7 @@ export function applyMetaUpgrades(player) {
 // ---- 重燃决心: consumable revives -------------------------------------------
 // One-shot items: 200 coins each, stock caps at 3, one fires per run at most.
 // A recurring coin sink — and 屠杀 (GENOCIDE) allows no second chances at all.
-const REVIVE_COST = 200;
+const REVIVE_COST = 300;
 const REVIVE_MAX = 3;
 let reviveStockN = parseInt(store.getItem("reviveStock") || "0", 10) || 0;
 // migrate the old 600-coin permanent revive into 3 consumables
