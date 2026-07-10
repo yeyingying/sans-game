@@ -115,6 +115,18 @@ export function sfxType() {
   blip({ type: "square", from: 520 + Math.random() * 240, dur: 0.022, gain: 0.045 });
 }
 
+// mystery chest: slot-reel tick, pitch follows the spin
+export function sfxChestTick(progress = 0) {
+  blip({ type: "square", from: 300 + progress * 500, dur: 0.03, gain: 0.08 });
+}
+
+// chest opens: bright unlatch
+export function sfxChestOpen(jackpot = 0) {
+  blip({ from: 660, dur: 0.08, gain: 0.16 });
+  blip({ from: 990, dur: 0.12, gain: 0.15, delay: 0.08 });
+  if (jackpot >= 1) blip({ type: "triangle", from: 1320, dur: 0.2, gain: 0.16, delay: 0.18 });
+}
+
 // monster candy: soft sweet chime
 export function sfxCandy() {
   blip({ type: "triangle", from: 740, dur: 0.06, gain: 0.12 });

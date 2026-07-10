@@ -115,6 +115,8 @@ import {
   sfxShatter,
   sfxCandy,
   sfxType,
+  sfxChestTick,
+  sfxChestOpen,
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
@@ -307,6 +309,10 @@ let runOffense = false; // picked any atk/amp card this run (和平主义者 tit
 let lastNewTitles = []; // titles earned at this settlement (gameover toast)
 let lastNewEchoes = []; // echo fragments unlocked this run (gameover line)
 let lastGoldenFlower = false; // full-bloom reward granted at this settlement
+// 谜之宝箱: slot-machine chest ceremony {t, phase, rewards, jackpot, lastTick}
+let chestCeremony = null;
+let nearMiss = null; // "差一点" line for the gameover card
+
 let offeredContracts = [];
 let selectedContract = -1; // -1 = 无契
 let activeContract = null; // the pact this run runs under
@@ -621,6 +627,8 @@ function reset(weaponId) {
   lastNewQuests = [];
   lastMasteryUp = null;
   activeContract = null;
+  chestCeremony = null;
+  nearMiss = null;
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -753,6 +761,19 @@ function settleGame(kind) {
   if (Object.keys(getStats().evolved || {}).length >= 32) unlockEchoToast("gift");
   if (codexCompletion() >= 100) unlockEchoToast("end");
   deathQuote = runOutcome === "death" || runOutcome === "endlessDeath" ? randomEchoQuote() : null;
+  // "差一点" (near-miss): losses that almost weren't — the strongest rerun hook
+  nearMiss = null;
+  if (runOutcome === "death" || runOutcome === "endlessDeath") {
+    if (runOutcome === "endlessDeath" && roundTimer > 0 && roundTimer <= 30) {
+      nearMiss = `差一点!再撑 ${Math.ceil(roundTimer)} 秒就能完成第 ${endlessRound} 轮审判`;
+    } else if (runOutcome === "endlessDeath" && roundTimer <= 0 && roundBossSpawned && !roundBossDown) {
+      nearMiss = `差一点!击倒首领就能结算第 ${endlessRound} 轮`;
+    } else if (runOutcome === "death" && !bossDefeated && elapsed < BOSS_APPEAR_TIME && BOSS_APPEAR_TIME - elapsed <= 45) {
+      nearMiss = `差一点!再活 ${Math.ceil(BOSS_APPEAR_TIME - elapsed)} 秒就能见到天意侵蚀Sans`;
+    } else if (!newRecord && lastBest > 0 && lastScore >= lastBest * 0.8) {
+      nearMiss = `差一点!距离新纪录只有 ${lastBest - lastScore + 1} 分`;
+    }
+  }
   // bounties settled at run end
   if (bossDefeated) questToasts(questEvent("boss", 1));
   questToasts(questEvent("survive", Math.floor(elapsed)));
@@ -848,6 +869,71 @@ function rollContracts() {
   selectedContract = -1;
 }
 
+// ---- 谜之宝箱: Vampire-Survivors-style slot ceremony ------------------------
+// 1 reward (70%) / 3 rewards (25%) / 5 rewards (5%) — the jackpot is the hook
+function rollChestRewards() {
+  const r = Math.random();
+  const count = r < 0.05 ? 5 : r < 0.3 ? 3 : 1;
+  const rewards = [];
+  for (let i = 0; i < count; i++) {
+    const pick = Math.random() * 100;
+    if (pick < 40) {
+      const v = Math.round((30 + Math.random() * 50) * coinGainMult() * getDifficulty().coinMult * currentCoinFactor() || 20);
+      rewards.push({ label: `金币 ×${v}`, color: "#ffd166", icon: "ⓖ", apply: () => {
+        if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
+      }});
+    } else if (pick < 65) {
+      const type = rollEquipmentDrop();
+      rewards.push({ label: type.label, color: type.color, icon: "◆", apply: () => type.apply(player) });
+    } else if (pick < 80) {
+      rewards.push({ label: "紧急修复 35%", color: "#7cf28a", icon: "♥", apply: () => {
+        player.hp = Math.min(player.maxHp, player.hp + Math.round(player.maxHp * 0.35 * healScale()));
+      }});
+    } else if (pick < 95) {
+      rewards.push({ label: "武器品阶 +1", color: "#7ea8ff", icon: "▲", apply: () => {
+        const up = player.weapons.filter((w) => w.tier < 4);
+        if (up.length) up[Math.floor(Math.random() * up.length)].tier += 1;
+        else player.atk += 3;
+      }});
+    } else {
+      rewards.push({ label: "专属强化 +1", color: "#c59bff", icon: "★", apply: () => {
+        const ws = player.weapons;
+        if (ws.length) ws[Math.floor(Math.random() * ws.length)].enhance += 1;
+      }});
+    }
+  }
+  return rewards;
+}
+
+function openChest() {
+  chestCeremony = {
+    t: 0,
+    phase: "spin", // spin (1.5s, decelerating ticks) -> reveal
+    rewards: rollChestRewards(),
+    lastTick: -1,
+  };
+  state = "chest";
+}
+
+function chestAdvance() {
+  if (!chestCeremony) return;
+  if (chestCeremony.phase === "spin") {
+    chestCeremony.phase = "reveal";
+    chestCeremony.t = 0;
+    const jackpot = chestCeremony.rewards.length >= 5 ? 2 : chestCeremony.rewards.length >= 3 ? 1 : 0;
+    sfxChestOpen(jackpot);
+    if (jackpot) killFlash = 0.3;
+    if (jackpot === 2) sfxFanfare();
+  } else {
+    // collect and return to the fight
+    for (const rw of chestCeremony.rewards) rw.apply();
+    floatingTexts.push(new FloatingText(player.x, player.y - 30, `宝箱 ×${chestCeremony.rewards.length}`, "#ffd166"));
+    chestCeremony = null;
+    state = "playing";
+    bgmPlay();
+  }
+}
+
 // ---- 结算分享卡: a 720x960 pixel-styled run card --------------------------
 function buildShareCard() {
   const c = document.createElement("canvas");
@@ -893,6 +979,7 @@ function buildShareCard() {
   ];
   if (endlessResult) lines.push([`无尽审判 ${endlessResult.rounds} 轮 · 无尽得分 ${endlessResult.score}`, "#ff8a5d", "22px monospace"]);
   lines.push([`金币 +${lastRunCoins}`, "#ffd166", "22px monospace"]);
+  if (nearMiss) lines.push([nearMiss, "#ff8a5d", "20px monospace"]);
   if (activeContract) lines.push([`契约「${activeContract.name}」`, "#d9c47a", "22px monospace"]);
   if (bestTitle()) lines.push([`称号「${bestTitle().name}」`, "#c59bff", "22px monospace"]);
   if (deathQuote) lines.push([deathQuote, "#8fa8c9", "20px monospace"]);
@@ -1551,6 +1638,10 @@ function handleCanvasTap(pos) {
     }
     return;
   }
+  if (state === "chest") {
+    chestAdvance(); // tap: skip the spin / collect and continue
+    return;
+  }
   if (state === "echoread") {
     if (echoRead && !echoRead.done) {
       echoRead.done = true; // skip the typewriter
@@ -1816,6 +1907,10 @@ window.addEventListener("keydown", (e) => {
   }
   if (state === "quests" || state === "echoes") {
     if (k === "escape") state = "title";
+    return;
+  }
+  if (state === "chest") {
+    if (k === " " || k === "enter") chestAdvance();
     return;
   }
   if (state === "echoread") {
@@ -2510,6 +2605,10 @@ function update(dt) {
       explosions.push(new Explosion(e.x, e.y, e.radius * 3.4, "#ffd166", true));
       sfxEliteDown();
       if (e.eliteProfile) unlockEchoToast("names"); // a NAMED resident fell
+      // 谜之宝箱: champions always carry one, elites sometimes
+      if (e.roundBoss || e.championProfile || Math.random() < 0.22) {
+        pickups.push(new Pickup(e.x, e.y, "chest", {}));
+      }
     }
   }
   enemies = enemies.filter((e) => (e.hp > 0 || e.boss));
@@ -2562,6 +2661,9 @@ function update(dt) {
         state = "bossclear"; // world pauses behind the choice
         saveSafeProgressCheckpoint(runCoins);
         sfxFanfare();
+      } else if (pu.kind === "chest") {
+        sfxEquip();
+        openChest(); // the world holds its breath for the slot ceremony
       } else if (pu.kind === "candy") {
         const heal = Math.round(Math.max(10, player.maxHp * 0.12) * healScale());
         player.hp = Math.min(player.maxHp, player.hp + heal);
@@ -2741,6 +2843,20 @@ function draw() {
       ctx.shadowColor = "#ffffff";
       ctx.shadowBlur = 24;
       drawSprite(ctx, PICKUP_XP, pu.x, pu.y, 26);
+      ctx.restore();
+      continue;
+    }
+    if (pu.kind === "chest") {
+      // little gold chest: body, lid seam, keyhole — pulsing glow
+      ctx.save();
+      ctx.shadowColor = "#ffd166";
+      ctx.shadowBlur = 8 + 4 * Math.sin(elapsed * 5);
+      ctx.fillStyle = "#a97b1e";
+      ctx.fillRect(pu.x - 8, pu.y - 6, 16, 12);
+      ctx.fillStyle = "#ffd166";
+      ctx.fillRect(pu.x - 8, pu.y - 6, 16, 5);
+      ctx.fillStyle = "#241f2b";
+      ctx.fillRect(pu.x - 1.5, pu.y - 2, 3, 4);
       ctx.restore();
       continue;
     }
@@ -3829,6 +3945,71 @@ function draw() {
       },
       bossClearChoice
     );
+  } else if (state === "chest" && chestCeremony) {
+    // ---- slot-machine chest ceremony ----
+    ctx.save();
+    ctx.fillStyle = "rgba(6, 5, 12, 0.88)";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.textAlign = "center";
+    // the chest itself
+    const cx = WIDTH / 2;
+    const cy = HEIGHT / 2 - 110;
+    const open = chestCeremony.phase === "reveal";
+    ctx.save();
+    ctx.shadowColor = "#ffd166";
+    ctx.shadowBlur = open ? 30 : 14;
+    ctx.fillStyle = "#a97b1e";
+    ctx.fillRect(cx - 44, cy - 20, 88, 52);
+    ctx.fillStyle = "#ffd166";
+    ctx.fillRect(cx - 44, cy - (open ? 44 : 20), 88, 24);
+    ctx.fillStyle = "#241f2b";
+    ctx.fillRect(cx - 5, cy + 2, 10, 14);
+    ctx.restore();
+    if (chestCeremony.phase === "spin") {
+      // spinning reel of possible prizes
+      const icons = ["ⓖ", "◆", "♥", "▲", "★"];
+      const colors = ["#ffd166", "#ff8fc7", "#7cf28a", "#7ea8ff", "#c59bff"];
+      const idx = chestCeremony.lastTick % icons.length;
+      ctx.font = "bold 56px monospace";
+      ctx.fillStyle = colors[(idx + icons.length) % icons.length];
+      ctx.fillText(icons[(idx + icons.length) % icons.length], cx, cy + 130);
+      ctx.fillStyle = "#9a93ab";
+      ctx.font = "13px monospace";
+      ctx.fillText("命运正在滚动…… (点击跳过)", cx, cy + 176);
+    } else {
+      const n = chestCeremony.rewards.length;
+      ctx.fillStyle = n >= 5 ? "#ffd93d" : n >= 3 ? "#ffd166" : "#f2ead8";
+      ctx.font = `bold ${n >= 5 ? 34 : 26}px monospace`;
+      ctx.fillText(n >= 5 ? "★ 五 连 大 奖 ★" : n >= 3 ? "三 连 奖 !" : "战 利 品", cx, cy + 96);
+      const w = 150;
+      const gap = 12;
+      const total = n * w + (n - 1) * gap;
+      const pop = Math.min(1, chestCeremony.t / 0.25);
+      chestCeremony.rewards.forEach((rw, i) => {
+        const x = cx - total / 2 + i * (w + gap);
+        const y = cy + 120;
+        ctx.save();
+        ctx.globalAlpha = pop;
+        ctx.fillStyle = "#1d1828";
+        ctx.fillRect(x, y, w, 84 * pop);
+        ctx.strokeStyle = rw.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, 84 * pop);
+        if (pop >= 1) {
+          ctx.fillStyle = rw.color;
+          ctx.font = "bold 30px monospace";
+          ctx.fillText(rw.icon, x + w / 2, y + 40);
+          ctx.font = "bold 12px monospace";
+          ctx.fillText(rw.label, x + w / 2, y + 68);
+        }
+        ctx.restore();
+      });
+      ctx.fillStyle = "#9a93ab";
+      ctx.font = "13px monospace";
+      ctx.fillText("点击收下,继续战斗", cx, cy + 240);
+    }
+    ctx.restore();
+    ctx.textAlign = "left";
   } else if (state === "bossclear") {
     drawBossClearScreen(ctx, WIDTH, HEIGHT, bossClearChoice);
   } else if (state === "roundclear") {
@@ -3853,6 +4034,7 @@ function draw() {
         font: "14px monospace",
         color: newRecord ? "#7cf28a" : "#9a93ab",
       },
+      ...(nearMiss ? [{ text: nearMiss, font: "bold 13px monospace", color: "#ff8a5d" }] : []),
       ...(endlessResult
         ? [
             {
@@ -4012,7 +4194,7 @@ function loop(now) {
   fadeAudio(menuBgm, inMenu ? bgmVolume : 0, dt, 0.9);
   if (state === "paused") {
     if (!bgm.paused) bgm.pause();
-  } else if (bgm.src && (state === "playing" || state === "choice")) {
+  } else if (bgm.src && (state === "playing" || state === "choice" || state === "chest")) {
     // the music ducks during the boss warning so the siren reads clearly
     fadeAudio(bgm, gameVolTarget() * (bossWarnActive() ? 0.25 : 1), dt, 1.1);
   } else {
@@ -4020,6 +4202,19 @@ function loop(now) {
   }
 
   if (deathShatter && state === "gameover") deathShatter.t += dt;
+  if (state === "chest" && chestCeremony) {
+    chestCeremony.t += dt;
+    if (chestCeremony.phase === "spin") {
+      // decelerating slot ticks: fast at first, sparse near the stop
+      const p = Math.min(1, chestCeremony.t / 1.5);
+      const step = Math.floor(16 * (1 - Math.pow(1 - p, 2)));
+      if (step !== chestCeremony.lastTick) {
+        chestCeremony.lastTick = step;
+        sfxChestTick(p);
+      }
+      if (chestCeremony.t >= 1.5) chestAdvance(); // auto-open at full spin
+    }
+  }
   if (state === "echoread" && echoRead && !echoRead.done) {
     echoRead.t += dt;
     const want = Math.floor(echoRead.t * 26); // ~26 chars/sec, UT cadence

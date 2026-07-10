@@ -113,6 +113,7 @@ function run(seconds, onFrame) {
   for (let i = 0; i < frames; i++) {
     frame();
     if (dbg().state === "choice") key("1");
+    if (dbg().state === "chest") { key("Enter"); key("Enter"); }
     if (onFrame && onFrame(dbg())) return;
   }
 }
@@ -410,6 +411,7 @@ if (MODE === "normal") {
         keyUp("ArrowRight");
         kiting = false;
       }
+      if (d.state === "chest") { key("Enter"); key("Enter"); }
       if (d.state === "choice") {
         runScreens++;
         // the weapon-card guarantee only covers the first 3 screens of a run
@@ -482,6 +484,7 @@ if (MODE === "normal") {
       frame();
       const d = dbg();
       if (d.state === "choice") key("1");
+      if (d.state === "chest") { key("Enter"); key("Enter"); }
       // chase the heart once it drops; otherwise hug the boss so weapons
       // target it instead of the summons
       if (d.heart) steer(d.heart.x, d.heart.y, d.px, d.py);
@@ -535,6 +538,7 @@ if (MODE === "normal") {
     frame();
     const dd = dbg();
     if (dd.state === "choice") key("1");
+    if (dd.state === "chest") { key("Enter"); key("Enter"); }
     if (dd.roundBossAlive) sawBossAlive = true;
     if (dd.state === "gameover") break;
   }
@@ -607,6 +611,7 @@ if (MODE === "normal") {
   for (let i = 0; i < 30 * 300 && dbg().state !== "roundclear"; i++) {
     frame();
     if (dbg().state === "choice") key("1");
+    if (dbg().state === "chest") { key("Enter"); key("Enter"); }
     if (dbg().state === "gameover") break;
   }
   releaseAll();
