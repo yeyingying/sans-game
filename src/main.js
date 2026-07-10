@@ -52,7 +52,7 @@ import {
   canEvolve,
 } from "./weapon.js";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
-import { ECHOES, ECHO_BUD, ECHO_BLOOM, echoUnlocked, unlockEcho, unlockedEchoCount, randomEchoQuote } from "./echo.js";
+import { ECHOES, CHAR_ECHOES, ALL_ECHOES, ECHO_BUD, ECHO_BLOOM, echoUnlocked, unlockEcho, unlockedEchoCount, unlockedAllEchoCount, randomEchoQuote } from "./echo.js";
 import {
   getCoins,
   addCoins,
@@ -319,11 +319,17 @@ function soulHeartSprite(color) {
   return (SOUL_HEART_CACHE[color] ||= tintSprite(PICKUP_XP, color, 0.85));
 }
 
+const ECHO_TINT_CACHE = {};
+function tintedEcho(sprite, color) {
+  const key = (sprite === ECHO_BUD ? "b" : "f") + color;
+  return (ECHO_TINT_CACHE[key] ||= tintSprite(sprite, color, 0.5));
+}
+
 let echoRead = null; // {echo, t, chars, done} typewriter state
 let deathQuote = null; // a remembered echo line shown on the gameover card
 function unlockEchoToast(id) {
   if (!unlockEcho(id)) return;
-  const e = ECHOES.find((x) => x.id === id);
+  const e = ALL_ECHOES.find((x) => x.id === id);
   lastNewEchoes.push(e.title);
   // the field is in full bloom: the golden flower chooses you
   if (unlockedEchoCount() >= ECHOES.length) {
@@ -333,6 +339,9 @@ function unlockEchoToast(id) {
       sfxFanfare();
     }
     if (unlockTitle("listener")) lastNewTitles.push("聆听者");
+  }
+  if (unlockedAllEchoCount() >= ALL_ECHOES.length && unlockTitle("watcher")) {
+    lastNewTitles.push("守望者");
   }
   // in-run: floating tip card; at settlement the gameover card lists it
   if (state === "playing" || state === "choice") {
@@ -744,6 +753,9 @@ function settleGame(kind) {
     addCoins(bonus);
     lastMasteryUp = `⚔ ${currentCharacter().name} 专精升至 Lv${lvlAfter}(+${bonus}金币)`;
   }
+  // 角色残响: this timeline's private echoes open with mastery
+  if (lvlAfter >= 1) unlockEchoToast(player.character + "1");
+  if (lvlAfter >= 3) unlockEchoToast(player.character + "2");
 }
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
@@ -761,6 +773,12 @@ function yesterdayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 getDailyQuests(todayKey(), CHARACTERS.map((c) => c.id)); // materialize today's三条
+// backfill: veterans' existing mastery opens character echoes silently
+for (const c of CHARACTERS) {
+  const lvl = masteryOf(getStats().charKills[c.id] || 0);
+  if (lvl >= 1) unlockEcho(c.id + "1");
+  if (lvl >= 3) unlockEcho(c.id + "2");
+}
 const flowerGift = claimDailyFlower(todayKey(), yesterdayKey());
 const flowerGiftLine = flowerGift.already
   ? `❀ 连日之花:第 ${flowerGift.days} 天(今日礼物已领取)`
@@ -1366,10 +1384,10 @@ function handleCanvasTap(pos) {
       sfxClick();
       return;
     }
-    for (let i = 0; i < ECHOES.length; i++) {
+    for (let i = 0; i < ALL_ECHOES.length; i++) {
       if (inRect(pos, echoFlowerRect(i, WIDTH, HEIGHT))) {
-        if (echoUnlocked(ECHOES[i].id)) {
-          echoRead = { echo: ECHOES[i], t: 0, chars: 0, done: false };
+        if (echoUnlocked(ALL_ECHOES[i].id)) {
+          echoRead = { echo: ALL_ECHOES[i], t: 0, chars: 0, done: false };
           state = "echoread";
           sfxClick();
         } else {
@@ -3353,7 +3371,7 @@ function draw() {
       [PLAYER_SPRITES.sans],
       getCoins(),
       codexCompletion(),
-      `${unlockedEchoCount()}/10`,
+      `${unlockedAllEchoCount()}/${ALL_ECHOES.length}`,
       `${questView().filter((q) => q.done).length}/3`,
       flowerGiftLine
     );
@@ -3485,10 +3503,15 @@ function draw() {
       ctx,
       WIDTH,
       HEIGHT,
-      ECHOES.map((e) => ({ title: e.title, hint: e.hint, unlocked: echoUnlocked(e.id) })),
-      ECHO_BUD,
-      ECHO_BLOOM,
-      unlockedEchoCount()
+      ALL_ECHOES.map((e) => ({
+        title: e.title,
+        hint: e.hint,
+        unlocked: echoUnlocked(e.id),
+        color: e.color || "#6bd0ff",
+        bud: e.color ? tintedEcho(ECHO_BUD, e.color) : ECHO_BUD,
+        bloom: e.color ? tintedEcho(ECHO_BLOOM, e.color) : ECHO_BLOOM,
+      })),
+      unlockedAllEchoCount()
     );
   } else if (state === "echoread") {
     if (echoRead) drawEchoRead(ctx, WIDTH, HEIGHT, echoRead.echo, echoRead.chars, ECHO_BLOOM);

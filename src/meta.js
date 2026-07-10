@@ -208,7 +208,8 @@ export const TITLES = [
   { id: "judge", name: "审判者", hint: "无尽审判完成 5 轮" },
   { id: "raven", name: "渡鸦", hint: "地狱难度击败Boss" },
   { id: "determined", name: "决心的化身", hint: "图鉴收集度 100%" },
-  { id: "listener", name: "聆听者", hint: "聆听全部 10 段回响" },
+  { id: "listener", name: "聆听者", hint: "聆听全部 10 段主线回响" },
+  { id: "watcher", name: "守望者", hint: "聆听全部 18 段回响(含四条时间线残响)" },
   { id: "genocide", name: "尘归尘", hint: "屠杀难度击败Boss" },
 ];
 

@@ -365,17 +365,18 @@ export function echoButtonRect(width, height) {
 
 // 回响花田: 5x2 grid of echo flowers
 export function echoFlowerRect(i, width, height) {
-  const w = 168;
-  const h = 168;
-  const gap = 16;
-  const col = i % 5;
-  const row = Math.floor(i / 5);
-  const total = 5 * w + 4 * gap;
-  return { x: width / 2 - total / 2 + col * (w + gap), y: 118 + row * (h + gap), w, h };
+  const w = 146;
+  const h = 124;
+  const gap = 10;
+  const col = i % 6;
+  const row = Math.floor(i / 6);
+  const total = 6 * w + 5 * gap;
+  return { x: width / 2 - total / 2 + col * (w + gap), y: 112 + row * (h + gap), w, h };
 }
 
-// entries: [{title, hint, unlocked}]
-export function drawEchoField(ctx, width, height, entries, budSprite, bloomSprite, count) {
+// entries: [{title, hint, unlocked, bud, bloom, color}] — per-entry sprites so
+// character echoes bloom in their own timeline's color
+export function drawEchoField(ctx, width, height, entries, count) {
   ctx.save();
   ctx.fillStyle = "rgba(8, 10, 18, 0.97)";
   ctx.fillRect(0, 0, width, height);
@@ -385,7 +386,7 @@ export function drawEchoField(ctx, width, height, entries, budSprite, bloomSprit
   ctx.fillText("❀ 回 响", width / 2, 52);
   ctx.fillStyle = "#9ab8d0";
   ctx.font = "13px monospace";
-  ctx.fillText(`审判廊的回声花,记得每一次轮回 · 已聆听 ${count}/${entries.length}`, width / 2, 82);
+  ctx.fillText(`审判廊的回声花,记得每一次轮回 · 已聆听 ${count}/${entries.length} · 后八朵是四条时间线的残响`, width / 2, 82);
   ctx.imageSmoothingEnabled = false;
   entries.forEach((e, i) => {
     const box = echoFlowerRect(i, width, height);
@@ -394,23 +395,23 @@ export function drawEchoField(ctx, width, height, entries, budSprite, bloomSprit
     ctx.strokeStyle = e.unlocked ? "#6bd0ff" : "#2c3346";
     ctx.lineWidth = 2;
     ctx.strokeRect(box.x, box.y, box.w, box.h);
-    const spr = e.unlocked ? bloomSprite : budSprite;
-    const size = e.unlocked ? 72 : 52;
+    const spr = e.unlocked ? e.bloom : e.bud;
+    const size = e.unlocked ? 54 : 40;
     ctx.save();
     if (e.unlocked) {
-      ctx.shadowColor = "#6bd0ff";
-      ctx.shadowBlur = 14;
+      ctx.shadowColor = e.color || "#6bd0ff";
+      ctx.shadowBlur = 12;
     } else {
       ctx.globalAlpha = 0.55;
     }
-    ctx.drawImage(spr, box.x + box.w / 2 - size / 2, box.y + 88 - size, size, (spr.height / spr.width) * size);
+    ctx.drawImage(spr, box.x + box.w / 2 - size / 2, box.y + 68 - size, size, (spr.height / spr.width) * size);
     ctx.restore();
     ctx.fillStyle = e.unlocked ? "#e8f4ff" : "#5c6478";
-    ctx.font = "bold 14px monospace";
-    ctx.fillText(e.unlocked ? `「${e.title}」` : "???", box.x + box.w / 2, box.y + 122);
-    ctx.fillStyle = e.unlocked ? "#6bd0ff" : "#4a5164";
-    ctx.font = "10px monospace";
-    ctx.fillText(e.unlocked ? "点击聆听" : e.hint, box.x + box.w / 2, box.y + 144);
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(e.unlocked ? `「${e.title}」` : "???", box.x + box.w / 2, box.y + 92);
+    ctx.fillStyle = e.unlocked ? e.color || "#6bd0ff" : "#4a5164";
+    ctx.font = "9px monospace";
+    ctx.fillText(e.unlocked ? "点击聆听" : e.hint, box.x + box.w / 2, box.y + 110);
   });
   drawBackButton(ctx, width, height);
   ctx.restore();

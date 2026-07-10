@@ -429,6 +429,13 @@ if (MODE === "normal") {
   if (firstDeath) console.log(`      死于:${firstDeath.deathBy}, kills=${firstDeath.kills}, elapsed=${firstDeath.elapsed}s`);
   check("kills accumulated (mowing works)", bestKills > 15, `bestKills=${bestKills}`);
   check("first-death echo unlocked", (JSON.parse(storage.metaEchoes || "{}").stay || false) === true, storage.metaEchoes);
+  {
+    // character echoes: 8 entries, unique ids, mastery-gated unlock works
+    const E = await import(new URL(`../src/echo.js?unit=${MODE}`, import.meta.url));
+    check("18 echoes total, ids unique", E.ALL_ECHOES.length === 18 && new Set(E.ALL_ECHOES.map((e) => e.id)).size === 18);
+    check("char echo unlockable once", E.unlockEcho("horror1") === true && E.unlockEcho("horror1") === false);
+    check("char echo joins quote pool", typeof E.randomEchoQuote() === "string");
+  }
   const dEnd = dbg();
   check("coins earned and banked", dEnd.lastRunCoins > 0 && dEnd.wallet > 0, `last=${dEnd.lastRunCoins} wallet=${dEnd.wallet}`);
 
