@@ -72,6 +72,8 @@ import {
   isDifficultyUnlocked,
   getDifficulty,
   setDifficulty,
+  saveSafeRunCheckpoint,
+  clearSafeRunCheckpoint,
 } from "./meta.js";
 import {
   initSfx,
@@ -246,6 +248,7 @@ let roundPendingCoins = 0;
 let roundBossSpawned = false;
 let roundBossDown = false;
 let roundsCleared = 0;
+let runCheckpointId = null;
 let roundBanner = null; // {text, sub, t} full-screen announcement
 let hazardTimer = 0; // round 4+: periodic danger zones
 let hazards = []; // {x, y, t} telegraphed player-damaging zones
@@ -447,6 +450,7 @@ function reset(weaponId) {
   roundBossSpawned = false;
   roundBossDown = false;
   roundsCleared = 0;
+  runCheckpointId = null;
   roundBanner = null;
   hazardTimer = 0;
   hazards = [];
@@ -459,6 +463,30 @@ reset(currentWeaponList()[0].id);
 
 function bestEndlessOf(charId) {
   return parseInt(localStorage.getItem("best_endless_" + charId) || "0", 10) || 0;
+}
+
+function bestEndlessRoundOf(charId) {
+  return parseInt(localStorage.getItem("best_endless_round_" + charId) || "0", 10) || 0;
+}
+
+function saveSafeProgressCheckpoint(safeCoins) {
+  if (!bossDefeated) return;
+  if (!runCheckpointId) {
+    runCheckpointId = `${Date.now().toString(36)}-${player.character}-${stageClearScore}`;
+  }
+  saveSafeRunCheckpoint({
+    id: runCheckpointId,
+    coins: safeCoins,
+    stageScore: stageClearScore,
+    endlessRounds: roundsCleared,
+    kills: player.kills,
+    bossKilled: true,
+    charId: player.character,
+    difficulty: getDifficulty().id,
+    killsByType: runKillsByType,
+    weaponsUsed: player.weapons.map((inst) => inst.id),
+    evolvedIds: player.weapons.filter((inst) => inst.evolved).map((inst) => inst.id),
+  });
 }
 
 // kind: "victory" when leaving from the boss-clear screen; otherwise derived.
@@ -474,12 +502,12 @@ function settleGame(kind) {
           ? "retreat" // quit from pause during endless: voluntary extraction
           : "quit"; // quit from pause before the boss (classic GAME OVER card)
   lastDeathBy = player.hp <= 0 ? lastHitBy : null; // only real deaths get a recap
-  // voluntary extraction (round-end or pause-quit) keeps the pending pot;
-  // only death forfeits it
-  if (runOutcome === "retreat") {
-    runCoins += roundPendingCoins;
-    roundPendingCoins = 0;
-  }
+  // A normal settlement records the run below, so its crash-recovery checkpoint
+  // must be removed first. Pending coins have already been banked only by the
+  // round-clear actions; death and pause-quit deliberately leave them behind.
+  if (runCheckpointId) clearSafeRunCheckpoint(runCheckpointId);
+  runCheckpointId = null;
+  roundPendingCoins = 0;
   state = "gameover";
   bgm.pause();
   // the normal best NEVER absorbs endless-inflated scores: once the boss is
@@ -495,6 +523,9 @@ function settleGame(kind) {
     const eBestPrev = bestEndlessOf(player.character);
     const eNew = eScore > eBestPrev;
     if (eNew) localStorage.setItem("best_endless_" + player.character, String(eScore));
+    const roundBestPrev = bestEndlessRoundOf(player.character);
+    const roundNew = roundsCleared > roundBestPrev;
+    if (roundNew) localStorage.setItem("best_endless_round_" + player.character, String(roundsCleared));
     endlessResult = {
       rounds: roundsCleared,
       time: Math.max(0, Math.floor(elapsed - stageClearTime)),
@@ -502,6 +533,8 @@ function settleGame(kind) {
       score: eScore,
       best: Math.max(eBestPrev, eScore),
       newBest: eNew,
+      bestRound: Math.max(roundBestPrev, roundsCleared),
+      newBestRound: roundNew,
     };
   }
   // bank the run: coins into the wallet, kills/boss into lifetime stats
@@ -586,6 +619,13 @@ function roundRetreat() {
   runCoins += roundPendingCoins;
   roundPendingCoins = 0;
   settleGame(); // hp > 0 && bossDefeated → "retreat", never a death cause
+}
+
+function pauseQuit() {
+  // Leaving from the pause menu is allowed, but the unfinished round was not
+  // cleared and its risk pot is forfeited.
+  if (endlessRound > 0) roundPendingCoins = 0;
+  settleGame();
 }
 
 function roundNext() {
@@ -1148,7 +1188,7 @@ function handleCanvasTap(pos) {
       state = "playing";
       bgmPlay();
     } else if (inRect(pos, quitButtonRect(WIDTH, HEIGHT))) {
-      settleGame(); // show the score settlement before leaving
+      pauseQuit(); // show the score settlement before leaving
     }
   } else if (state === "choice") {
     if (choiceRerollsLeft > 0 && inRect(pos, rerollButtonRect(WIDTH, HEIGHT))) {
@@ -1454,6 +1494,7 @@ function update(dt) {
       roundsCleared = endlessRound;
       bossClearChoice = 0;
       state = "roundclear";
+      saveSafeProgressCheckpoint(runCoins + roundPendingCoins);
     }
     // round 4+: periodic danger zones (existing telegraph + blast visuals)
     if (endlessRound >= 4) {
@@ -1740,6 +1781,7 @@ function update(dt) {
         stageClearKills = player.kills;
         bossClearChoice = 0;
         state = "bossclear"; // world pauses behind the choice
+        saveSafeProgressCheckpoint(runCoins);
         sfxFanfare();
       } else if (pu.kind === "coin") {
         // in endless the coin rides in the round's pending pot: banked only
@@ -2685,6 +2727,11 @@ function draw() {
               font: "14px monospace",
               color: endlessResult.newBest ? "#7cf28a" : "#ff8a5d",
             },
+            {
+              text: `最高审判轮数 ${endlessResult.bestRound}${endlessResult.newBestRound ? " ★新纪录！" : ""}`,
+              font: "14px monospace",
+              color: endlessResult.newBestRound ? "#7cf28a" : "#ff8a5d",
+            },
           ]
         : []),
       {
@@ -2754,8 +2801,23 @@ window.__dbg = () => ({
   roundBossAlive: roundBossSpawned && !roundBossDown,
   pending: roundPendingCoins,
   roundsCleared,
+  bestEndlessRound: player ? bestEndlessRoundOf(player.character) : 0,
   coinFactor: currentCoinFactor(),
 });
+window.__test = DEBUG_BOSS !== null
+  ? {
+      grantPendingCoins(amount) {
+        if (endlessRound > 0) roundPendingCoins += Math.max(0, Math.round(amount));
+      },
+      forceDeath() {
+        player.revives = 0;
+        player.regen = 0;
+        player.invuln = 999; // prevent another hit in this frame from replacing the test cause
+        lastHitBy = "测试伤害";
+        player.hp = 0;
+      },
+    }
+  : null;
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });
 
 let lastTime = performance.now();

@@ -128,7 +128,10 @@ function run(seconds, onFrame) {
 
 // meta-progression unit checks (coins / upgrades / unlocks)
 {
-  const M = await import(new URL("../src/meta.js", import.meta.url));
+  // Use a separate module instance and restore storage afterwards so shop
+  // purchases, unlocks and revives never leak into the game-flow tests.
+  const storageBeforeMetaTests = { ...storage };
+  const M = await import(new URL(`../src/meta.js?unit=${MODE}`, import.meta.url));
   check("wallet starts empty", M.getCoins() === 0);
   M.addCoins(100);
   check("coins added", M.getCoins() === 100);
@@ -174,8 +177,43 @@ function run(seconds, onFrame) {
   check("bestiary counts", st.killsByType.slime === 10 && st.killsByType.bat === 3);
   check("weapon codex tracked", st.weaponsUsed.bone === true && st.weaponsUsed.orbit === true);
   check("evolution codex tracked", st.evolved.bone === true && !st.evolved.orbit);
-  // note: module state stays warm for the game-flow run below (atk+2, ukb
-  // unlocked) — none of the flow assertions depend on a cold wallet
+
+  // Safe-run checkpoint: apply an absolute floor, replay the exact same stale
+  // checkpoint, and prove neither coins nor lifetime stats can double.
+  const walletBeforeRecovery = M.getCoins();
+  const statsBeforeRecovery = JSON.parse(JSON.stringify(M.getStats()));
+  const checkpoint = M.saveSafeRunCheckpoint({
+    id: `checkpoint-test-${MODE}`,
+    coins: 37,
+    stageScore: 4321,
+    endlessRounds: 2,
+    kills: 12,
+    bossKilled: true,
+    charId: "sans",
+    difficulty: 1,
+    killsByType: { slime: 7 },
+    weaponsUsed: ["bone"],
+    evolvedIds: ["bone"],
+  });
+  const serializedCheckpoint = storage.safeRunCheckpoint_v1;
+  check("checkpoint saved", !!checkpoint && !!serializedCheckpoint);
+  const MReload = await import(new URL(`../src/meta.js?reload=${MODE}`, import.meta.url));
+  check("checkpoint auto-recovers on reload", storage.safeRunCheckpoint_v1 === undefined);
+  check("checkpoint restores safe coins", MReload.getCoins() === walletBeforeRecovery + 37);
+  check("checkpoint restores boss exactly once", MReload.getStats().bossKills === statsBeforeRecovery.bossKills + 1);
+  check("checkpoint restores kills exactly once", MReload.getStats().totalKills === statsBeforeRecovery.totalKills + 12);
+  check("checkpoint restores normal best", storage.best_sans === "4321");
+  check("checkpoint restores highest round", storage.best_endless_round_sans === "2");
+  const onceWallet = MReload.getCoins();
+  const onceStats = JSON.stringify(MReload.getStats());
+  storage.safeRunCheckpoint_v1 = serializedCheckpoint; // simulate interrupted cleanup
+  check("stale checkpoint can be replayed", !!MReload.recoverSafeRunCheckpoint());
+  check("checkpoint replay does not duplicate coins", MReload.getCoins() === onceWallet);
+  check("checkpoint replay does not duplicate stats", JSON.stringify(MReload.getStats()) === onceStats);
+  check("checkpoint removed after recovery", storage.safeRunCheckpoint_v1 === undefined);
+
+  for (const key of Object.keys(storage)) delete storage[key];
+  Object.assign(storage, storageBeforeMetaTests);
 }
 
 // weapon-module unit checks (evolution rules)
@@ -231,6 +269,7 @@ console.log(`--- mode: ${MODE} ---`);
 frame(); // first frame after module load
 
 check("boots to title", dbg().state === "title");
+check("game-flow storage is isolated", dbg().wallet === 0);
 
 // UI smoke: tap into the codex and the shop, render a frame in each, tap back
 function tap(x, y) {
@@ -368,6 +407,7 @@ if (MODE === "normal") {
   let d = dbg();
   check("bossclear: endless NOT started", d.endless === false && d.round === 0, JSON.stringify(d));
   check("bossclear: stage snapshot taken", d.stageScore > 0 && d.bossDefeated === true);
+  check("bossclear: safe checkpoint written", !!storage.safeRunCheckpoint_v1);
   stageScores.push(d.stageScore);
   tap(350, 371); // “带着战利品离开”
   d = dbg();
@@ -376,6 +416,7 @@ if (MODE === "normal") {
   check("A: normal best = stage score", storage.best_sans === String(stageScores[0]), storage.best_sans);
   check("A: no endless best written", storage.best_endless_sans === undefined);
   check("A: coins banked", d.lastRunCoins > 0 && d.wallet > 0, `last=${d.lastRunCoins}`);
+  check("A: normal settlement clears checkpoint", storage.safeRunCheckpoint_v1 === undefined);
 
   // ---- run B: continue into rounds, clear round 1, enter round 2, quit -----
   restart();
@@ -408,14 +449,26 @@ if (MODE === "normal") {
   check("B: round 2 begins", d.state === "playing" && d.round === 2, JSON.stringify(d));
   check("B: round1 pending banked", d.runCoins === coinsBeforeBank + pending1 && d.pending === 0, `runCoins=${d.runCoins}`);
   check("B: round2 coin factor 25%", d.coinFactor === 0.25);
-  run(6);
+  window.__test.grantPendingCoins(17);
+  d = dbg();
+  const safeBeforePauseQuit = d.runCoins;
+  check("B: deterministic pending pot prepared", d.pending === 17, `pending=${d.pending}`);
+  const savedRoundCheckpoint = JSON.parse(storage.safeRunCheckpoint_v1);
+  check(
+    "B: checkpoint excludes unfinished-round pending",
+    savedRoundCheckpoint.walletFloor === d.wallet + safeBeforePauseQuit,
+    `floor=${savedRoundCheckpoint.walletFloor} wallet=${d.wallet} safe=${safeBeforePauseQuit} pending=${d.pending}`
+  );
   key("z"); // pause mid-round…
   tap(480, 423); // …and quit: voluntary extraction
   d = dbg();
   check("B: mid-round quit = retreat", d.state === "gameover" && d.outcome === "retreat", d.outcome);
   check("B: retreat shows no death cause", d.deathBy === null);
+  check("B: pause retreat forfeits unfinished pending", d.lastRunCoins === safeBeforePauseQuit, `last=${d.lastRunCoins}`);
   check("B: rounds cleared recorded", d.roundsCleared === 1, `cleared=${d.roundsCleared}`);
   check("B: endless best written", storage.best_endless_sans !== undefined, storage.best_endless_sans);
+  check("B: highest endless round written", storage.best_endless_round_sans === "1", storage.best_endless_round_sans);
+  check("B: retreat settlement clears checkpoint", storage.safeRunCheckpoint_v1 === undefined);
 
   // ---- run C: continue, then stand still and die (endlessDeath) ------------
   restart();
@@ -423,28 +476,45 @@ if (MODE === "normal") {
   stageScores.push(dbg().stageScore);
   const coinsAtClear = dbg().runCoins; // pre-boss coins + bounty: always safe
   key("ArrowRight");
-  key("Enter"); // continue into round 1, then AFK until the rounds kill us
-  // the debug kit + shop revive make this a long grind: the rounds wear the
-  // player down (~R5-6), the revive fires once, then the judgement finishes it
-  let lastLive = null;
-  for (let i = 0; i < 30 * 900 && dbg().state !== "gameover"; i++) {
-    frame();
-    const q = dbg();
-    if (q.state !== "gameover") lastLive = q;
-    if (q.state === "choice") key("1");
-    if (q.state === "roundclear") { key("ArrowRight"); key("Enter"); } // keep going until death
-    if (i % (30 * 60) === 0) console.log(`      C t=${i / 30}s round=${q.round} hp=${q.hp} enemies=${q.enemies}`);
-  }
+  key("Enter"); // continue into round 1
+  window.__test.grantPendingCoins(23);
+  const safeBeforeDeath = dbg().runCoins;
+  check("C: deterministic pending pot prepared", dbg().pending === 23);
+  window.__test.forceDeath();
+  frame();
   d = dbg();
   check("C: died in endless = endlessDeath", d.state === "gameover" && d.outcome === "endlessDeath", d.outcome);
-  check("C: death cause shown", typeof d.deathBy === "string" && d.deathBy.length > 0, `deathBy=${d.deathBy}`);
-  // banked money (pre-boss + bounty + completed rounds) survives; the pot of
-  // the round the player died in is NOT added on top at settlement
+  check("C: death cause shown", d.deathBy === "测试伤害", `deathBy=${d.deathBy}`);
   check(
-    "C: death keeps banked coins, adds no pending pot",
-    d.lastRunCoins === lastLive.runCoins && d.lastRunCoins >= coinsAtClear,
-    `last=${d.lastRunCoins} liveBank=${lastLive.runCoins} pendingAtDeath=${lastLive.pending} safeBase=${coinsAtClear}`
+    "C: death keeps safe coins and forfeits pending pot",
+    d.lastRunCoins === safeBeforeDeath && d.lastRunCoins >= coinsAtClear,
+    `last=${d.lastRunCoins} safe=${safeBeforeDeath} safeBase=${coinsAtClear}`
   );
+  check("C: death settlement clears checkpoint", storage.safeRunCheckpoint_v1 === undefined);
+
+  // ---- run D: a completed-round retreat keeps that round's pot -------------
+  restart();
+  check("run D reaches bossclear", reachBossClear(), JSON.stringify(dbg()));
+  stageScores.push(dbg().stageScore);
+  key("ArrowRight");
+  key("Enter");
+  hold("ArrowRight");
+  for (let i = 0; i < 30 * 300 && dbg().state !== "roundclear"; i++) {
+    frame();
+    if (dbg().state === "choice") key("1");
+    if (dbg().state === "gameover") break;
+  }
+  releaseAll();
+  check("D: completed round reaches retreat choice", dbg().state === "roundclear", JSON.stringify(dbg()));
+  window.__test.grantPendingCoins(19);
+  const safeBeforeRoundRetreat = dbg().runCoins;
+  const completedRoundPot = dbg().pending;
+  tap(350, 371); // “撤离并结算”
+  d = dbg();
+  check("D: round-end retreat keeps completed pot", d.lastRunCoins === safeBeforeRoundRetreat + completedRoundPot);
+  check("D: round-end retreat has no death cause", d.outcome === "retreat" && d.deathBy === null);
+  check("D: round-end settlement clears checkpoint", storage.safeRunCheckpoint_v1 === undefined);
+
   check(
     "normal best never inflated by endless",
     parseInt(storage.best_sans, 10) === Math.max(...stageScores),

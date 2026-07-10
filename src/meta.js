@@ -5,7 +5,9 @@
 const store =
   typeof localStorage !== "undefined"
     ? localStorage
-    : { getItem: () => null, setItem: () => {} }; // headless tests / SSR safety
+    : { getItem: () => null, setItem: () => {}, removeItem: () => {} }; // headless tests / SSR safety
+
+const RUN_CHECKPOINT_KEY = "safeRunCheckpoint_v1";
 
 function readJson(key, fallback) {
   try {
@@ -126,6 +128,115 @@ export function recordRun({
   if (evolvedIds) for (const id of evolvedIds) stats.evolved[id] = true;
   store.setItem("metaStats", JSON.stringify(stats));
 }
+
+// ---- crash-safe run checkpoint --------------------------------------------
+
+function statsTargetAfterRun({
+  kills = 0,
+  bossKilled = false,
+  charId = null,
+  difficulty = 0,
+  killsByType = null,
+  weaponsUsed = null,
+  evolvedIds = null,
+} = {}) {
+  const target = JSON.parse(JSON.stringify(stats));
+  target.totalKills = (target.totalKills || 0) + kills;
+  target.runs = (target.runs || 0) + 1;
+  target.bossKills = (target.bossKills || 0) + (bossKilled ? 1 : 0);
+  target.diffCleared = bossKilled ? Math.max(target.diffCleared ?? -1, difficulty) : target.diffCleared ?? -1;
+  target.charKills ||= {};
+  target.killsByType ||= {};
+  target.weaponsUsed ||= {};
+  target.evolved ||= {};
+  if (charId) target.charKills[charId] = (target.charKills[charId] || 0) + kills;
+  if (killsByType) {
+    for (const [type, count] of Object.entries(killsByType)) {
+      target.killsByType[type] = (target.killsByType[type] || 0) + count;
+    }
+  }
+  if (weaponsUsed) for (const id of weaponsUsed) target.weaponsUsed[id] = true;
+  if (evolvedIds) for (const id of evolvedIds) target.evolved[id] = true;
+  return target;
+}
+
+function mergeNumberMapFloor(current, target) {
+  const merged = { ...(current || {}) };
+  for (const [key, value] of Object.entries(target || {})) {
+    merged[key] = Math.max(merged[key] || 0, Number(value) || 0);
+  }
+  return merged;
+}
+
+function mergeFlagMap(current, target) {
+  return { ...(current || {}), ...(target || {}) };
+}
+
+// The checkpoint stores absolute floors, not deltas. Replaying the same
+// checkpoint therefore cannot double coins, kills or boss clears.
+export function saveSafeRunCheckpoint({
+  id,
+  coins = 0,
+  stageScore = 0,
+  endlessRounds = 0,
+  ...run
+} = {}) {
+  if (!id || !run.charId || !run.bossKilled) return null;
+  const checkpoint = {
+    version: 1,
+    id,
+    charId: run.charId,
+    walletFloor: wallet + Math.max(0, Math.round(coins)),
+    statsFloor: statsTargetAfterRun(run),
+    scoreFloor: Math.max(parseInt(store.getItem("best_" + run.charId) || "0", 10) || 0, Math.round(stageScore)),
+    endlessRoundFloor: Math.max(
+      parseInt(store.getItem("best_endless_round_" + run.charId) || "0", 10) || 0,
+      Math.max(0, Math.floor(endlessRounds))
+    ),
+  };
+  store.setItem(RUN_CHECKPOINT_KEY, JSON.stringify(checkpoint));
+  return checkpoint;
+}
+
+export function clearSafeRunCheckpoint(id = null) {
+  const checkpoint = readJson(RUN_CHECKPOINT_KEY, null);
+  if (!checkpoint || (id && checkpoint.id !== id)) return false;
+  store.removeItem(RUN_CHECKPOINT_KEY);
+  return true;
+}
+
+export function recoverSafeRunCheckpoint() {
+  const checkpoint = readJson(RUN_CHECKPOINT_KEY, null);
+  if (!checkpoint || checkpoint.version !== 1 || !checkpoint.charId) return null;
+
+  wallet = Math.max(wallet, Number(checkpoint.walletFloor) || 0);
+  store.setItem("coins", String(wallet));
+
+  const target = checkpoint.statsFloor || {};
+  stats.totalKills = Math.max(stats.totalKills || 0, target.totalKills || 0);
+  stats.runs = Math.max(stats.runs || 0, target.runs || 0);
+  stats.bossKills = Math.max(stats.bossKills || 0, target.bossKills || 0);
+  stats.diffCleared = Math.max(stats.diffCleared ?? -1, target.diffCleared ?? -1);
+  stats.charKills = mergeNumberMapFloor(stats.charKills, target.charKills);
+  stats.killsByType = mergeNumberMapFloor(stats.killsByType, target.killsByType);
+  stats.weaponsUsed = mergeFlagMap(stats.weaponsUsed, target.weaponsUsed);
+  stats.evolved = mergeFlagMap(stats.evolved, target.evolved);
+  store.setItem("metaStats", JSON.stringify(stats));
+
+  const bestKey = "best_" + checkpoint.charId;
+  const currentBest = parseInt(store.getItem(bestKey) || "0", 10) || 0;
+  store.setItem(bestKey, String(Math.max(currentBest, checkpoint.scoreFloor || 0)));
+  const roundKey = "best_endless_round_" + checkpoint.charId;
+  const currentRound = parseInt(store.getItem(roundKey) || "0", 10) || 0;
+  store.setItem(roundKey, String(Math.max(currentRound, checkpoint.endlessRoundFloor || 0)));
+
+  store.removeItem(RUN_CHECKPOINT_KEY);
+  return checkpoint;
+}
+
+// A stale checkpoint means the previous page was closed before settlement.
+// Applying floor values is idempotent even if the browser interrupted recovery.
+recoverSafeRunCheckpoint();
 
 // ---- weapon unlocks --------------------------------------------------------
 
