@@ -102,6 +102,7 @@ import {
   sfxHeartbeat,
   sfxCoin,
   sfxShatter,
+  sfxCandy,
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
@@ -1459,6 +1460,10 @@ function spawnDrops(enemy) {
       new Pickup(enemy.x + (Math.random() - 0.5) * 10, enemy.y + (Math.random() - 0.5) * 10, "coin", { value })
     );
   }
+  // 怪物糖 (UT: healing is food): rare, and only drops when actually hurt
+  if (!enemy.elite && player.hp < player.maxHp * 0.85 && Math.random() < 0.04) {
+    pickups.push(new Pickup(enemy.x + (Math.random() - 0.5) * 12, enemy.y + (Math.random() - 0.5) * 12, "candy", {}));
+  }
 }
 
 function onLevelUp(levels) {
@@ -1909,6 +1914,11 @@ function update(dt) {
         state = "bossclear"; // world pauses behind the choice
         saveSafeProgressCheckpoint(runCoins);
         sfxFanfare();
+      } else if (pu.kind === "candy") {
+        const heal = Math.round(Math.max(15, player.maxHp * 0.2) * healScale());
+        player.hp = Math.min(player.maxHp, player.hp + heal);
+        floatingTexts.push(new FloatingText(pu.x, pu.y - 14, `怪物糖 +${heal}`, "#7cf28a"));
+        sfxCandy();
       } else if (pu.kind === "coin") {
         // in endless the coin rides in the round's pending pot: banked only
         // when the round is survived, lost if the player dies mid-round
@@ -2077,6 +2087,23 @@ function draw() {
       ctx.shadowColor = "#ffffff";
       ctx.shadowBlur = 24;
       drawSprite(ctx, PICKUP_XP, pu.x, pu.y, 26);
+      ctx.restore();
+      continue;
+    }
+    if (pu.kind === "candy") {
+      // little white candy with a pink swirl
+      ctx.save();
+      ctx.fillStyle = "#f6f2ea";
+      ctx.beginPath();
+      ctx.arc(pu.x, pu.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#c8b8c0";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = "#ff9ec4";
+      ctx.beginPath();
+      ctx.arc(pu.x + 1, pu.y - 1, 2, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
       continue;
     }

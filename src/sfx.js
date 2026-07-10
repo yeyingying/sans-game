@@ -109,6 +109,12 @@ export function sfxCoin() {
   blip({ from: 1760, dur: 0.09, gain: 0.06, delay: 0.05 });
 }
 
+// monster candy: soft sweet chime
+export function sfxCandy() {
+  blip({ type: "triangle", from: 740, dur: 0.06, gain: 0.12 });
+  blip({ type: "triangle", from: 1108, dur: 0.14, gain: 0.1, delay: 0.06 });
+}
+
 // elite goes down: deep two-layer boom
 export function sfxEliteDown() {
   blip({ type: "sawtooth", from: 200, to: 40, dur: 0.25, gain: 0.2 });
