@@ -142,6 +142,7 @@ import {
   bossClearLeaveRect,
   bossClearContinueRect,
   drawBossClearScreen,
+  drawDailyIntro,
   drawRoundClearScreen,
   volumeMinusRect,
   volumePlusRect,
@@ -801,15 +802,19 @@ function buildChoicePool() {
     {
       kind: "atk",
       weight: 12,
-      make: () => ({
-        title: "攻击力 +4",
-        desc: "所有武器伤害提升",
-        color: "#ff6b6b",
-        apply: () => {
-          player.atk += 4;
-          runOffense = true;
-        },
-      }),
+      make: () => {
+        // scales with current atk (8%, floor 4) so late picks still matter
+        const gain = Math.max(4, Math.round(player.atk * 0.08));
+        return {
+          title: `攻击力 +${gain}`,
+          desc: "所有武器伤害提升(随攻击成长)",
+          color: "#ff6b6b",
+          apply: () => {
+            player.atk += gain;
+            runOffense = true;
+          },
+        };
+      },
     },
     {
       kind: "hp",
@@ -1139,11 +1144,23 @@ function handleCanvasTap(pos) {
       state = "codex";
       sfxClick();
     } else if (inRect(pos, dailyButtonRect(WIDTH, HEIGHT))) {
-      startDailyChallenge();
+      state = "dailyintro"; // explain the mode first — never start cold
+      bossClearChoice = 1;
+      sfxClick();
       sfxClick();
     } else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) {
       toCharSelect();
       sfxClick();
+    }
+    return;
+  }
+  if (state === "dailyintro") {
+    if (inRect(pos, bossClearLeaveRect(WIDTH, HEIGHT))) {
+      state = "title";
+      sfxClick();
+    } else if (inRect(pos, bossClearContinueRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      startDailyChallenge();
     }
     return;
   }
@@ -1360,6 +1377,18 @@ window.addEventListener("keydown", (e) => {
     if (k === "escape") state = "title";
     return;
   }
+  if (state === "dailyintro") {
+    if (k === "escape") state = "title";
+    else if (k === "arrowleft" || k === "arrowright") {
+      bossClearChoice = 1 - bossClearChoice;
+      sfxClick();
+    } else if (k === " " || k === "enter") {
+      sfxClick();
+      if (bossClearChoice === 0) state = "title";
+      else startDailyChallenge();
+    }
+    return;
+  }
   if (state === "bossclear" || state === "roundclear") {
     if (k === "arrowleft" || k === "arrowright") {
       bossClearChoice = 1 - bossClearChoice;
@@ -1465,7 +1494,7 @@ function spawnDrops(enemy) {
   }
   // 怪物糖 (UT: healing is food): a rare clutch save — the closer to death,
   // the likelier the miracle (2.5% hurt / 6% below 40% hp)
-  const candyChance = player.hp < player.maxHp * 0.4 ? 0.06 : player.hp < player.maxHp * 0.85 ? 0.025 : 0;
+  const candyChance = player.hp < player.maxHp * 0.4 ? 0.015 : player.hp < player.maxHp * 0.85 ? 0.006 : 0;
   if (!enemy.elite && Math.random() < candyChance) {
     pickups.push(new Pickup(enemy.x + (Math.random() - 0.5) * 12, enemy.y + (Math.random() - 0.5) * 12, "candy", {}));
   }
@@ -2933,6 +2962,19 @@ function draw() {
     drawQuitButton(ctx, WIDTH, HEIGHT);
   } else if (state === "choice") {
     drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollsLeft);
+  } else if (state === "dailyintro") {
+    const seed = dailySeed();
+    drawDailyIntro(
+      ctx,
+      WIDTH,
+      HEIGHT,
+      {
+        date: todayKey(),
+        charName: CHARACTERS[seed % CHARACTERS.length].name,
+        best: parseInt(localStorage.getItem("daily_" + todayKey()) || "0", 10) || 0,
+      },
+      bossClearChoice
+    );
   } else if (state === "bossclear") {
     drawBossClearScreen(ctx, WIDTH, HEIGHT, bossClearChoice);
   } else if (state === "roundclear") {

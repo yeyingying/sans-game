@@ -338,6 +338,48 @@ export function drawBossClearScreen(ctx, width, height, selected) {
   ctx.restore();
 }
 
+// daily-challenge intro/lobby: explains the mode before the run starts
+export function drawDailyIntro(ctx, width, height, info, selected) {
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#c59bff";
+  ctx.font = "bold 34px monospace";
+  ctx.fillText("\u2726 \u6bcf \u65e5 \u6311 \u6218", width / 2, height / 2 - 156);
+  ctx.fillStyle = "#f2ead8";
+  ctx.font = "14px monospace";
+  ctx.fillText(`${info.date} \u00b7 \u4eca\u65e5\u89d2\u8272\uff1a${info.charName}\uff08\u6bcf\u5929\u8f6e\u6362\uff0c\u4e0d\u53ef\u66f4\u6362\uff09`, width / 2, height / 2 - 118);
+  ctx.fillStyle = "#b9b2c9";
+  ctx.font = "13px monospace";
+  ctx.fillText("\u4eca\u5929\u5168\u4e16\u754c\u73a9\u5bb6\u9762\u5bf9\u540c\u4e00\u5c40\uff1a\u602a\u7269\u3001\u5f3a\u5316\u5361\u3001\u6389\u843d\u5168\u90e8\u76f8\u540c", width / 2, height / 2 - 88);
+  ctx.fillText("\u6ca1\u6709\u8fd0\u6c14\u5dee\u5f02\u2014\u2014\u6bd4\u7684\u5c31\u662f\u64cd\u4f5c\u548c\u6784\u7b51\u51b3\u7b56", width / 2, height / 2 - 66);
+  ctx.fillText("\u53ef\u65e0\u9650\u91cd\u8bd5\uff0c\u53ea\u8bb0\u4eca\u5929\u7684\u6700\u9ad8\u5206\uff1b\u91d1\u5e01\u7167\u5e38\u83b7\u5f97", width / 2, height / 2 - 44);
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 15px monospace";
+  ctx.fillText(info.best > 0 ? `\u4eca\u65e5\u6700\u4f73\uff1a${info.best}` : "\u4eca\u5929\u8fd8\u6ca1\u6709\u6210\u7ee9\u2014\u2014\u6765\u521b\u9020\u5b83", width / 2, height / 2 - 8);
+  const buttons = [
+    { rect: bossClearLeaveRect(width, height), label: "\u2190 \u8fd4\u56de", color: "#8fd6ff" },
+    { rect: bossClearContinueRect(width, height), label: "\u5f00\u59cb\u6311\u6218", color: "#c59bff" },
+  ];
+  buttons.forEach((b, i) => {
+    const active = i === selected;
+    ctx.fillStyle = active ? "#2e2748" : "#1d1828";
+    ctx.fillRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
+    ctx.strokeStyle = active ? b.color : "#5a5468";
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.strokeRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
+    ctx.fillStyle = active ? b.color : "#c8c2d4";
+    ctx.font = "bold 18px monospace";
+    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + 36);
+    if (active) ctx.fillText("\u25bc", b.rect.x + b.rect.w / 2, b.rect.y - 10);
+  });
+  ctx.fillStyle = "#9a93ab";
+  ctx.font = "12px monospace";
+  ctx.fillText("\u2190\u2192 \u9009\u62e9 \u00b7 Enter/\u7a7a\u683c \u786e\u8ba4 \u00b7 Esc \u8fd4\u56de", width / 2, height / 2 + 130);
+  ctx.restore();
+}
+
 // round-clear screen reuses the same two button slots (leave / continue)
 export function drawRoundClearScreen(ctx, width, height, round, selected, pendingCoins) {
   ctx.save();
