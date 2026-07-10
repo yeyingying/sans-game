@@ -809,14 +809,35 @@ function startGame() {
   for (let i = 0; i < upgradeLevel("gear"); i++) {
     rollEquipmentDrop().apply(player);
   }
-  // warm-up ring: 8 frail slimes already closing in, so the mowing starts
-  // the moment the intro fades instead of seconds of empty walking
+  // warm-up welcome party: composition, size and formation vary per run
+  // (and by difficulty) so no two openings look the same
   if (DEBUG_BOSS === null) {
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const ex = player.x + Math.cos(a) * 260;
-      const ey = clamp(player.y + Math.sin(a) * 220, WALL_H + 24, HEIGHT - 24);
-      enemies.push(new Enemy("slime", ex, ey, spawner.scale(false)));
+    const pools = [
+      ["slime", "slime", "bat"],
+      ["slime", "bat", "ghost"],
+      ["slime", "bat", "ghost", "tank"],
+      ["bat", "ghost", "tank"],
+    ];
+    const pool = pools[getDifficulty().id] || pools[0];
+    const n = 6 + Math.floor(Math.random() * 4); // 6-9
+    const formation = Math.floor(Math.random() * 3); // 0 环形 1 夹击 2 正面群
+    for (let i = 0; i < n; i++) {
+      const type = pool[Math.floor(Math.random() * pool.length)];
+      let ex;
+      let ey;
+      if (formation === 0) {
+        const a = (i / n) * Math.PI * 2;
+        ex = player.x + Math.cos(a) * 260;
+        ey = player.y + Math.sin(a) * 220;
+      } else if (formation === 1) {
+        const side = i % 2 === 0 ? -1 : 1;
+        ex = player.x + side * (280 + Math.random() * 70);
+        ey = player.y + (Math.random() - 0.5) * 260;
+      } else {
+        ex = player.x + 280 + Math.random() * 120;
+        ey = player.y + (Math.random() - 0.5) * 320;
+      }
+      enemies.push(new Enemy(type, ex, clamp(ey, WALL_H + 24, HEIGHT - 24), spawner.scale(false)));
     }
   }
   timeScale = 1;

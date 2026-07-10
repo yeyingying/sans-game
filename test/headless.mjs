@@ -321,7 +321,7 @@ check("playing", dbg().state === "playing");
 if (MODE === "normal") {
   run(2); // intro black 1.5s
   check("intro passed", dbg().introBlack <= 0);
-  check("warm-up ring spawned (>=8 enemies)", dbg().enemies >= 8, `got ${dbg().enemies}`);
+  check("warm-up party spawned (>=6 enemies)", dbg().enemies >= 6, `got ${dbg().enemies}`);
 
   // the AFK player dies fast, so verify the early-screen weapon-card
   // guarantee across several fresh runs (screens 1..N of each run count)

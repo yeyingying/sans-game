@@ -22,6 +22,18 @@ export class Spawner {
     this.top = top; // wall band at the top: no spawns, players can't enter
     this.diffHp = diff ? diff.hpMult : 1; // difficulty tier multipliers
     this.diffDmg = diff ? diff.dmgMult : 1;
+    // per-run monster personality: debut times jitter ±20% (earlier on higher
+    // difficulties) and every type gets a run-long flavor multiplier, so no
+    // two runs field the same mix. Daily mode is seeded → same recipe all day.
+    const debutScale = [1, 0.85, 0.7, 0.55][diff ? diff.id : 0] ?? 1;
+    this.debuts = {};
+    for (const [type, start] of Object.entries(Spawner.DEBUTS)) {
+      this.debuts[type] = start * debutScale * randRange(0.8, 1.25);
+    }
+    this.flavor = {};
+    for (const type of ["slime", "bat", "ghost", "tank", "red", "orange", "blue", "purple"]) {
+      this.flavor[type] = randRange(0.6, 1.6);
+    }
     this.elapsed = 0;
     this.spawnTimer = 0;
     this.eliteTimer = 25;
@@ -45,15 +57,17 @@ export class Spawner {
     const after = (start, rate, cap) => Math.max(0, Math.min((t - start) / rate, cap));
     // round 3+: ranged/teleport threats (blue reach, purple strikes) surge
     const ranged = this.endless && this.round >= 3 ? 2.2 : 1;
+    const fl = this.flavor;
+    const d = this.debuts;
     return [
-      { value: "slime", weight: 50 },
-      { value: "bat", weight: 20 + Math.min(t / 4, 35) },
-      { value: "ghost", weight: 10 + Math.min(t / 6, 30) },
-      { value: "tank", weight: after(30, 3, 28) },
-      { value: "red", weight: after(60, 3, 22) },
-      { value: "orange", weight: after(105, 4, 16) },
-      { value: "blue", weight: after(120, 4, 18) * ranged },
-      { value: "purple", weight: after(150, 5, 10) * ranged },
+      { value: "slime", weight: 50 * fl.slime },
+      { value: "bat", weight: (20 + Math.min(t / 4, 35)) * fl.bat },
+      { value: "ghost", weight: (10 + Math.min(t / 6, 30)) * fl.ghost },
+      { value: "tank", weight: after(d.tank, 3, 28) * fl.tank },
+      { value: "red", weight: after(d.red, 3, 22) * fl.red },
+      { value: "orange", weight: after(d.orange, 4, 16) * fl.orange },
+      { value: "blue", weight: after(d.blue, 4, 18) * ranged * fl.blue },
+      { value: "purple", weight: after(d.purple, 5, 10) * ranged * fl.purple },
     ];
   }
 
@@ -87,7 +101,7 @@ export class Spawner {
     this.eliteTimer -= dt;
     const spawned = [];
 
-    for (const [type, start] of Object.entries(Spawner.DEBUTS)) {
+    for (const [type, start] of Object.entries(this.debuts)) {
       if (this.elapsed >= start && !this.introduced.has(type)) {
         this.introduced.add(type);
         for (let i = 0; i < 3; i++) {
