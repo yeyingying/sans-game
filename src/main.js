@@ -377,8 +377,17 @@ function fadeAudio(audio, target, dt, speed) {
   const cur = audio.volume;
   if (Math.abs(cur - target) <= speed * dt) audio.volume = target;
   else audio.volume = Math.max(0, Math.min(1, cur + Math.sign(target - cur) * speed * dt));
-  if (target > 0.001 && audio.paused) audio.play().catch(() => {});
-  else if (audio.volume <= 0.001 && !audio.paused && target <= 0.001) audio.pause();
+  if (target > 0.001) {
+    if (audio.muted) audio.muted = false;
+    if (audio.paused) audio.play().catch(() => {});
+  } else if (audio.volume === cur && cur > 0.02) {
+    // volume write ignored (iOS locks web volume): mute+pause is the only
+    // real off-switch there — this also kills zombie play()-race playback
+    audio.muted = true;
+    if (!audio.paused) audio.pause();
+  } else if (audio.volume <= 0.001 && !audio.paused) {
+    audio.pause();
+  }
 }
 let introBlack = 0; // seconds of black-screen intro when a game begins
 let camX = 0; // world x of the view's left edge (map is infinite horizontally)
@@ -596,6 +605,7 @@ function settleGame(kind) {
   roundPendingCoins = 0;
   state = "gameover";
   bgm.pause();
+  bgm.muted = true; // belt+braces for iOS zombie playback
   // the normal best NEVER absorbs endless-inflated scores: once the boss is
   // down, the stage score is frozen at the moment the heart was taken
   lastScore = bossDefeated ? stageClearScore : currentScore();
@@ -664,6 +674,7 @@ function toCharSelect() {
   exitDailyMode(); // safety: never leak the seeded RNG into normal play
   reset(currentWeaponList()[0].id);
   bgm.pause();
+  bgm.muted = true;
   bgm.currentTime = 0;
   state = "charselect";
 }
@@ -845,8 +856,10 @@ function startGame() {
   introBlack = 1.5; // brief black screen while the battle music fades in
   // hard-stop the menu theme so it never overlaps the battle track
   menuBgm.pause();
+  menuBgm.muted = true; // iOS ignores volume writes — mute is the real switch
   menuBgm.currentTime = 0;
   menuBgm.volume = 0;
+  bgm.muted = false;
   const track = BGM_TRACKS[currentCharacter().id] || "MEGALOVANIA.mp3";
   bgm.src = track; // reload also resets playback to the start
   bgm.volume = 0; // fades up during the intro
