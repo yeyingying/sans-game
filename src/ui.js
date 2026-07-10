@@ -605,10 +605,10 @@ export function charBoxRect(i, width, height, count = 2) {
 
 // difficulty pills on the character-select screen
 export function diffPillRect(i, width, height) {
-  const w = 130;
+  const w = 108;
   const h = 30;
-  const gap = 14;
-  const total = 3 * w + 2 * gap;
+  const gap = 10;
+  const total = 4 * w + 3 * gap;
   return { x: width / 2 - total / 2 + i * (w + gap), y: height - 106, w, h };
 }
 

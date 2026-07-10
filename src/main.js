@@ -614,6 +614,7 @@ function settleGame(kind) {
     ["judge", roundsCleared >= 5],
     ["raven", bossDefeated && getDifficulty().id === 2],
     ["determined", codexCompletion() >= 100],
+    ["genocide", bossDefeated && getDifficulty().id === 3],
   ]) {
     if (ok && unlockTitle(id)) lastNewTitles.push(TITLES.find((t) => t.id === id).name);
   }
@@ -2926,7 +2927,7 @@ function draw() {
       { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
       { text: `金币 +${lastRunCoins}  (钱包 ${getCoins()} · 标题页可进强化商店)`, font: "14px monospace", color: "#ffd166" },
       ...(bestTitle() ? [{ text: `称号:「${bestTitle().name}」`, font: "13px monospace", color: "#c59bff" }] : []),
-      ...(runOutcome === "victory" && getDifficulty().id < 2
+      ...(runOutcome === "victory" && getDifficulty().id < 3
         ? [{ text: "⚠ 觉得太简单？选人页可切换 狂暴/地狱 难度,金币加成更高", font: "13px monospace", color: "#ff8a5d" }]
         : []),
       ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),

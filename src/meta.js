@@ -42,14 +42,14 @@ export function spendCoins(n) {
 
 // cost = base * (level+1); apply() runs once at the start of every run
 export const UPGRADES = [
-  { id: "atk", name: "力量刻印", desc: "初始攻击 +2 / 级", max: 5, base: 30, color: "#ff6b6b" },
-  { id: "hp", name: "决心之心", desc: "初始生命上限 +25 / 级", max: 5, base: 25, color: "#ff8fc7" },
-  { id: "speed", name: "疾行之靴", desc: "初始移速 +8 / 级", max: 3, base: 40, color: "#8fd6ff" },
-  { id: "magnet", name: "引魂磁石", desc: "初始磁吸范围 +25 / 级", max: 3, base: 30, color: "#c59bff" },
-  { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", max: 5, base: 50, color: "#ffd166" },
-  { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", max: 2, base: 100, color: "#5ee6e6" },
-  { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", max: 3, base: 80, color: "#7ea8ff" },
-  { id: "revive", name: "重燃决心", desc: "每局死亡时原地复活一次(半血)", max: 1, base: 300, color: "#ffffff" },
+  { id: "atk", name: "力量刻印", desc: "初始攻击 +2 / 级", max: 5, base: 80, color: "#ff6b6b" },
+  { id: "hp", name: "决心之心", desc: "初始生命上限 +25 / 级", max: 5, base: 70, color: "#ff8fc7" },
+  { id: "speed", name: "疾行之靴", desc: "初始移速 +8 / 级", max: 3, base: 100, color: "#8fd6ff" },
+  { id: "magnet", name: "引魂磁石", desc: "初始磁吸范围 +25 / 级", max: 3, base: 80, color: "#c59bff" },
+  { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", max: 5, base: 150, color: "#ffd166" },
+  { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", max: 2, base: 250, color: "#5ee6e6" },
+  { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", max: 3, base: 200, color: "#7ea8ff" },
+  { id: "revive", name: "重燃决心", desc: "每局死亡时原地复活一次(半血)", max: 1, base: 600, color: "#ffffff" },
 ];
 
 let upgrades = readJson("metaUpgrades", {});
@@ -96,17 +96,17 @@ export function rerollBonus() {
 // Lore: six fallen humans' souls + the protagonist's own DETERMINATION.
 // slot "soul" = glow + heart trail; slot "bone" = weapon bone tint
 export const COSMETICS = [
-  { id: "bravery", slot: "soul", name: "勇气之魂", color: "#ff9e3d", desc: "橙色——戴着拳套的孩子留下的魂", price: 250 },
-  { id: "justice", slot: "soul", name: "正义之魂", color: "#ffef3d", desc: "黄色——牛仔帽与左轮的主人", price: 250 },
-  { id: "kindness", slot: "soul", name: "善良之魂", color: "#4ade5a", desc: "绿色——围裙与平底锅的温柔", price: 250 },
-  { id: "patience", slot: "soul", name: "耐心之魂", color: "#5ee6e6", desc: "浅蓝——丝带与玩具刀的等待", price: 250 },
-  { id: "integrity", slot: "soul", name: "诚实之魂", color: "#4f6dff", desc: "深蓝——芭蕾舞鞋的正直", price: 250 },
-  { id: "perseverance", slot: "soul", name: "毅力之魂", color: "#b45df0", desc: "紫色——眼镜与笔记本的坚持", price: 250 },
-  { id: "determination", slot: "soul", name: "决心", color: "#ff3d5a", desc: "红色——你自己的灵魂。DETERMINATION.", price: 800 },
-  { id: "snowdin", slot: "bone", name: "雪镇之骨", color: "#cfe8ff", desc: "冷白涂装——Snowdin 永不停的雪", price: 300 },
-  { id: "waterfall", slot: "bone", name: "瀑布之骨", color: "#6bd0ff", desc: "幽蓝涂装——回声花低语的光", price: 300 },
-  { id: "hotland", slot: "bone", name: "热域之骨", color: "#ff8a4a", desc: "熔岩涂装——Hotland 的灼热", price: 300 },
-  { id: "core", slot: "bone", name: "核心之骨", color: "#7df0e8", desc: "电光涂装——The CORE 的能量", price: 400 },
+  { id: "bravery", slot: "soul", name: "勇气之魂", color: "#ff9e3d", desc: "橙色——戴着拳套的孩子留下的魂", price: 600 },
+  { id: "justice", slot: "soul", name: "正义之魂", color: "#ffef3d", desc: "黄色——牛仔帽与左轮的主人", price: 600 },
+  { id: "kindness", slot: "soul", name: "善良之魂", color: "#4ade5a", desc: "绿色——围裙与平底锅的温柔", price: 600 },
+  { id: "patience", slot: "soul", name: "耐心之魂", color: "#5ee6e6", desc: "浅蓝——丝带与玩具刀的等待", price: 600 },
+  { id: "integrity", slot: "soul", name: "诚实之魂", color: "#4f6dff", desc: "深蓝——芭蕾舞鞋的正直", price: 600 },
+  { id: "perseverance", slot: "soul", name: "毅力之魂", color: "#b45df0", desc: "紫色——眼镜与笔记本的坚持", price: 600 },
+  { id: "determination", slot: "soul", name: "决心", color: "#ff3d5a", desc: "红色——你自己的灵魂。DETERMINATION.", price: 2000 },
+  { id: "snowdin", slot: "bone", name: "雪镇之骨", color: "#cfe8ff", desc: "冷白涂装——Snowdin 永不停的雪", price: 800 },
+  { id: "waterfall", slot: "bone", name: "瀑布之骨", color: "#6bd0ff", desc: "幽蓝涂装——回声花低语的光", price: 800 },
+  { id: "hotland", slot: "bone", name: "热域之骨", color: "#ff8a4a", desc: "熔岩涂装——Hotland 的灼热", price: 800 },
+  { id: "core", slot: "bone", name: "核心之骨", color: "#7df0e8", desc: "电光涂装——The CORE 的能量", price: 1000 },
 ];
 
 let cosmetics = readJson("metaCosmetics", { owned: {}, equipped: null });
@@ -161,6 +161,7 @@ export const TITLES = [
   { id: "judge", name: "审判者", hint: "无尽审判完成 5 轮" },
   { id: "raven", name: "渡鸦", hint: "地狱难度击败Boss" },
   { id: "determined", name: "决心的化身", hint: "图鉴收集度 100%" },
+  { id: "genocide", name: "尘归尘", hint: "屠杀难度击败Boss" },
 ];
 
 let titles = readJson("metaTitles", {});
@@ -359,12 +360,20 @@ export const DIFFICULTIES = [
   { id: 0, name: "普通", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, hint: null },
   { id: 1, name: "狂暴", hpMult: 2.2, dmgMult: 1.8, coinMult: 2.0, scoreMult: 1.8, hint: "击败一次Boss解锁" },
   { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 3.2, scoreMult: 3.0, hint: "狂暴难度击败Boss解锁" },
+  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 4.5, scoreMult: 4.5, hint: "地狱通关且钱包曾达2000解锁" },
 ];
 
 export function isDifficultyUnlocked(id) {
   if (id <= 0) return true;
   if (id === 1) return stats.bossKills >= 1;
-  return stats.diffCleared >= id - 1;
+  if (id === 2) return stats.diffCleared >= 1;
+  // 屠杀 (GENOCIDE): cleared 地狱 AND once banked 2000 coins — then sticky,
+  // spending below the bar later never re-locks it
+  if (!stats.genocideUnlocked && stats.diffCleared >= 2 && wallet >= 2000) {
+    stats.genocideUnlocked = true;
+    store.setItem("metaStats", JSON.stringify(stats));
+  }
+  return !!stats.genocideUnlocked;
 }
 
 let selectedDiff = parseInt(store.getItem("selectedDiff") || "0", 10) || 0;

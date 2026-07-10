@@ -133,12 +133,12 @@ function run(seconds, onFrame) {
   const storageBeforeMetaTests = { ...storage };
   const M = await import(new URL(`../src/meta.js?unit=${MODE}`, import.meta.url));
   check("wallet starts empty", M.getCoins() === 0);
-  M.addCoins(100);
-  check("coins added", M.getCoins() === 100);
-  check("upgrade cost scales", M.upgradeCost("atk") === 30);
-  check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 70);
-  check("next level costs more", M.upgradeCost("atk") === 60);
-  check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 70);
+  M.addCoins(300);
+  check("coins added", M.getCoins() === 300);
+  check("upgrade cost scales", M.upgradeCost("atk") === 80);
+  check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 220);
+  check("next level costs more", M.upgradeCost("atk") === 160);
+  check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 220);
   const p = { atk: 6, maxHp: 100, hp: 100, moveSpeed: 165, magnetRadius: 90 };
   M.applyMetaUpgrades(p);
   check("upgrade applies to player", p.atk === 8, `atk=${p.atk}`);
@@ -167,22 +167,31 @@ function run(seconds, onFrame) {
   check("cannot set locked difficulty", !M.setDifficulty(2));
   M.setDifficulty(0); // restore for the game-flow run below
   // new shop items: 行前整备 (start gear) and 重燃决心 (revive)
-  M.addCoins(500);
+  M.addCoins(900);
   check("gear upgrade buyable", M.buyUpgrade("gear") && M.upgradeLevel("gear") === 1);
   check("revive upgrade buyable", M.buyUpgrade("revive") && M.upgradeLevel("revive") === 1);
   check("revive maxes at 1", M.upgradeCost("revive") === null);
   // cosmetics: 灵魂加护 (buy once, equip toggle, no stats)
-  M.addCoins(300);
+  M.addCoins(900);
   check("soul cosmetic buyable", M.buyCosmetic("bravery") && M.cosmeticOwned("bravery"));
   check("bought soul auto-equipped", M.equippedCosmetic()?.id === "bravery");
   check("cannot rebuy owned soul", !M.buyCosmetic("bravery"));
   check("unequip works", M.equipCosmetic(null, "soul") && M.equippedCosmetic() === null);
   check("cannot equip unowned", !M.equipCosmetic("determination"));
-  M.addCoins(300);
+  M.addCoins(800);
   check("bone skin buyable into its own slot", M.buyCosmetic("snowdin") && M.equippedBoneSkin()?.id === "snowdin");
   check("bone slot independent of soul slot", M.equippedCosmetic() === null);
   check("title unlocks once", M.unlockTitle("judge") === true && M.unlockTitle("judge") === false);
   check("best title resolves", M.bestTitle()?.id === "judge");
+  // 屠杀 (GENOCIDE) gate: hell clear + 2000 banked, then sticky
+  check("屠杀 locked before hell clear", !M.isDifficultyUnlocked(3));
+  M.recordRun({ bossKilled: true, difficulty: 2 });
+  check("屠杀 still locked while poor", !M.isDifficultyUnlocked(3));
+  M.addCoins(2500);
+  check("屠杀 unlocks with hell clear + 2000 coins", M.isDifficultyUnlocked(3));
+  M.spendCoins(2400);
+  check("屠杀 unlock sticky after spending", M.isDifficultyUnlocked(3) && M.setDifficulty(3));
+  M.setDifficulty(0);
   // codex collection tracking
   M.recordRun({ killsByType: { slime: 10, bat: 3 }, weaponsUsed: ["bone", "orbit"], evolvedIds: ["bone"] });
   const st = M.getStats();
