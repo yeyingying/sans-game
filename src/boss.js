@@ -97,12 +97,17 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
     },
 
     // ----- attack spawners --------------------------------------------------
+    // every attack's damage scales with the player's bulk (see dmgScale in
+    // update) so a tanked-up build still feels the boss's hits
+    scaleDmg(dmg) {
+      return Math.round(dmg * (this.dmgScale || 1));
+    },
     bone(px, py, dmg, delay = 0.35, opts = {}) {
       this.hazards.push({
         kind: "bone",
         x: px,
         y: py,
-        dmg,
+        dmg: this.scaleDmg(dmg),
         t: -delay,
         life: 0.7,
         hit: false,
@@ -112,21 +117,23 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
       });
     },
     wall(x1, y1, x2, y2, dmg, life) {
-      this.hazards.push({ kind: "wall", x1, y1, x2, y2, dmg, t: 0, life, hitTimer: 0 });
+      this.hazards.push({ kind: "wall", x1, y1, x2, y2, dmg: this.scaleDmg(dmg), t: 0, life, hitTimer: 0 });
     },
     blaster(bx, by, angle, dmg, life) {
-      this.hazards.push({ kind: "blaster", x: bx, y: by, angle, dmg, t: 0, life, warned: false });
+      this.hazards.push({ kind: "blaster", x: bx, y: by, angle, dmg: this.scaleDmg(dmg), t: 0, life, warned: false });
     },
     boom(px, py, r, dmg, delay = 0) {
-      this.hazards.push({ kind: "boom", x: px, y: py, r, dmg, t: -delay, life: 0.4, hit: false });
+      this.hazards.push({ kind: "boom", x: px, y: py, r, dmg: this.scaleDmg(dmg), t: -delay, life: 0.4, hit: false });
     },
     homingBone(bx, by, dmg) {
-      this.hazards.push({ kind: "homing", x: bx, y: by, vx: 0, vy: 0, dmg, hp: 200, t: 0, life: 5, hit: 0 });
+      this.hazards.push({ kind: "homing", x: bx, y: by, vx: 0, vy: 0, dmg: this.scaleDmg(dmg), hp: 200, t: 0, life: 5, hit: 0 });
     },
 
     // ----- main update ------------------------------------------------------
     update(dt, ctx) {
       const { player } = ctx;
+      // boss hits scale to the player's bulk (1x fresh build → 3x tank build)
+      if (!this.dmgScale) this.dmgScale = Math.min(3, Math.max(1, player.maxHp / 350));
       this.t += dt;
       if (this.subtitleT > 0) this.subtitleT -= dt;
       if (boss.hitFlash > 0) boss.hitFlash -= dt;
@@ -197,7 +204,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
         if (this.t > 0.35 && !this._slammed) {
           this._slammed = true;
           this.boom(player.x, player.y, 90, 0);
-          player.takeDamage(STRIKE_DMG);
+          player.takeDamage(this.scaleDmg(STRIKE_DMG));
           if (player.hp <= 0) player.hp = 1; // the opening slam never kills
           knockback(player, boss, 70, ctx);
         }
@@ -240,7 +247,27 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
     // ----- combat AI --------------------------------------------------------
     updateFight(dt, ctx) {
       const { player } = ctx;
-      if (this.phase === 1) this.p1Time = (this.p1Time || 0) + dt;
+      if (this.phase === 1) {
+        this.p1Time = (this.p1Time || 0) + dt;
+        // adaptive phase 1 (user request 2026-07-10): a few seconds in, resize
+        // the HP pool to the player's REAL dps so the phase lasts ~45s — the
+        // boss must be beatable but a struggle. Weak debug bosses skip this.
+        if (
+          !this._p1Scaled &&
+          boss.maxHp > 1000 &&
+          (this.p1Time >= 6 || (this.p1Time >= 2.5 && boss.hp < boss.maxHp * 0.45))
+        ) {
+          this._p1Scaled = true;
+          const dealt = boss.maxHp - boss.hp;
+          const dps = dealt / Math.max(this.p1Time, 1);
+          const target = Math.round(Math.min(500000, Math.max(BOSS_HP, dps * 45)));
+          if (target > boss.maxHp) {
+            boss.hp += target - boss.maxHp;
+            boss.maxHp = target;
+          }
+          this.p1MaxHp = boss.maxHp;
+        }
+      }
       const prevX = boss.x;
       const prevY = boss.y;
 
@@ -485,8 +512,8 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
           this.mercyChoice = false;
           this.mercySmashed = false;
           const p1Time = Math.max(10, this.p1Time || 60);
-          const dps = BOSS_HP / p1Time;
-          const p2hp = Math.round(Math.min(250000, Math.max(40000, dps * P2_SECONDS)));
+          const dps = (this.p1MaxHp || BOSS_HP) / p1Time; // real phase-1 pool, post-scaling
+          const p2hp = Math.round(Math.min(600000, Math.max(40000, dps * P2_SECONDS)));
           boss.maxHp = p2hp;
           boss.hp = p2hp;
           this.homeX = ctx.camX + this.WIDTH * 0.72;

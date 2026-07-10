@@ -24,7 +24,7 @@ export class Player {
     this.dmgReduction = 0; // incoming damage cut, capped at 0.9
     this.dmgAmp = 1; // outgoing weapon damage multiplier
     this.dodged = false; // set by takeDamage when a hit was dodged
-    this.magnetRadius = 90;
+    this.magnetRadius = 140;
     this.kills = 0;
     this.facing = 1;
     this.dir = "down"; // facing for the 4-direction walk animation
