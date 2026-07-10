@@ -73,7 +73,7 @@ export class Spawner {
     ];
   }
 
-  scale(elite) {
+  scale(elite, namedElite = false) {
     const t = this.elapsed;
     // linear early; from 3:00 on it compounds so strong builds stay pressured
     let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.22, (t - 180) / 30) : 1 + t / 22;
@@ -94,6 +94,7 @@ export class Spawner {
       speedMult: (1 + Math.min(t / 90, 0.5)) * rSpeed,
       xpMult: 1 + t / 60,
       difficultyId: this.difficultyId,
+      namedElite,
       elite,
     };
   }
@@ -133,11 +134,11 @@ export class Spawner {
       const r = this.endless ? this.round : 0;
       this.eliteTimer = this.endless ? Math.max(6, 15 - (r - 1) * 1.5) : 30;
       const eliteCount = this.endless ? Math.min(2 + Math.floor((r - 1) / 2), 5) : 1;
-      const namedPool = eliteTypePool(this.difficultyId);
+      const namedPool = eliteTypePool(this.difficultyId, this.elapsed);
       for (let i = 0; i < eliteCount; i++) {
         const type = namedPool ? namedPool[Math.floor(Math.random() * namedPool.length)] : pickWeighted(this.typeWeights());
         const pos = this.edgePosition(camX);
-        spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true)));
+        spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true, !!namedPool)));
       }
     }
 

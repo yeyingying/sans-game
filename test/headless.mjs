@@ -126,6 +126,27 @@ function run(seconds, onFrame) {
   check("coin factor round4+ = 0", S.roundCoinFactor(4) === 0 && S.roundCoinFactor(9) === 0);
 }
 
+// Canon monster identities and named-elite pacing are pure, deterministic
+// rules. The first special elite arrives after six 15s choice screens.
+{
+  const C = await import(new URL("../src/codex.js", import.meta.url));
+  const keys = C.CODEX_MONSTERS.map((m) => m.key);
+  const names = C.CODEX_MONSTERS.map((m) => m.name);
+  check("codex has 8 base + 4 named elites", C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 4);
+  check("codex keys and names are unique", new Set(keys).size === 12 && new Set(names).size === 12);
+  check("狂暴 named elite waits until 1:30", C.eliteTypePool(1, 89) === null && C.eliteTypePool(1, 90).join(",") === "slime");
+  check("狂暴 second elite waits until 2:15", C.eliteTypePool(1, 134).length === 1 && C.eliteTypePool(1, 135).join(",") === "slime,bat");
+  check("地狱 elites phase in at 3:00 / 3:45", !C.eliteTypePool(2, 179).includes("red") && C.eliteTypePool(2, 180).includes("red") && C.eliteTypePool(2, 225).includes("ghost"));
+  check("屠杀 schedule is 30s earlier but never before 1:00", C.eliteTypePool(3, 59) === null && C.eliteTypePool(3, 60).join(",") === "slime" && C.eliteTypePool(3, 195).length === 4);
+
+  const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
+  const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };
+  const generic = new Enemy("slime", 0, 0, { ...scale, namedElite: false });
+  const named = new Enemy("slime", 0, 0, { ...scale, namedElite: true });
+  check("pre-debut gold elite has no named skill", generic.eliteProfile === null && generic.eliteSkillTimer === 0);
+  check("named elite gains identity, skill and extra bulk", named.eliteProfile?.key === "elite_final_froggit" && named.eliteSkillTimer > 0 && named.maxHp > generic.maxHp);
+}
+
 // meta-progression unit checks (coins / upgrades / unlocks)
 {
   // Use a separate module instance and restore storage afterwards so shop
@@ -133,6 +154,8 @@ function run(seconds, onFrame) {
   const storageBeforeMetaTests = { ...storage };
   const M = await import(new URL(`../src/meta.js?unit=${MODE}`, import.meta.url));
   check("wallet starts empty", M.getCoins() === 0);
+  const permanentShopTotal = M.UPGRADES.reduce((sum, u) => sum + u.base * ((u.max * (u.max + 1)) / 2), 0);
+  check("permanent shop price curve totals 7530", permanentShopTotal === 7530, `total=${permanentShopTotal}`);
   M.addCoins(300);
   check("coins added", M.getCoins() === 300);
   check("upgrade cost scales", M.upgradeCost("atk") === 80);

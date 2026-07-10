@@ -1704,14 +1704,15 @@ function update(dt) {
       floatingTexts.push(new FloatingText(player.x, player.y - 60, "※ 精英潮来袭！", "#ffd166"));
     } else if (eliteWave % 2 === 1 && elapsed >= wave.at) {
       eliteWave += 1;
-      const types = eliteTypePool(getDifficulty().id) || ["tank", "red", "orange", "blue", "purple", "ghost"];
+      const namedTypes = eliteTypePool(getDifficulty().id, elapsed);
+      const types = namedTypes || ["tank", "red", "orange", "blue", "purple", "ghost"];
       for (let i = 0; i < wave.count; i++) {
         const side = i % 2 === 0 ? -1 : 1;
         const e = new Enemy(
           types[Math.floor(Math.random() * types.length)],
           camX + WIDTH / 2 + side * (WIDTH / 2 + 50),
           WALL_H + 30 + Math.random() * (HEIGHT - WALL_H - 60),
-          spawner.scale(true)
+          spawner.scale(true, !!namedTypes)
         );
         enemies.push(e);
       }
@@ -1787,14 +1788,15 @@ function update(dt) {
     // T-15s: the round's champion — a souped-up elite of an existing monster
     if (!roundBossSpawned && roundTimer <= 15) {
       roundBossSpawned = true;
-      const types = eliteTypePool(getDifficulty().id) || ["tank", "red", "orange", "blue", "purple", "ghost"];
+      const namedTypes = eliteTypePool(getDifficulty().id, elapsed);
+      const types = namedTypes || ["tank", "red", "orange", "blue", "purple", "ghost"];
       const ty = types[Math.floor(Math.random() * types.length)];
       const side = Math.random() < 0.5 ? -1 : 1;
       const b = new Enemy(
         ty,
         camX + WIDTH / 2 + side * (WIDTH / 2 + 60),
         WALL_H + 40 + Math.random() * (HEIGHT - WALL_H - 80),
-        spawner.scale(true)
+        spawner.scale(true, !!namedTypes)
       );
       b.roundBoss = true;
       b.maxHp = Math.round(b.maxHp * (4 + endlessRound));

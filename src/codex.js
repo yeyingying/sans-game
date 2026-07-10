@@ -105,7 +105,8 @@ export const ELITE_MONSTERS = [
     skill: "审判跃击：锁定脚下后跃迁重砸，绿色圆环收缩完毕时爆发。",
     color: "#7cf28a",
     minDifficulty: 1,
-    unlock: "狂暴难度起出现",
+    debutTime: 90,
+    unlock: "狂暴难度 1:30 后出现",
     skillId: "leap",
   },
   {
@@ -119,7 +120,8 @@ export const ELITE_MONSTERS = [
     skill: "蝶翼冲锋：短暂蓄力后进入高速追击，沿途留下紫色残影。",
     color: "#d5a6ff",
     minDifficulty: 1,
-    unlock: "狂暴难度起出现",
+    debutTime: 135,
+    unlock: "狂暴难度 2:15 后出现",
     skillId: "rush",
   },
   {
@@ -133,7 +135,8 @@ export const ELITE_MONSTERS = [
     skill: "裁决凝视：红色视界扩张后，对范围内目标造成一次远程伤害。",
     color: "#ff6464",
     minDifficulty: 2,
-    unlock: "地狱难度起出现",
+    debutTime: 180,
+    unlock: "地狱难度 3:00 后出现",
     skillId: "gaze",
   },
   {
@@ -147,7 +150,8 @@ export const ELITE_MONSTERS = [
     skill: "根须盛宴：在玩家周围种下三枚橙色危险区，依次破土爆发。",
     color: "#ffb15d",
     minDifficulty: 2,
-    unlock: "地狱难度起出现",
+    debutTime: 225,
+    unlock: "地狱难度 3:45 后出现",
     skillId: "roots",
   },
 ];
@@ -162,8 +166,11 @@ export function eliteProfileFor(type, difficultyId) {
   return profile && difficultyId >= profile.minDifficulty ? profile : null;
 }
 
-export function eliteTypePool(difficultyId) {
-  const pool = ELITE_MONSTERS.filter((m) => difficultyId >= m.minDifficulty).map((m) => m.type);
+export function eliteTypePool(difficultyId, elapsed = Infinity) {
+  const genocideLead = difficultyId >= 3 ? 30 : 0;
+  const pool = ELITE_MONSTERS.filter(
+    (m) => difficultyId >= m.minDifficulty && elapsed >= Math.max(60, m.debutTime - genocideLead)
+  ).map((m) => m.type);
   return pool.length ? pool : null;
 }
 
