@@ -1,5 +1,6 @@
 import { Enemy } from "./entities.js";
 import { pickWeighted, randRange } from "./utils.js";
+import { eliteTypePool } from "./codex.js";
 
 // endless-judgement coin decay by round (1-based).
 // Applied to the DROP CHANCE (not the value) so a 10% round really pays ~10%.
@@ -22,6 +23,7 @@ export class Spawner {
     this.top = top; // wall band at the top: no spawns, players can't enter
     this.diffHp = diff ? diff.hpMult : 1; // difficulty tier multipliers
     this.diffDmg = diff ? diff.dmgMult : 1;
+    this.difficultyId = diff ? diff.id : 0;
     // per-run monster personality: debut times jitter ±20% (earlier on higher
     // difficulties) and every type gets a run-long flavor multiplier, so no
     // two runs field the same mix. Daily mode is seeded → same recipe all day.
@@ -91,6 +93,7 @@ export class Spawner {
       dmgMult: (1 + t / 40) * this.diffDmg * rDmg,
       speedMult: (1 + Math.min(t / 90, 0.5)) * rSpeed,
       xpMult: 1 + t / 60,
+      difficultyId: this.difficultyId,
       elite,
     };
   }
@@ -130,8 +133,9 @@ export class Spawner {
       const r = this.endless ? this.round : 0;
       this.eliteTimer = this.endless ? Math.max(6, 15 - (r - 1) * 1.5) : 30;
       const eliteCount = this.endless ? Math.min(2 + Math.floor((r - 1) / 2), 5) : 1;
+      const namedPool = eliteTypePool(this.difficultyId);
       for (let i = 0; i < eliteCount; i++) {
-        const type = pickWeighted(this.typeWeights());
+        const type = namedPool ? namedPool[Math.floor(Math.random() * namedPool.length)] : pickWeighted(this.typeWeights());
         const pos = this.edgePosition(camX);
         spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true)));
       }

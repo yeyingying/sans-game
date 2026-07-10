@@ -1,4 +1,5 @@
 import { clamp } from "./utils.js";
+import { eliteProfileFor } from "./codex.js";
 
 export class Player {
   constructor(x, y) {
@@ -119,12 +120,15 @@ export class Enemy {
     this.sprite = t.sprite;
     this.x = x;
     this.y = y;
+    this.eliteTier = scale.elite ? Math.max(0, scale.difficultyId || 0) : 0;
+    this.eliteProfile = scale.elite ? eliteProfileFor(type, this.eliteTier) : null;
+    const namedEliteHp = this.eliteProfile ? 1 + this.eliteTier * 0.3 : 1;
     this.radius = t.radius * (scale.elite ? 1.6 : 1);
-    this.maxHp = Math.round(t.hp * scale.hpMult * (scale.elite ? 5 : 1));
+    this.maxHp = Math.round(t.hp * scale.hpMult * (scale.elite ? 5 * namedEliteHp : 1));
     this.hp = this.maxHp;
     this.speed = t.speed * scale.speedMult * (scale.elite ? 0.85 : 1);
     this.dmg = Math.round(t.dmg * scale.dmgMult * (scale.elite ? 1.8 : 1));
-    this.xp = Math.round(t.xp * scale.xpMult * (scale.elite ? 6 : 1));
+    this.xp = Math.round(t.xp * scale.xpMult * (scale.elite ? 6 * namedEliteHp : 1));
     this.elite = !!scale.elite;
     this.contactInterval = t.contactInterval;
     this.contactTimer = 0;
@@ -149,6 +153,9 @@ export class Enemy {
     this.slowTimer = 0; // 减速: half speed
     this.dmgAccum = 0; // damage batched into one floating number (main flushes)
     this.dmgFlushT = 0;
+    this.eliteSkillTimer = this.eliteProfile ? 2.8 + Math.random() * 1.2 : 0;
+    this.eliteCast = null;
+    this.eliteTrail = [];
   }
 
   // 禁锢 with diminishing returns: one root per window — while rootImmune

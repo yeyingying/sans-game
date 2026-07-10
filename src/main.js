@@ -111,6 +111,12 @@ import {
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
 import {
+  BASE_MONSTERS,
+  CODEX_MONSTERS,
+  codexKeyForEnemy,
+  eliteTypePool,
+} from "./codex.js";
+import {
   drawHud,
   drawCenterText,
   drawCharSelect,
@@ -141,6 +147,7 @@ import {
   cosmeticItemRect,
   drawShopScreen,
   codexButtonRect,
+  codexEntryRect,
   drawCodexScreen,
   dailyButtonRect,
   bossClearLeaveRect,
@@ -272,6 +279,7 @@ let hazardTimer = 0; // round 4+: periodic danger zones
 let hazards = []; // {x, y, t} telegraphed player-damaging zones
 
 let shopTab = 0; // 0 = ability upgrades, 1 = 灵魂加护 cosmetics
+let codexSelected = 0;
 let deathShatter = null; // UT-style soul shatter on death {t, color}
 let runOffense = false; // picked any atk/amp card this run (和平主义者 title)
 let lastNewTitles = []; // titles earned at this settlement (gameover toast)
@@ -304,17 +312,9 @@ function queueTipOnce(flag, title, lines) {
 }
 
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
-const ENEMY_NAMES = {
-  slime: "青蛙怪",
-  bat: "胆小蝶",
-  ghost: "蔬菜精",
-  tank: "杰瑞",
-  red: "独眼怪",
-  orange: "马吉克",
-  blue: "洗洗",
-  purple: "冰帽怪",
-};
+const ENEMY_NAMES = Object.fromEntries(BASE_MONSTERS.map((m) => [m.type, m.name]));
 function enemyDisplayName(e) {
+  if (e.eliteProfile) return `${e.eliteTier >= 3 ? "处决态·" : ""}${e.eliteProfile.name}`;
   return (e.elite ? "精英·" : "") + (ENEMY_NAMES[e.type] || "怪物");
 }
 let lastHitBy = null; // most recent damage source
@@ -433,8 +433,8 @@ function diffPills() {
 // codex completion: monsters seen + boss + weapons used + evolutions reached
 function codexCompletion() {
   const st = getStats();
-  let have = Object.keys(ENEMY_NAMES).filter((t) => (st.killsByType[t] || 0) > 0).length;
-  let total = Object.keys(ENEMY_NAMES).length + 1;
+  let have = CODEX_MONSTERS.filter((m) => (st.killsByType[m.key] || 0) > 0).length;
+  let total = CODEX_MONSTERS.length + 1;
   if (st.bossKills > 0) have += 1;
   for (const c of CHARACTERS) {
     for (const w of WEAPON_LISTS[c.id]) {
@@ -1238,6 +1238,14 @@ function handleCanvasTap(pos) {
     if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
       state = "title";
       sfxClick();
+      return;
+    }
+    for (let i = 0; i < CODEX_MONSTERS.length; i++) {
+      if (inRect(pos, codexEntryRect(i, WIDTH))) {
+        codexSelected = i;
+        sfxClick();
+        return;
+      }
     }
     return;
   }
@@ -1434,6 +1442,13 @@ window.addEventListener("keydown", (e) => {
   }
   if (state === "shop" || state === "codex") {
     if (k === "escape") state = "title";
+    else if (state === "codex" && (k === "arrowleft" || k === "arrowright")) {
+      codexSelected = (codexSelected + (k === "arrowright" ? 1 : CODEX_MONSTERS.length - 1)) % CODEX_MONSTERS.length;
+      sfxClick();
+    } else if (state === "codex" && (k === "arrowup" || k === "arrowdown")) {
+      codexSelected = (codexSelected + (k === "arrowdown" ? 6 : CODEX_MONSTERS.length - 6)) % CODEX_MONSTERS.length;
+      sfxClick();
+    }
     return;
   }
   if (state === "dailyintro") {
@@ -1533,11 +1548,12 @@ function explodeBomb(b) {
 
 function spawnDrops(enemy) {
   pickups.push(new Pickup(enemy.x, enemy.y, "xp", { amount: enemy.xp }));
-  const dropChance = enemy.elite ? 1 : 0.12;
-  if (Math.random() < dropChance) {
+  const eliteTier = enemy.eliteProfile ? enemy.eliteTier : 0;
+  const equipmentDrops = enemy.elite ? 1 + (eliteTier >= 3 ? 1 : eliteTier >= 2 && Math.random() < 0.35 ? 1 : 0) : Math.random() < 0.12 ? 1 : 0;
+  for (let i = 0; i < equipmentDrops; i++) {
     const type = rollEquipmentDrop();
     pickups.push(
-      new Pickup(enemy.x + (Math.random() - 0.5) * 14, enemy.y + (Math.random() - 0.5) * 14, "equipment", { type })
+      new Pickup(enemy.x + (Math.random() - 0.5) * 22, enemy.y + (Math.random() - 0.5) * 18, "equipment", { type })
     );
   }
   // coins: the between-runs currency. Value grows with the clock. In endless
@@ -1545,7 +1561,7 @@ function spawnDrops(enemy) {
   // can't be defeated by Math.max(1) rounding on tiny values.
   const coinFactor = currentCoinFactor();
   if (coinFactor > 0 && (enemy.elite || Math.random() < 0.13) && Math.random() < coinFactor) {
-    const base = (enemy.elite ? 6 : 1) * (1 + Math.floor(elapsed / 150));
+    const base = (enemy.elite ? 6 + eliteTier * 2 : 1) * (1 + Math.floor(elapsed / 150));
     const value = Math.max(1, Math.round(base * coinGainMult() * getDifficulty().coinMult));
     pickups.push(
       new Pickup(enemy.x + (Math.random() - 0.5) * 10, enemy.y + (Math.random() - 0.5) * 10, "coin", { value })
@@ -1557,6 +1573,77 @@ function spawnDrops(enemy) {
   if (!enemy.elite && Math.random() < candyChance) {
     pickups.push(new Pickup(enemy.x + (Math.random() - 0.5) * 12, enemy.y + (Math.random() - 0.5) * 12, "candy", {}));
   }
+}
+
+function startEliteCast(e) {
+  const skill = e.eliteProfile?.skillId;
+  if (!skill) return;
+  const duration = { leap: 0.9, rush: 0.7, gaze: 1.15, roots: 1.05 }[skill];
+  const cast = { skill, t: duration, maxT: duration, x: player.x, y: player.y, marks: [] };
+  if (skill === "roots") {
+    const a0 = (e.id % 8) * (Math.PI / 4);
+    for (let i = 0; i < 3; i++) {
+      const a = a0 + (i / 3) * Math.PI * 2;
+      cast.marks.push({ x: player.x + Math.cos(a) * 58, y: player.y + Math.sin(a) * 48 });
+    }
+  }
+  e.eliteCast = cast;
+}
+
+function eliteHitPlayer(e, amount, label, color) {
+  if (player.shieldTimer > 0) {
+    floatingTexts.push(new FloatingText(player.x, player.y - 24, "BLOCK!", "#b58cff"));
+    return;
+  }
+  const hit = player.takeDamage(Math.max(1, Math.round(amount)));
+  if (hit) {
+    lastHitBy = `${enemyDisplayName(e)}的${label}`;
+    floatingTexts.push(new FloatingText(player.x, player.y - 24, `-${Math.max(1, Math.round(amount))}`, color));
+  } else if (player.dodged) {
+    floatingTexts.push(new FloatingText(player.x, player.y - 20, "MISS!", "#7cf28a"));
+  }
+}
+
+function resolveEliteCast(e, cast) {
+  const tierPower = e.eliteTier >= 3 ? 1.25 : 1;
+  if (cast.skill === "leap") {
+    e.x = cast.x;
+    e.y = clamp(cast.y, WALL_H + e.radius, HEIGHT - e.radius);
+    explosions.push(new Explosion(e.x, e.y, 66, e.eliteProfile.color, true));
+    if (circleHit(e.x, e.y, 66, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, "审判跃击", e.eliteProfile.color);
+  } else if (cast.skill === "rush") {
+    e.burstTimer = Math.max(e.burstTimer, e.eliteTier >= 3 ? 1.8 : 1.35);
+    e.invulnTimer = Math.max(e.invulnTimer, 0.25);
+  } else if (cast.skill === "gaze") {
+    explosions.push(new Explosion(e.x, e.y, 190, e.eliteProfile.color, true));
+    if (circleHit(e.x, e.y, 190, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.8 * tierPower, "裁决凝视", e.eliteProfile.color);
+  } else if (cast.skill === "roots") {
+    for (const mark of cast.marks) {
+      explosions.push(new Explosion(mark.x, mark.y, 44, e.eliteProfile.color));
+      if (circleHit(mark.x, mark.y, 44, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.65 * tierPower, "根须盛宴", e.eliteProfile.color);
+    }
+  }
+}
+
+function updateEliteSkill(e, dt) {
+  if (!e.eliteProfile || e.rootTimer > 0) return;
+  if (e.eliteProfile.skillId === "rush" && e.burstTimer > 0) {
+    e.eliteTrail.push({ x: e.x, y: e.y, t: 0.32 });
+    if (e.eliteTrail.length > 8) e.eliteTrail.shift();
+  }
+  for (const trail of e.eliteTrail) trail.t -= dt;
+  e.eliteTrail = e.eliteTrail.filter((trail) => trail.t > 0);
+  if (e.eliteCast) {
+    e.eliteCast.t -= dt;
+    if (e.eliteCast.t <= 0) {
+      resolveEliteCast(e, e.eliteCast);
+      e.eliteCast = null;
+      e.eliteSkillTimer = Math.max(3.2, 6.2 - e.eliteTier * 0.65) + Math.random() * 0.8;
+    }
+    return;
+  }
+  e.eliteSkillTimer -= dt;
+  if (e.eliteSkillTimer <= 0) startEliteCast(e);
 }
 
 function onLevelUp(levels) {
@@ -1595,7 +1682,7 @@ function update(dt) {
       floatingTexts.push(new FloatingText(player.x, player.y - 60, "※ 精英潮来袭！", "#ffd166"));
     } else if (eliteWave % 2 === 1 && elapsed >= wave.at) {
       eliteWave += 1;
-      const types = ["tank", "red", "orange", "blue", "purple", "ghost"];
+      const types = eliteTypePool(getDifficulty().id) || ["tank", "red", "orange", "blue", "purple", "ghost"];
       for (let i = 0; i < wave.count; i++) {
         const side = i % 2 === 0 ? -1 : 1;
         const e = new Enemy(
@@ -1678,7 +1765,7 @@ function update(dt) {
     // T-15s: the round's champion — a souped-up elite of an existing monster
     if (!roundBossSpawned && roundTimer <= 15) {
       roundBossSpawned = true;
-      const types = ["tank", "red", "orange", "blue", "purple", "ghost"];
+      const types = eliteTypePool(getDifficulty().id) || ["tank", "red", "orange", "blue", "purple", "ghost"];
       const ty = types[Math.floor(Math.random() * types.length)];
       const side = Math.random() < 0.5 ? -1 : 1;
       const b = new Enemy(
@@ -1762,6 +1849,7 @@ function update(dt) {
   for (const e of enemies) {
     if (e.boss) continue; // the boss is driven by its own controller
     e.update(dt, player);
+    updateEliteSkill(e, dt);
     // batched damage number: one floater per 0.3s window, tiny ticks stay silent
     if (e.dmgFlushT > 0) {
       e.dmgFlushT -= dt;
@@ -1952,7 +2040,8 @@ function update(dt) {
   const dead = enemies.filter((e) => e.hp <= 0 && !e.boss);
   for (const e of dead) {
     player.kills += 1;
-    runKillsByType[e.type] = (runKillsByType[e.type] || 0) + 1;
+    const codexKey = codexKeyForEnemy(e);
+    runKillsByType[codexKey] = (runKillsByType[codexKey] || 0) + 1;
     if (!e.noXp) spawnDrops(e);
     if (e.roundBoss) {
       roundBossDown = true;
@@ -2315,6 +2404,66 @@ function draw() {
     ctx.restore();
   }
 
+  // Named elite telegraphs: every dangerous skill announces its exact area.
+  for (const e of enemies) {
+    if (!e.eliteProfile) continue;
+    for (const trail of e.eliteTrail || []) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, trail.t / 0.32) * 0.35;
+      ctx.fillStyle = e.eliteProfile.color;
+      ctx.beginPath();
+      ctx.arc(trail.x, trail.y, e.radius * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    const cast = e.eliteCast;
+    if (!cast) continue;
+    const p = 1 - cast.t / cast.maxT;
+    ctx.save();
+    ctx.strokeStyle = e.eliteProfile.color;
+    ctx.fillStyle = e.eliteProfile.color;
+    ctx.lineWidth = 2 + p * 2;
+    ctx.globalAlpha = 0.4 + p * 0.5;
+    if (cast.skill === "leap") {
+      ctx.beginPath();
+      ctx.arc(cast.x, cast.y, 66 - p * 34, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha *= 0.16;
+      ctx.fill();
+    } else if (cast.skill === "rush") {
+      ctx.setLineDash([10, 7]);
+      ctx.beginPath();
+      ctx.moveTo(e.x, e.y);
+      ctx.lineTo(cast.x, cast.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.radius + 8 + p * 8, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (cast.skill === "gaze") {
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, 45 + p * 145, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(e.x + Math.cos(a) * 26, e.y + Math.sin(a) * 26);
+        ctx.lineTo(e.x + Math.cos(a) * (45 + p * 145), e.y + Math.sin(a) * (45 + p * 145));
+        ctx.stroke();
+      }
+    } else if (cast.skill === "roots") {
+      for (const mark of cast.marks) {
+        ctx.beginPath();
+        ctx.arc(mark.x, mark.y, 44 - p * 18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha *= 0.14;
+        ctx.fill();
+        ctx.globalAlpha = 0.4 + p * 0.5;
+      }
+    }
+    ctx.restore();
+  }
+
   // teleporter marks (drawn under everything else)
   for (const e of enemies) {
     if (!e.mark) continue;
@@ -2339,11 +2488,37 @@ function draw() {
     if (e.boss) continue; // the boss draws itself
     if (e.elite) {
       ctx.save();
-      ctx.strokeStyle = "#ffd166";
-      ctx.lineWidth = 2;
+      const eliteColor = e.eliteProfile?.color || "#ffd166";
+      ctx.strokeStyle = eliteColor;
+      ctx.lineWidth = e.eliteProfile ? 3 : 2;
+      ctx.globalAlpha = e.eliteProfile ? 0.7 + 0.25 * Math.sin(elapsed * 5 + e.id) : 1;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.radius + 5, 0, Math.PI * 2);
       ctx.stroke();
+      if (e.eliteProfile) {
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius + 11, elapsed * 1.8, elapsed * 1.8 + Math.PI * 1.35);
+        ctx.stroke();
+        for (let i = 0; i < 3; i++) {
+          const a = -elapsed * 1.5 + (i / 3) * Math.PI * 2;
+          const r = e.radius + 15;
+          ctx.save();
+          ctx.translate(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r);
+          ctx.rotate(a);
+          ctx.fillStyle = eliteColor;
+          ctx.fillRect(-2, -2, 4, 4);
+          ctx.restore();
+        }
+        if (e.eliteTier >= 3) {
+          ctx.globalAlpha = 0.38 + 0.2 * Math.sin(elapsed * 8);
+          ctx.strokeStyle = "#ff3d5a";
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, e.radius + 19, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
       // round champion: an extra pulsing ring marks the kill target
       if (e.roundBoss) {
         ctx.globalAlpha = 0.6 + 0.4 * Math.sin(elapsed * 6);
@@ -2971,10 +3146,11 @@ function draw() {
     );
   } else if (state === "codex") {
     const st = getStats();
-    const monsters = Object.keys(ENEMY_NAMES).map((t) => ({
-      name: ENEMY_NAMES[t],
-      sprite: ENEMY_SPRITES[t],
-      kills: st.killsByType[t] || 0,
+    const monsters = CODEX_MONSTERS.map((m) => ({
+      ...m,
+      sprite: ENEMY_SPRITES[m.type],
+      kills: st.killsByType[m.key] || 0,
+      elite: m.key.startsWith("elite_"),
     }));
     const weaponRows = CHARACTERS.map((c) => {
       const list = WEAPON_LISTS[c.id];
@@ -2987,7 +3163,7 @@ function draw() {
         evoTotal: list.filter((w) => w.evolve).length,
       };
     });
-    drawCodexScreen(ctx, WIDTH, HEIGHT, monsters, st.bossKills, weaponRows, codexCompletion());
+    drawCodexScreen(ctx, WIDTH, HEIGHT, monsters, st.bossKills, weaponRows, codexCompletion(), codexSelected);
   } else if (state === "charselect") {
     drawCharSelect(
       ctx,

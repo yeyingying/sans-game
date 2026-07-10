@@ -425,9 +425,16 @@ export function drawRoundClearScreen(ctx, width, height, round, selected, pendin
 
 // ---- codex / collection ------------------------------------------------------
 
-// monsters: [{name, sprite, kills}] (kills 0 => "???"),
-// weaponRows: [{charName, color, used, total, evolved, evoTotal}]
-export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponRows, pct = 0) {
+export function codexEntryRect(i, width) {
+  const gap = 9;
+  const w = Math.min(142, Math.floor((width - 92 - gap * 5) / 6));
+  const total = w * 6 + gap * 5;
+  return { x: width / 2 - total / 2 + (i % 6) * (w + gap), y: 78 + Math.floor(i / 6) * 84, w, h: 76 };
+}
+
+// monsters include both the eight base encounters and four difficulty elites.
+// A compact two-row index leaves a stable detail area on phone landscape.
+export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponRows, pct = 0, selected = 0) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
   ctx.fillRect(0, 0, width, height);
@@ -440,50 +447,92 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
   ctx.font = "bold 13px monospace";
   ctx.fillText(`收集度 ${pct}%`, width / 2, 68);
 
-  // monster grid: 4 x 2
-  const cw = 168;
-  const chh = 108;
-  const gap = 12;
-  const gx = width / 2 - (cw * 4 + gap * 3) / 2;
-  const gy = 78;
   monsters.forEach((m, i) => {
-    const x = gx + (i % 4) * (cw + gap);
-    const y = gy + Math.floor(i / 4) * (chh + gap);
+    const box = codexEntryRect(i, width);
+    const x = box.x;
+    const y = box.y;
     const seen = m.kills > 0;
-    ctx.fillStyle = "#1d1828";
-    ctx.fillRect(x, y, cw, chh);
-    ctx.strokeStyle = seen ? "#5a5468" : "#2a2436";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, cw, chh);
+    const active = i === selected;
+    ctx.fillStyle = active ? "#282037" : "#1d1828";
+    ctx.fillRect(x, y, box.w, box.h);
+    ctx.strokeStyle = active ? (seen ? m.color : "#6b6578") : seen ? (m.elite ? m.color : "#5a5468") : "#2a2436";
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.strokeRect(x, y, box.w, box.h);
     if (seen && m.sprite) {
       ctx.imageSmoothingEnabled = false;
-      const s = 44;
-      ctx.drawImage(m.sprite, x + cw / 2 - s / 2, y + 10, s, s);
+      const s = 34;
+      ctx.drawImage(m.sprite, x + box.w / 2 - s / 2, y + 7, s, s);
+      if (m.elite) {
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = m.color;
+        ctx.beginPath();
+        ctx.arc(x + box.w / 2, y + 24, 22, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
     } else {
       ctx.fillStyle = "#453f52";
-      ctx.font = "bold 26px monospace";
-      ctx.fillText("?", x + cw / 2, y + 42);
+      ctx.font = "bold 22px monospace";
+      ctx.fillText("?", x + box.w / 2, y + 32);
     }
     ctx.fillStyle = seen ? "#f2ead8" : "#453f52";
-    ctx.font = "bold 13px monospace";
-    ctx.fillText(seen ? m.name : "？？？", x + cw / 2, y + 74);
-    if (seen) {
-      ctx.fillStyle = "#9a93ab";
-      ctx.font = "11px monospace";
-      ctx.fillText(`击杀 ${m.kills}`, x + cw / 2, y + 92);
-    }
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(seen ? m.name : "？？？", x + box.w / 2, y + 55);
+    ctx.fillStyle = seen ? (m.elite ? m.color : "#9a93ab") : "#3c3548";
+    ctx.font = "10px monospace";
+    ctx.fillText(seen ? `${m.elite ? "精英 · " : ""}击杀 ${m.kills}` : m.elite ? "高难度精英" : "尚未遭遇", x + box.w / 2, y + 69);
   });
 
-  // boss line
-  const by = gy + 2 * (chh + gap) + 16;
+  const chosen = monsters[Math.max(0, Math.min(selected, monsters.length - 1))];
+  const seen = chosen && chosen.kills > 0;
+  const detail = { x: width / 2 - Math.min(470, width / 2 - 48), y: 252, w: Math.min(940, width - 96), h: 148 };
+  ctx.fillStyle = "#15111e";
+  ctx.fillRect(detail.x, detail.y, detail.w, detail.h);
+  ctx.strokeStyle = seen ? chosen.color : "#3a3346";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(detail.x, detail.y, detail.w, detail.h);
+  if (seen) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(chosen.sprite, detail.x + 26, detail.y + 25, 82, 82);
+    ctx.textAlign = "left";
+    ctx.fillStyle = chosen.color;
+    ctx.font = "bold 18px monospace";
+    ctx.fillText(`${chosen.name}  ${chosen.english}`, detail.x + 130, detail.y + 28);
+    ctx.fillStyle = "#9a93ab";
+    ctx.font = "11px monospace";
+    ctx.fillText(`${chosen.region} · ${chosen.title} · 累计击杀 ${chosen.kills}`, detail.x + 130, detail.y + 50);
+    ctx.fillStyle = "#d8d1e2";
+    ctx.font = "12px monospace";
+    ctx.fillText(chosen.lore, detail.x + 130, detail.y + 78);
+    ctx.fillStyle = chosen.color;
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(`本作能力：${chosen.skill}`, detail.x + 130, detail.y + 108);
+    if (chosen.elite) {
+      ctx.fillStyle = "#ffd166";
+      ctx.font = "11px monospace";
+      ctx.fillText(`${chosen.unlock} · 屠杀难度进入处决态`, detail.x + 130, detail.y + 132);
+    }
+    ctx.textAlign = "center";
+  } else {
+    ctx.fillStyle = "#453f52";
+    ctx.font = "bold 30px monospace";
+    ctx.fillText("？", width / 2, detail.y + 52);
+    ctx.font = "13px monospace";
+    ctx.fillText(chosen?.elite ? chosen.unlock : "在战斗中击败一次后解锁完整档案", width / 2, detail.y + 86);
+    ctx.fillStyle = "#6b6578";
+    ctx.font = "11px monospace";
+    ctx.fillText("怪物的名字、来历与能力仍被黑暗遮住", width / 2, detail.y + 112);
+  }
+
+  // Boss and weapon collection stay visible as compact completion summaries.
+  const by = 420;
   ctx.fillStyle = bossKills > 0 ? "#ffd166" : "#453f52";
-  ctx.font = "bold 14px monospace";
+  ctx.font = "bold 12px monospace";
   ctx.fillText(bossKills > 0 ? `☠ 天意侵蚀Sans · 击败 ${bossKills} 次` : "☠ ？？？（5:00 出现的存在）", width / 2, by);
 
-  // weapon collection rows
-  ctx.font = "13px monospace";
+  ctx.font = "11px monospace";
   weaponRows.forEach((r, i) => {
-    const y = by + 26 + i * 22;
+    const y = by + 20 + i * 17;
     ctx.fillStyle = r.color;
     ctx.textAlign = "right";
     ctx.fillText(r.charName, width / 2 - 20, y);
