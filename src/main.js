@@ -758,15 +758,19 @@ function buildChoicePool() {
     {
       kind: "hp",
       weight: 12,
-      make: () => ({
-        title: "生命上限 +25",
-        desc: "并立刻回复 25 点生命",
-        color: "#ff8fc7",
-        apply: () => {
-          player.maxHp += 25;
-          player.hp = Math.min(player.maxHp, player.hp + Math.round(25 * healScale()));
-        },
-      }),
+      make: () => {
+        // scales with current bulk (8%, floor 25) so it stays worth picking
+        const gain = Math.max(25, Math.round(player.maxHp * 0.08));
+        return {
+          title: `生命上限 +${gain}`,
+          desc: `上限提升 8%(保底25) 并回复等量生命`,
+          color: "#ff8fc7",
+          apply: () => {
+            player.maxHp += gain;
+            player.hp = Math.min(player.maxHp, player.hp + Math.round(gain * healScale()));
+          },
+        };
+      },
     },
     {
       kind: "speed",
