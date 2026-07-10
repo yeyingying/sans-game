@@ -472,6 +472,16 @@ export function shopTabRect(i, width) {
   return { x: width / 2 - 190 + i * 200, y: 66, w: 180, h: 32 };
 }
 
+// cosmetics tab uses its own compact grid: 2 cols x 6 rows
+export function cosmeticItemRect(i, width, height) {
+  const w = 430;
+  const h = 42;
+  const gap = 7;
+  const col = Math.floor(i / 6);
+  const x = col === 0 ? width / 2 - w - 8 : width / 2 + 8;
+  return { x, y: 122 + (i % 6) * (h + gap), w, h };
+}
+
 // souls: [{id, name, color, desc, price, owned, equipped}]
 export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = []) {
   ctx.save();
@@ -505,7 +515,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
   if (tab === 1) {
     for (let i = 0; i < souls.length; i++) {
       const c = souls[i];
-      const box = shopItemRect(i, width, height);
+      const box = cosmeticItemRect(i, width, height);
       const affordable = coins >= c.price;
       ctx.fillStyle = "#1d1828";
       ctx.fillRect(box.x, box.y, box.w, box.h);
@@ -515,31 +525,31 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
       // soul heart swatch
       ctx.fillStyle = c.color;
       ctx.save();
-      ctx.translate(box.x + 24, box.y + box.h / 2);
+      ctx.translate(box.x + 22, box.y + box.h / 2);
       ctx.rotate(Math.PI / 4);
-      ctx.fillRect(-7, -7, 14, 14); // rotated square reads as a pixel heart
+      ctx.fillRect(-6, -6, 12, 12); // rotated square reads as a pixel heart
       ctx.restore();
       ctx.textAlign = "left";
       ctx.fillStyle = c.color;
-      ctx.font = "bold 16px monospace";
-      ctx.fillText(c.name, box.x + 46, box.y + 24);
+      ctx.font = "bold 14px monospace";
+      ctx.fillText(c.name, box.x + 42, box.y + 18);
       ctx.fillStyle = "#b9b2c9";
-      ctx.font = "11px monospace";
-      ctx.fillText(c.desc, box.x + 46, box.y + 44);
+      ctx.font = "10px monospace";
+      ctx.fillText(c.desc, box.x + 42, box.y + 34);
       ctx.textAlign = "right";
       ctx.font = "bold 13px monospace";
       if (c.equipped) {
         ctx.fillStyle = "#ffffff";
-        ctx.fillText("装备中 · 点击卸下", box.x + box.w - 16, box.y + 24);
+        ctx.fillText("装备中 · 点击卸下", box.x + box.w - 14, box.y + 20);
       } else if (c.owned) {
         ctx.fillStyle = "#7cf28a";
-        ctx.fillText("已拥有 · 点击装备", box.x + box.w - 16, box.y + 24);
+        ctx.fillText("已拥有 · 点击装备", box.x + box.w - 14, box.y + 20);
       } else {
         ctx.fillStyle = affordable ? "#ffd166" : "#6b6578";
-        ctx.fillText(`ⓖ ${c.price}`, box.x + box.w - 16, box.y + 24);
-        ctx.font = "11px monospace";
+        ctx.fillText(`ⓖ ${c.price}`, box.x + box.w - 14, box.y + 20);
+        ctx.font = "10px monospace";
         ctx.fillStyle = affordable ? "#7d7690" : "#5a5468";
-        ctx.fillText(affordable ? "点击购买" : "金币不足", box.x + box.w - 16, box.y + 44);
+        ctx.fillText(affordable ? "点击购买" : "金币不足", box.x + box.w - 14, box.y + 36);
       }
     }
     ctx.textAlign = "center";

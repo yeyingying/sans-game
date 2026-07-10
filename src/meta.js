@@ -94,41 +94,95 @@ export function rerollBonus() {
 
 // pure looks, zero stats: player glow + heart trail in the soul's color.
 // Lore: six fallen humans' souls + the protagonist's own DETERMINATION.
+// slot "soul" = glow + heart trail; slot "bone" = weapon bone tint
 export const COSMETICS = [
-  { id: "bravery", name: "勇气之魂", color: "#ff9e3d", desc: "橙色——戴着拳套的孩子留下的魂", price: 250 },
-  { id: "justice", name: "正义之魂", color: "#ffef3d", desc: "黄色——牛仔帽与左轮的主人", price: 250 },
-  { id: "kindness", name: "善良之魂", color: "#4ade5a", desc: "绿色——围裙与平底锅的温柔", price: 250 },
-  { id: "patience", name: "耐心之魂", color: "#5ee6e6", desc: "浅蓝——丝带与玩具刀的等待", price: 250 },
-  { id: "integrity", name: "诚实之魂", color: "#4f6dff", desc: "深蓝——芭蕾舞鞋的正直", price: 250 },
-  { id: "perseverance", name: "毅力之魂", color: "#b45df0", desc: "紫色——眼镜与笔记本的坚持", price: 250 },
-  { id: "determination", name: "决心", color: "#ff3d5a", desc: "红色——你自己的灵魂。DETERMINATION.", price: 800 },
+  { id: "bravery", slot: "soul", name: "勇气之魂", color: "#ff9e3d", desc: "橙色——戴着拳套的孩子留下的魂", price: 250 },
+  { id: "justice", slot: "soul", name: "正义之魂", color: "#ffef3d", desc: "黄色——牛仔帽与左轮的主人", price: 250 },
+  { id: "kindness", slot: "soul", name: "善良之魂", color: "#4ade5a", desc: "绿色——围裙与平底锅的温柔", price: 250 },
+  { id: "patience", slot: "soul", name: "耐心之魂", color: "#5ee6e6", desc: "浅蓝——丝带与玩具刀的等待", price: 250 },
+  { id: "integrity", slot: "soul", name: "诚实之魂", color: "#4f6dff", desc: "深蓝——芭蕾舞鞋的正直", price: 250 },
+  { id: "perseverance", slot: "soul", name: "毅力之魂", color: "#b45df0", desc: "紫色——眼镜与笔记本的坚持", price: 250 },
+  { id: "determination", slot: "soul", name: "决心", color: "#ff3d5a", desc: "红色——你自己的灵魂。DETERMINATION.", price: 800 },
+  { id: "snowdin", slot: "bone", name: "雪镇之骨", color: "#cfe8ff", desc: "冷白涂装——Snowdin 永不停的雪", price: 300 },
+  { id: "waterfall", slot: "bone", name: "瀑布之骨", color: "#6bd0ff", desc: "幽蓝涂装——回声花低语的光", price: 300 },
+  { id: "hotland", slot: "bone", name: "热域之骨", color: "#ff8a4a", desc: "熔岩涂装——Hotland 的灼热", price: 300 },
+  { id: "core", slot: "bone", name: "核心之骨", color: "#7df0e8", desc: "电光涂装——The CORE 的能量", price: 400 },
 ];
 
 let cosmetics = readJson("metaCosmetics", { owned: {}, equipped: null });
+// migrate v1 saves (equipped was a single soul id string) to per-slot
+if (typeof cosmetics.equipped !== "object" || cosmetics.equipped === null) {
+  cosmetics.equipped = { soul: typeof cosmetics.equipped === "string" ? cosmetics.equipped : null, bone: null };
+}
+
+function cosmeticById(id) {
+  return COSMETICS.find((c) => c.id === id) || null;
+}
 
 export function cosmeticOwned(id) {
   return !!cosmetics.owned[id];
 }
 
 export function equippedCosmetic() {
-  return cosmetics.equipped ? COSMETICS.find((c) => c.id === cosmetics.equipped) || null : null;
+  return cosmetics.equipped.soul ? cosmeticById(cosmetics.equipped.soul) : null;
+}
+
+export function equippedBoneSkin() {
+  return cosmetics.equipped.bone ? cosmeticById(cosmetics.equipped.bone) : null;
 }
 
 export function buyCosmetic(id) {
-  const c = COSMETICS.find((x) => x.id === id);
+  const c = cosmeticById(id);
   if (!c || cosmetics.owned[id] || !spendCoins(c.price)) return false;
   cosmetics.owned[id] = true;
-  cosmetics.equipped = id; // wear it right away
+  cosmetics.equipped[c.slot] = id; // wear it right away
   store.setItem("metaCosmetics", JSON.stringify(cosmetics));
   return true;
 }
 
-export function equipCosmetic(id) {
-  // id null = take it off; owned check keeps saves honest
-  if (id !== null && !cosmetics.owned[id]) return false;
-  cosmetics.equipped = id;
+// id null = take the slot's item off (pass slot explicitly for null)
+export function equipCosmetic(id, slot = null) {
+  if (id === null) {
+    if (!slot) return false;
+    cosmetics.equipped[slot] = null;
+  } else {
+    const c = cosmeticById(id);
+    if (!c || !cosmetics.owned[id]) return false;
+    cosmetics.equipped[c.slot] = id;
+  }
   store.setItem("metaCosmetics", JSON.stringify(cosmetics));
   return true;
+}
+
+// ---- honour titles (UT ending references; earned, never sold) --------------
+
+export const TITLES = [
+  { id: "pacifist", name: "和平主义者", hint: "全程不选攻击/增伤卡并击败Boss" },
+  { id: "judge", name: "审判者", hint: "无尽审判完成 5 轮" },
+  { id: "raven", name: "渡鸦", hint: "地狱难度击败Boss" },
+  { id: "determined", name: "决心的化身", hint: "图鉴收集度 100%" },
+];
+
+let titles = readJson("metaTitles", {});
+
+export function titleUnlocked(id) {
+  return !!titles[id];
+}
+
+// returns true only the first time — callers use it for the unlock toast
+export function unlockTitle(id) {
+  if (titles[id] || !TITLES.some((t) => t.id === id)) return false;
+  titles[id] = true;
+  store.setItem("metaTitles", JSON.stringify(titles));
+  return true;
+}
+
+// highest-prestige unlocked title (list order = ascending prestige)
+export function bestTitle() {
+  for (let i = TITLES.length - 1; i >= 0; i--) {
+    if (titles[TITLES[i].id]) return TITLES[i];
+  }
+  return null;
 }
 
 // ---- lifetime stats --------------------------------------------------------

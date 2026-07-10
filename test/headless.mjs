@@ -176,8 +176,13 @@ function run(seconds, onFrame) {
   check("soul cosmetic buyable", M.buyCosmetic("bravery") && M.cosmeticOwned("bravery"));
   check("bought soul auto-equipped", M.equippedCosmetic()?.id === "bravery");
   check("cannot rebuy owned soul", !M.buyCosmetic("bravery"));
-  check("unequip works", M.equipCosmetic(null) && M.equippedCosmetic() === null);
+  check("unequip works", M.equipCosmetic(null, "soul") && M.equippedCosmetic() === null);
   check("cannot equip unowned", !M.equipCosmetic("determination"));
+  M.addCoins(300);
+  check("bone skin buyable into its own slot", M.buyCosmetic("snowdin") && M.equippedBoneSkin()?.id === "snowdin");
+  check("bone slot independent of soul slot", M.equippedCosmetic() === null);
+  check("title unlocks once", M.unlockTitle("judge") === true && M.unlockTitle("judge") === false);
+  check("best title resolves", M.bestTitle()?.id === "judge");
   // codex collection tracking
   M.recordRun({ killsByType: { slime: 10, bat: 3 }, weaponsUsed: ["bone", "orbit"], evolvedIds: ["bone"] });
   const st = M.getStats();

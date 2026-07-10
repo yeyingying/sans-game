@@ -77,8 +77,12 @@ import {
   COSMETICS,
   cosmeticOwned,
   equippedCosmetic,
+  equippedBoneSkin,
   buyCosmetic,
   equipCosmetic,
+  TITLES,
+  unlockTitle,
+  bestTitle,
 } from "./meta.js";
 import {
   initSfx,
@@ -97,6 +101,7 @@ import {
   sfxEliteDown,
   sfxHeartbeat,
   sfxCoin,
+  sfxShatter,
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
@@ -128,6 +133,7 @@ import {
   shopButtonRect,
   shopItemRect,
   shopTabRect,
+  cosmeticItemRect,
   drawShopScreen,
   codexButtonRect,
   drawCodexScreen,
@@ -260,6 +266,17 @@ let hazardTimer = 0; // round 4+: periodic danger zones
 let hazards = []; // {x, y, t} telegraphed player-damaging zones
 
 let shopTab = 0; // 0 = ability upgrades, 1 = 灵魂加护 cosmetics
+let deathShatter = null; // UT-style soul shatter on death {t, color}
+let runOffense = false; // picked any atk/amp card this run (和平主义者 title)
+let lastNewTitles = []; // titles earned at this settlement (gameover toast)
+
+// bone weapon skin: tint the default white bone sprite at runtime
+const BONE_SKIN_CACHE = {};
+function skinnedBone() {
+  const sk = equippedBoneSkin();
+  if (!sk) return PROJECTILE_BONE;
+  return (BONE_SKIN_CACHE[sk.color] ||= tintSprite(PROJECTILE_BONE, sk.color, 0.45));
+}
 
 // soul cosmetic: heart trail dropped while moving (pure looks)
 let soulTrail = []; // {x, y, t}
@@ -477,6 +494,9 @@ function reset(weaponId) {
   tipQueue = [];
   activeTip = null;
   soulTrail = [];
+  deathShatter = null;
+  runOffense = false;
+  lastNewTitles = [];
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -525,6 +545,9 @@ function settleGame(kind) {
           ? "retreat" // quit from pause during endless: voluntary extraction
           : "quit"; // quit from pause before the boss (classic GAME OVER card)
   lastDeathBy = player.hp <= 0 ? lastHitBy : null; // only real deaths get a recap
+  // UT-style death: the soul appears, cracks, shatters (equipped soul color)
+  deathShatter = player.hp <= 0 ? { t: 0, color: equippedCosmetic()?.color || "#ff3d5a" } : null;
+  if (deathShatter) sfxShatter();
   // A normal settlement records the run below, so its crash-recovery checkpoint
   // must be removed first. Pending coins have already been banked only by the
   // round-clear actions; death and pause-quit deliberately leave them behind.
@@ -584,6 +607,16 @@ function settleGame(kind) {
     evolvedIds: player.weapons.filter((i) => i.evolved).map((i) => i.id),
   });
   runKillsByType = {};
+  // honour titles (checked after the run is recorded so the codex is fresh)
+  lastNewTitles = [];
+  for (const [id, ok] of [
+    ["pacifist", bossDefeated && !runOffense],
+    ["judge", roundsCleared >= 5],
+    ["raven", bossDefeated && getDifficulty().id === 2],
+    ["determined", codexCompletion() >= 100],
+  ]) {
+    if (ok && unlockTitle(id)) lastNewTitles.push(TITLES.find((t) => t.id === id).name);
+  }
 }
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
@@ -769,6 +802,7 @@ function buildChoicePool() {
         color: "#ff6b6b",
         apply: () => {
           player.atk += 4;
+          runOffense = true;
         },
       }),
     },
@@ -864,6 +898,7 @@ function buildChoicePool() {
       color: "#ff6b6b",
       apply: () => {
         player.dmgAmp += 0.2;
+        runOffense = true;
       },
     }),
   });
@@ -876,6 +911,7 @@ function buildChoicePool() {
       color: "#ffd166",
       apply: () => {
         player.dmgAmp += 1;
+        runOffense = true;
       },
     }),
   });
@@ -1141,13 +1177,13 @@ function handleCanvasTap(pos) {
     if (shopTab === 1) {
       // 灵魂加护: buy once, then click toggles equip/unequip
       for (let i = 0; i < COSMETICS.length; i++) {
-        if (inRect(pos, shopItemRect(i, WIDTH, HEIGHT))) {
+        if (inRect(pos, cosmeticItemRect(i, WIDTH, HEIGHT))) {
           const c = COSMETICS[i];
           if (!cosmeticOwned(c.id)) {
             if (buyCosmetic(c.id)) sfxFanfare();
             else sfxHurt();
-          } else if (equippedCosmetic()?.id === c.id) {
-            equipCosmetic(null);
+          } else if (equippedCosmetic()?.id === c.id || equippedBoneSkin()?.id === c.id) {
+            equipCosmetic(null, c.slot);
             sfxClick();
           } else {
             equipCosmetic(c.id);
@@ -2003,7 +2039,8 @@ function drawBackground() {
   }
 }
 
-function drawBone(cx, cy, size, angle, sprite = PROJECTILE_BONE) {
+function drawBone(cx, cy, size, angle, sprite = null) {
+  sprite ||= skinnedBone(); // bone-skin cosmetic tints the default white bone
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle);
@@ -2016,7 +2053,7 @@ function spikeBoneSprite(sp) {
   if (sp.color === "#ff5d5d" || sp.color === "#ff8a8a") return PROJECTILE_BONE_RED;
   if (sp.root > 0) return PROJECTILE_BONE_BLUE;
   if (sp.wave || sp.color === "#c59bff") return PROJECTILE_BONE_PURPLE;
-  return PROJECTILE_BONE;
+  return skinnedBone();
 }
 
 function draw() {
@@ -2298,7 +2335,7 @@ function draw() {
       ctx.translate(p.x, p.y);
       ctx.rotate(angle);
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(PROJECTILE_BONE, -p.size * 1.8, -p.size / 2, p.size * 3.6, p.size);
+      ctx.drawImage(skinnedBone(), -p.size * 1.8, -p.size / 2, p.size * 3.6, p.size);
       ctx.restore();
     } else if (p.orb) {
       // hollow dark-blue ring with a glowing outer halo
@@ -2372,7 +2409,7 @@ function draw() {
         if (m && m.alpha > 0) {
           ctx.save();
           ctx.globalAlpha = m.alpha;
-          drawBone(m.x, m.y, m.size, -Math.PI / 2, PROJECTILE_BONE);
+          drawBone(m.x, m.y, m.size, -Math.PI / 2);
           ctx.restore();
         }
       } else if (inst.id === "gaster") {
@@ -2423,7 +2460,7 @@ function draw() {
         }
       } else if (inst.id === "turret") {
         for (const b of getTurretBones(player, inst)) {
-          drawBone(b.x, b.y, 22, b.angle, PROJECTILE_BONE);
+          drawBone(b.x, b.y, 22, b.angle);
         }
       } else if (inst.id === "sweep") {
         const bone = getSweepBone(player, inst);
@@ -2880,6 +2917,8 @@ function draw() {
       },
       { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
       { text: `金币 +${lastRunCoins}  (钱包 ${getCoins()} · 标题页可进强化商店)`, font: "14px monospace", color: "#ffd166" },
+      ...(bestTitle() ? [{ text: `称号:「${bestTitle().name}」`, font: "13px monospace", color: "#c59bff" }] : []),
+      ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),
       ...(wasDaily
         ? [
             {
@@ -2892,7 +2931,38 @@ function draw() {
       { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
       { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
     ]);
-  } else if (state === "credits") {
+  }
+  // UT-style soul shatter: black cover, the soul cracks, pieces fly, fade out
+  if (deathShatter && state === "gameover" && deathShatter.t < 2.0) {
+    const t = deathShatter.t;
+    const cx = WIDTH / 2;
+    const cy = HEIGHT / 2 - 30;
+    ctx.save();
+    ctx.globalAlpha = t < 1.2 ? 1 : Math.max(0, 1 - (t - 1.2) / 0.8);
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    const heart = soulHeartSprite(deathShatter.color);
+    if (t < 0.7) {
+      // the soul holds... then starts to tremble
+      const jx = t > 0.4 ? Math.sin(t * 90) * 2.5 : 0;
+      drawSprite(ctx, heart, cx + jx, cy, 46 + Math.sin(t * 6) * 2);
+    } else {
+      // crack! pieces scatter with a little gravity
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2 + (i % 3) * 0.35;
+        const d = (t - 0.7) * 240;
+        const px = cx + Math.cos(ang) * d;
+        const py = cy + Math.sin(ang) * d * 0.7 + 150 * (t - 0.7) * (t - 0.7);
+        ctx.globalAlpha *= 1;
+        ctx.save();
+        ctx.globalAlpha = Math.min(ctx.globalAlpha, Math.max(0, 1 - (t - 0.7) / 1.1));
+        drawSprite(ctx, heart, px, py, 13);
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+  if (state === "credits") {
     drawCenterText(ctx, WIDTH, HEIGHT, [
       { text: "制 作 名 单", font: "bold 30px monospace", color: "#7ea8ff" },
       { text: "", font: "10px monospace" },
@@ -2978,6 +3048,7 @@ function loop(now) {
     fadeAudio(bgm, 0, dt, 1.5); // gameover / back to menu
   }
 
+  if (deathShatter && state === "gameover") deathShatter.t += dt;
   setMovementEnabled(state === "playing" && introBlack <= 0);
   if (introBlack > 0) {
     introBlack -= dt; // hold the world frozen behind the black screen

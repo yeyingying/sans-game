@@ -161,6 +161,13 @@ export function sfxAlarm() {
   blip({ type: "sawtooth", from: 174, dur: 0.32, gain: 0.16, delay: 0.3 });
 }
 
+// UT death: the soul cracks, then shatters
+export function sfxShatter() {
+  blip({ type: "square", from: 880, to: 640, dur: 0.09, gain: 0.22 }); // crack
+  blip({ type: "square", from: 620, to: 180, dur: 0.5, gain: 0.2, delay: 0.55 }); // shatter fall
+  noiseBurst({ dur: 0.22, gain: 0.14, delay: 0.55 });
+}
+
 // boss heart taken: victory fanfare
 export function sfxFanfare() {
   const notes = [523, 659, 784, 1047, 1319];
