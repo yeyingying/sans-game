@@ -826,6 +826,9 @@ function questToasts(completed) {
 }
 
 // ---- 审判契约: optional blessing/price pacts, rolled per select-screen visit
+// 2026-07-11 user decision: feature is built but SHELVED for a later release —
+// flip this flag to true to ship it. All hooks stay dormant while offered=[].
+const CONTRACTS_ENABLED = false;
 const CONTRACTS = [
   { id: "glass", name: "玻璃之契", up: "攻击 +35%", down: "生命上限 -30%" },
   { id: "iron", name: "铁誓之契", up: "减伤 +15%", down: "移速 -15%" },
@@ -835,8 +838,10 @@ const CONTRACTS = [
   { id: "hunt", name: "狩猎之契", up: "精英金币 ×3", down: "精英两倍频率" },
 ];
 function rollContracts() {
-  const pool = [...CONTRACTS];
   offeredContracts = [];
+  selectedContract = -1;
+  if (!CONTRACTS_ENABLED) return;
+  const pool = [...CONTRACTS];
   for (let i = 0; i < 3 && pool.length; i++) {
     offeredContracts.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
   }
@@ -1804,7 +1809,7 @@ window.addEventListener("keydown", (e) => {
       codexSelected = (codexSelected + (k === "arrowright" ? 1 : CODEX_MONSTERS.length - 1)) % CODEX_MONSTERS.length;
       sfxClick();
     } else if (state === "codex" && (k === "arrowup" || k === "arrowdown")) {
-      codexSelected = (codexSelected + (k === "arrowdown" ? 6 : CODEX_MONSTERS.length - 6)) % CODEX_MONSTERS.length;
+      codexSelected = (codexSelected + (k === "arrowdown" ? 8 : CODEX_MONSTERS.length - 8)) % CODEX_MONSTERS.length;
       sfxClick();
     }
     return;
@@ -3725,7 +3730,7 @@ function draw() {
     );
   } else if (state === "select") {
     drawWeaponSelect(ctx, WIDTH, HEIGHT, currentWeaponList(), selectedWeapon, currentCharacter().name, weaponLocks());
-    drawContractChips(ctx, WIDTH, HEIGHT, offeredContracts, selectedContract);
+    if (CONTRACTS_ENABLED) drawContractChips(ctx, WIDTH, HEIGHT, offeredContracts, selectedContract);
   } else if (state === "paused") {
     drawCenterText(
       ctx,
