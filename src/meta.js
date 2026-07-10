@@ -49,7 +49,6 @@ export const UPGRADES = [
   { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", max: 5, base: 150, color: "#ffd166" },
   { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", max: 2, base: 250, color: "#5ee6e6" },
   { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", max: 3, base: 200, color: "#7ea8ff" },
-  { id: "revive", name: "重燃决心", desc: "每局死亡时原地复活一次(半血)", max: 1, base: 600, color: "#ffffff" },
 ];
 
 let upgrades = readJson("metaUpgrades", {});
@@ -80,6 +79,42 @@ export function applyMetaUpgrades(player) {
   player.hp = player.maxHp;
   player.moveSpeed += 8 * upgradeLevel("speed");
   player.magnetRadius += 25 * upgradeLevel("magnet");
+}
+
+// ---- 重燃决心: consumable revives -------------------------------------------
+// One-shot items: 200 coins each, stock caps at 3, one fires per run at most.
+// A recurring coin sink — and 屠杀 (GENOCIDE) allows no second chances at all.
+const REVIVE_COST = 200;
+const REVIVE_MAX = 3;
+let reviveStockN = parseInt(store.getItem("reviveStock") || "0", 10) || 0;
+// migrate the old 600-coin permanent revive into 3 consumables
+if ((upgrades.revive || 0) > 0) {
+  reviveStockN = Math.min(REVIVE_MAX, reviveStockN + 3);
+  delete upgrades.revive;
+  store.setItem("metaUpgrades", JSON.stringify(upgrades));
+  store.setItem("reviveStock", String(reviveStockN));
+}
+
+export function reviveStock() {
+  return reviveStockN;
+}
+
+export function reviveCost() {
+  return reviveStockN >= REVIVE_MAX ? null : REVIVE_COST;
+}
+
+export function buyReviveStock() {
+  if (reviveStockN >= REVIVE_MAX || !spendCoins(REVIVE_COST)) return false;
+  reviveStockN += 1;
+  store.setItem("reviveStock", String(reviveStockN));
+  return true;
+}
+
+export function consumeRevive() {
+  if (reviveStockN <= 0) return false;
+  reviveStockN -= 1;
+  store.setItem("reviveStock", String(reviveStockN));
+  return true;
 }
 
 export function coinGainMult() {

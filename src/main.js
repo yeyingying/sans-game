@@ -61,6 +61,10 @@ import {
   buyUpgrade,
   applyMetaUpgrades,
   coinGainMult,
+  reviveStock,
+  reviveCost,
+  buyReviveStock,
+  consumeRevive,
   rerollBonus,
   recordRun,
   isCharUnlocked,
@@ -432,7 +436,7 @@ function charLocks() {
 }
 
 function shopItems() {
-  return UPGRADES.map((u) => ({
+  const items = UPGRADES.map((u) => ({
     id: u.id,
     name: u.name,
     desc: u.desc,
@@ -441,6 +445,17 @@ function shopItems() {
     cost: upgradeCost(u.id),
     color: u.color,
   }));
+  // consumable revive rides in the same list with its stock as "pips"
+  items.push({
+    id: "reviveStock",
+    name: "重燃决心",
+    desc: "一次性复活,带入下局(每局限1次;屠杀无效)",
+    lvl: reviveStock(),
+    max: 3,
+    cost: reviveCost(),
+    color: "#ffffff",
+  });
+  return items;
 }
 
 function currentWeaponList() {
@@ -451,7 +466,7 @@ function reset(weaponId) {
   player = new Player(WIDTH / 2, HEIGHT / 2);
   player.character = currentCharacter().id;
   applyMetaUpgrades(player); // permanent shop upgrades kick in from second zero
-  player.revives = upgradeLevel("revive"); // 重燃决心: one comeback per run
+  player.revives = 0; // armed in startGame from the consumable stock
   player.weapons = [createWeaponInstance(weaponId)];
   spawner = new Spawner(WIDTH, HEIGHT, WALL_H, getDifficulty());
   enemies = [];
@@ -768,6 +783,8 @@ function startGame() {
     player.regen += 15;
     player.dmgReduction = 0.6; // survivable enough to watch the whole show
   }
+  // 重燃决心(消耗品): arm one revive if stocked — 屠杀线没有第二次机会
+  player.revives = getDifficulty().id === 3 || reviveStock() <= 0 ? 0 : 1;
   // 行前整备: shop-bought loadout, granted before the first frame
   for (let i = 0; i < upgradeLevel("gear"); i++) {
     rollEquipmentDrop().apply(player);
@@ -1219,7 +1236,8 @@ function handleCanvasTap(pos) {
     const items = shopItems();
     for (let i = 0; i < items.length; i++) {
       if (inRect(pos, shopItemRect(i, WIDTH, HEIGHT))) {
-        if (buyUpgrade(items[i].id)) sfxEquip();
+        const ok = items[i].id === "reviveStock" ? buyReviveStock() : buyUpgrade(items[i].id);
+        if (ok) sfxEquip();
         else sfxHurt(); // maxed or broke: denial buzz
         return;
       }
@@ -2010,6 +2028,7 @@ function update(dt) {
     if (player.revives > 0) {
       // 重燃决心: one dramatic comeback, crowd shoved away
       player.revives -= 1;
+      consumeRevive(); // the stocked item is spent
       player.hp = Math.ceil(player.maxHp / 2);
       player.invuln = 2.5;
       player.activeInvuln = 2.5;

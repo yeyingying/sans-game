@@ -169,8 +169,11 @@ function run(seconds, onFrame) {
   // new shop items: 行前整备 (start gear) and 重燃决心 (revive)
   M.addCoins(900);
   check("gear upgrade buyable", M.buyUpgrade("gear") && M.upgradeLevel("gear") === 1);
-  check("revive upgrade buyable", M.buyUpgrade("revive") && M.upgradeLevel("revive") === 1);
-  check("revive maxes at 1", M.upgradeCost("revive") === null);
+  check("revive consumable buyable", M.buyReviveStock() && M.reviveStock() === 1);
+  M.buyReviveStock();
+  M.buyReviveStock();
+  check("revive stock caps at 3", M.reviveCost() === null && !M.buyReviveStock() && M.reviveStock() === 3);
+  check("revive consumes one", M.consumeRevive() && M.reviveStock() === 2);
   // cosmetics: 灵魂加护 (buy once, equip toggle, no stats)
   M.addCoins(900);
   check("soul cosmetic buyable", M.buyCosmetic("bravery") && M.cosmeticOwned("bravery"));
