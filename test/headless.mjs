@@ -164,13 +164,13 @@ function run(seconds, onFrame) {
   const M = await import(new URL(`../src/meta.js?unit=${MODE}`, import.meta.url));
   check("wallet starts empty", M.getCoins() === 0);
   const permanentShopTotal = M.UPGRADES.reduce((sum, u) => sum + u.base * ((u.max * (u.max + 1)) / 2), 0);
-  check("permanent shop price curve totals 12060", permanentShopTotal === 12060, `total=${permanentShopTotal}`);
+  check("permanent shop price curve totals 8235 (~40 runs)", permanentShopTotal === 8235, `total=${permanentShopTotal}`);
   M.addCoins(300);
   check("coins added", M.getCoins() === 300);
-  check("upgrade cost scales", M.upgradeCost("atk") === 130);
-  check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 170);
-  check("next level costs more", M.upgradeCost("atk") === 260);
-  check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 170);
+  check("upgrade cost scales", M.upgradeCost("atk") === 90);
+  check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 210);
+  check("next level costs more", M.upgradeCost("atk") === 180);
+  check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 210);
   const p = { atk: 6, maxHp: 100, hp: 100, moveSpeed: 165, magnetRadius: 90 };
   M.applyMetaUpgrades(p);
   check("upgrade applies to player", p.atk === 8, `atk=${p.atk}`);
