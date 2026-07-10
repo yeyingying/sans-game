@@ -142,6 +142,8 @@ export const COSMETICS = [
   { id: "waterfall", slot: "bone", name: "瀑布之骨", color: "#6bd0ff", desc: "幽蓝涂装——回声花低语的光", price: 800 },
   { id: "hotland", slot: "bone", name: "热域之骨", color: "#ff8a4a", desc: "熔岩涂装——Hotland 的灼热", price: 800 },
   { id: "core", slot: "bone", name: "核心之骨", color: "#7df0e8", desc: "电光涂装——The CORE 的能量", price: 1000 },
+  // secret: never sold — granted when all ten echoes have been heard
+  { id: "goldenflower", slot: "soul", name: "金色之花", color: "#ffd93d", desc: "❀ 它笑着说:这是给聆听者的。", price: 0, secret: true },
 ];
 
 let cosmetics = readJson("metaCosmetics", { owned: {}, equipped: null });
@@ -168,9 +170,19 @@ export function equippedBoneSkin() {
 
 export function buyCosmetic(id) {
   const c = cosmeticById(id);
-  if (!c || cosmetics.owned[id] || !spendCoins(c.price)) return false;
+  if (!c || c.secret || cosmetics.owned[id] || !spendCoins(c.price)) return false;
   cosmetics.owned[id] = true;
   cosmetics.equipped[c.slot] = id; // wear it right away
+  store.setItem("metaCosmetics", JSON.stringify(cosmetics));
+  return true;
+}
+
+// award path for secret cosmetics (no coins involved); true only when new
+export function grantCosmetic(id) {
+  const c = cosmeticById(id);
+  if (!c || cosmetics.owned[id]) return false;
+  cosmetics.owned[id] = true;
+  cosmetics.equipped[c.slot] = id;
   store.setItem("metaCosmetics", JSON.stringify(cosmetics));
   return true;
 }
@@ -196,6 +208,7 @@ export const TITLES = [
   { id: "judge", name: "审判者", hint: "无尽审判完成 5 轮" },
   { id: "raven", name: "渡鸦", hint: "地狱难度击败Boss" },
   { id: "determined", name: "决心的化身", hint: "图鉴收集度 100%" },
+  { id: "listener", name: "聆听者", hint: "聆听全部 10 段回响" },
   { id: "genocide", name: "尘归尘", hint: "屠杀难度击败Boss" },
 ];
 

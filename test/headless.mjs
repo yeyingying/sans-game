@@ -204,6 +204,10 @@ function run(seconds, onFrame) {
   check("cannot rebuy owned soul", !M.buyCosmetic("bravery"));
   check("unequip works", M.equipCosmetic(null, "soul") && M.equippedCosmetic() === null);
   check("cannot equip unowned", !M.equipCosmetic("determination"));
+  check("secret flower cannot be bought", !M.buyCosmetic("goldenflower"));
+  check("secret flower grantable once", M.grantCosmetic("goldenflower") && !M.grantCosmetic("goldenflower"));
+  check("granted flower equipped", M.equippedCosmetic()?.id === "goldenflower");
+  M.equipCosmetic(null, "soul"); // clear the slot for the independence checks below
   M.addCoins(800);
   check("bone skin buyable into its own slot", M.buyCosmetic("snowdin") && M.equippedBoneSkin()?.id === "snowdin");
   check("bone slot independent of soul slot", M.equippedCosmetic() === null);

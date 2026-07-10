@@ -84,6 +84,7 @@ import {
   equippedCosmetic,
   equippedBoneSkin,
   buyCosmetic,
+  grantCosmetic,
   equipCosmetic,
   TITLES,
   unlockTitle,
@@ -290,6 +291,7 @@ let deathShatter = null; // UT-style soul shatter on death {t, color}
 let runOffense = false; // picked any atk/amp card this run (和平主义者 title)
 let lastNewTitles = []; // titles earned at this settlement (gameover toast)
 let lastNewEchoes = []; // echo fragments unlocked this run (gameover line)
+let lastGoldenFlower = false; // full-bloom reward granted at this settlement
 
 // bone weapon skin: tint the default white bone sprite at runtime
 const BONE_SKIN_CACHE = {};
@@ -313,6 +315,15 @@ function unlockEchoToast(id) {
   if (!unlockEcho(id)) return;
   const e = ECHOES.find((x) => x.id === id);
   lastNewEchoes.push(e.title);
+  // the field is in full bloom: the golden flower chooses you
+  if (unlockedEchoCount() >= ECHOES.length) {
+    if (grantCosmetic("goldenflower")) {
+      lastGoldenFlower = true;
+      tipQueue.push({ title: "❀ 花田满开", lines: ["「金色之花」已绽放在你的灵魂上(商店·灵魂加护可换装)"], t: 9 });
+      sfxFanfare();
+    }
+    if (unlockTitle("listener")) lastNewTitles.push("聆听者");
+  }
   // in-run: floating tip card; at settlement the gameover card lists it
   if (state === "playing" || state === "choice") {
     tipQueue.push({ title: `❀ 回响解锁:「${e.title}」`, lines: ["标题页 ❀回响 里,花会为你重述这段记忆"], t: 8 });
@@ -441,6 +452,10 @@ function metaBonusLine() {
   if (upgradeLevel("gear")) parts.push(`开局装备+${upgradeLevel("gear")}`);
   if (reviveStock()) parts.push(`复活×${reviveStock()}`);
   return parts.length ? `当前永久加成:${parts.join(" ")}` : "暂无永久加成";
+}
+
+function visibleCosmetics() {
+  return COSMETICS.filter((c) => !c.secret || cosmeticOwned(c.id));
 }
 
 function cosmeticEquipLine() {
@@ -572,6 +587,7 @@ function reset(weaponId) {
   runOffense = false;
   lastNewTitles = [];
   lastNewEchoes = [];
+  lastGoldenFlower = false;
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -1351,9 +1367,10 @@ function handleCanvasTap(pos) {
     }
     if (shopTab === 1) {
       // 灵魂加护: buy once, then click toggles equip/unequip
-      for (let i = 0; i < COSMETICS.length; i++) {
+      const visible = visibleCosmetics();
+      for (let i = 0; i < visible.length; i++) {
         if (inRect(pos, cosmeticItemRect(i, WIDTH, HEIGHT))) {
-          const c = COSMETICS[i];
+          const c = visible[i];
           if (!cosmeticOwned(c.id)) {
             if (buyCosmetic(c.id)) sfxFanfare();
             else sfxHurt();
@@ -3021,7 +3038,21 @@ function draw() {
       for (const s of soulTrail) {
         ctx.save();
         ctx.globalAlpha = Math.max(0, 1 - s.t / 0.6) * 0.55;
-        drawSprite(ctx, soulHeartSprite(soulEq.color), s.x, s.y, 9 + s.t * 6);
+        if (soulEq.id === "goldenflower") {
+          // golden petals flutter down, spinning as they fall
+          ctx.translate(s.x, s.y + s.t * 26);
+          ctx.rotate(s.t * 5 + (s.x % 6));
+          ctx.fillStyle = "#ffd93d";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 5, 2.4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#fff3b0";
+          ctx.beginPath();
+          ctx.ellipse(1.2, -0.4, 2, 1, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          drawSprite(ctx, soulHeartSprite(soulEq.color), s.x, s.y, 9 + s.t * 6);
+        }
         ctx.restore();
       }
     }
@@ -3241,7 +3272,7 @@ function draw() {
       shopItems(),
       getCoins(),
       shopTab,
-      COSMETICS.map((c) => ({
+      visibleCosmetics().map((c) => ({
         ...c,
         owned: cosmeticOwned(c.id),
         equipped: equippedCosmetic()?.id === c.id || equippedBoneSkin()?.id === c.id,
@@ -3428,6 +3459,7 @@ function draw() {
         : []),
       ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),
       ...lastNewEchoes.map((n) => ({ text: `❀ 回响解锁:「${n}」(标题页❀回响聆听)`, font: "13px monospace", color: "#6bd0ff" })),
+      ...(lastGoldenFlower ? [{ text: "❀ 花田满开——「金色之花」已绽放", font: "bold 13px monospace", color: "#ffd93d" }] : []),
       ...(deathQuote ? [{ text: deathQuote, font: "13px monospace", color: "#8fa8c9" }] : []),
       ...(wasDaily
         ? [
