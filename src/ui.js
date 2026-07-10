@@ -525,7 +525,7 @@ export function cosmeticItemRect(i, width, height) {
 }
 
 // souls: [{id, name, color, desc, price, owned, equipped}]
-export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = []) {
+export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = [], infoLine = "") {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
   ctx.fillRect(0, 0, width, height);
@@ -548,8 +548,11 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
   }
   ctx.fillStyle = "#f2ead8";
   ctx.font = "13px monospace";
+  ctx.font = "12px monospace";
   ctx.fillText(
-    tab === 0 ? `金币 ⓖ ${coins} · 升级永久生效` : `金币 ⓖ ${coins} · 六个坠落人类的灵魂,与你自己的决心`,
+    tab === 0
+      ? `金币 ⓖ ${coins} · 升级永久生效 · ${infoLine}`
+      : `金币 ⓖ ${coins} · 纯外观:发光/心心拖尾/骨头换色,不加任何属性 · ${infoLine}`,
     width / 2,
     112
   );

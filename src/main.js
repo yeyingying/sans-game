@@ -395,6 +395,26 @@ function weaponLocks() {
   return {};
 }
 
+// one-line summary of everything the shop has permanently granted
+function metaBonusLine() {
+  const parts = [];
+  if (upgradeLevel("atk")) parts.push(`攻+${2 * upgradeLevel("atk")}`);
+  if (upgradeLevel("hp")) parts.push(`血+${25 * upgradeLevel("hp")}`);
+  if (upgradeLevel("speed")) parts.push(`速+${8 * upgradeLevel("speed")}`);
+  if (upgradeLevel("magnet")) parts.push(`磁+${25 * upgradeLevel("magnet")}`);
+  if (upgradeLevel("greed")) parts.push(`金币+${20 * upgradeLevel("greed")}%`);
+  if (upgradeLevel("reroll")) parts.push(`刷新+${upgradeLevel("reroll")}`);
+  if (upgradeLevel("gear")) parts.push(`开局装备+${upgradeLevel("gear")}`);
+  if (reviveStock()) parts.push(`复活×${reviveStock()}`);
+  return parts.length ? `当前永久加成:${parts.join(" ")}` : "暂无永久加成";
+}
+
+function cosmeticEquipLine() {
+  const soul = equippedCosmetic();
+  const bone = equippedBoneSkin();
+  return `装备中:灵魂「${soul ? soul.name : "无"}」 骨装「${bone ? bone.name : "默认"}」`;
+}
+
 function diffPills() {
   const active = getDifficulty().id;
   return DIFFICULTIES.map((d) => ({
@@ -2924,8 +2944,9 @@ function draw() {
       COSMETICS.map((c) => ({
         ...c,
         owned: cosmeticOwned(c.id),
-        equipped: equippedCosmetic()?.id === c.id,
-      }))
+        equipped: equippedCosmetic()?.id === c.id || equippedBoneSkin()?.id === c.id,
+      })),
+      shopTab === 0 ? metaBonusLine() : cosmeticEquipLine()
     );
   } else if (state === "codex") {
     const st = getStats();
@@ -2977,6 +2998,51 @@ function draw() {
       -100 // keep clear of the volume control below
     );
     drawVolumeControl(ctx, WIDTH, HEIGHT, bgmVolume, sfxVolume);
+    // 本局属性面板(左)+ 外观与称号(右)——暂停就是查看构筑的地方
+    ctx.save();
+    const px0 = 36;
+    const py0 = 130;
+    ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
+    ctx.fillRect(px0, py0, 240, 246);
+    ctx.strokeStyle = "#5a5468";
+    ctx.strokeRect(px0, py0, 240, 246);
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText("本局属性", px0 + 14, py0 + 24);
+    ctx.fillStyle = "#e8e2d4";
+    ctx.font = "12px monospace";
+    const regenNow = player.regen + player.maxHp * player.regenPct;
+    [
+      `攻击 ${player.atk}  增伤 ${Math.round(player.dmgAmp * 100)}%`,
+      `生命 ${Math.ceil(player.hp)}/${player.maxHp}`,
+      `回血 ${regenNow.toFixed(1)}/秒`,
+      `移速 ${Math.round(player.moveSpeed)}  攻速 ${player.fireRate.toFixed(2)}`,
+      `减伤 ${Math.round(player.dmgReduction * 100)}%  闪避 ${Math.round(player.dodge * 100)}%`,
+      `荆棘 ${player.thorns}  磁吸 ${Math.round(player.magnetRadius)}`,
+      `射程 ${Math.round(player.range)}  等级 ${player.level}`,
+      `复活可用 ${player.revives}`,
+    ].forEach((line, i) => ctx.fillText(line, px0 + 14, py0 + 50 + i * 24));
+    const qx0 = WIDTH - 276;
+    ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
+    ctx.fillRect(qx0, py0, 240, 130);
+    ctx.strokeStyle = "#5a5468";
+    ctx.strokeRect(qx0, py0, 240, 130);
+    ctx.fillStyle = "#c59bff";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText("外观与称号", qx0 + 14, py0 + 24);
+    ctx.font = "12px monospace";
+    const soulNow = equippedCosmetic();
+    ctx.fillStyle = soulNow ? soulNow.color : "#7d7690";
+    ctx.fillText(`灵魂加护:${soulNow ? soulNow.name : "无(商店可购)"}`, qx0 + 14, py0 + 50);
+    if (soulNow) drawSprite(ctx, soulHeartSprite(soulNow.color), qx0 + 216, py0 + 46, 12);
+    const boneNow = equippedBoneSkin();
+    ctx.fillStyle = boneNow ? boneNow.color : "#7d7690";
+    ctx.fillText(`骨之涂装:${boneNow ? boneNow.name : "默认白骨"}`, qx0 + 14, py0 + 76);
+    ctx.fillStyle = "#c8c2d4";
+    ctx.fillText(`称号:${bestTitle() ? "「" + bestTitle().name + "」" : "无"}`, qx0 + 14, py0 + 102);
+    ctx.restore();
+    ctx.textAlign = "center";
     drawResumeButton(ctx, WIDTH, HEIGHT);
     drawQuitButton(ctx, WIDTH, HEIGHT);
   } else if (state === "choice") {
