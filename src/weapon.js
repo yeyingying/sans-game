@@ -245,6 +245,9 @@ export const WEAPONS = {
   },
   shield: {
     id: "shield",
+    // reactive-only weapon (damages nothing on its own): never a viable
+    // solo starter, so it is in-run only — the card pool still offers it
+    support: true,
     name: "紫魂护盾",
     tag: "反弹护体",
     desc: "每 4.5 秒开盾，全额反弹伤害并击退，升级加持续时间",

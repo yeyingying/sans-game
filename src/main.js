@@ -398,10 +398,15 @@ function currentCharacter() {
   return CHARACTERS[selectedChar];
 }
 
-// 2026-07-10 user decision: weapons are fully open too — every weapon is
-// selectable from the start, same as characters.
+// 2026-07-10 user decision: weapons are fully open — except pure support
+// weapons (no active damage), which can't carry an opening solo and are
+// in-run pickups only. The select screen shows them locked with a note.
 function weaponLocks() {
-  return {};
+  const locks = {};
+  currentWeaponList().forEach((w, i) => {
+    if (w.support) locks[i] = { hint: "辅助武器,无法单独开局", progress: "局内通过强化卡获得" };
+  });
+  return locks;
 }
 
 // one-line summary of everything the shop has permanently granted
@@ -790,7 +795,11 @@ function dailySeed() {
 function startDailyChallenge() {
   const seed = dailySeed();
   selectedChar = seed % CHARACTERS.length;
-  selectedWeapon = (seed >>> 3) % currentWeaponList().length;
+  // daily never hands out a support weapon as the solo starter
+  const dailyPool = currentWeaponList()
+    .map((w, i) => ({ w, i }))
+    .filter((x) => !x.w.support);
+  selectedWeapon = dailyPool[(seed >>> 3) % dailyPool.length].i;
   dailyMode = true;
   Math.random = mulberry32(seed); // whole run becomes deterministic
   startGame();
