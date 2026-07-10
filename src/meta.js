@@ -357,8 +357,8 @@ export function weaponUnlockInfo(charId, slot) {
 
 export const DIFFICULTIES = [
   { id: 0, name: "普通", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, hint: null },
-  { id: 1, name: "狂暴", hpMult: 1.6, dmgMult: 1.4, coinMult: 1.6, scoreMult: 1.5, hint: "击败一次Boss解锁" },
-  { id: 2, name: "地狱", hpMult: 2.4, dmgMult: 1.9, coinMult: 2.5, scoreMult: 2.2, hint: "狂暴难度击败Boss解锁" },
+  { id: 1, name: "狂暴", hpMult: 2.2, dmgMult: 1.8, coinMult: 2.0, scoreMult: 1.8, hint: "击败一次Boss解锁" },
+  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 3.2, scoreMult: 3.0, hint: "狂暴难度击败Boss解锁" },
 ];
 
 export function isDifficultyUnlocked(id) {

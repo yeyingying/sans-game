@@ -1482,23 +1482,31 @@ function update(dt) {
     state = "choice";
   }
 
-  // elite wave: warning at 3:52, the wave crashes in at 4:00
-  if (eliteWave === 0 && elapsed >= 232 && !bossFight) {
-    eliteWave = 1;
-    floatingTexts.push(new FloatingText(player.x, player.y - 60, "※ 精英潮来袭！", "#ffd166"));
-  }
-  if (eliteWave === 1 && elapsed >= 240 && !bossFight) {
-    eliteWave = 2;
-    const types = ["tank", "red", "orange", "blue", "purple", "ghost"];
-    for (let i = 0; i < 7; i++) {
-      const side = i % 2 === 0 ? -1 : 1;
-      const e = new Enemy(
-        types[Math.floor(Math.random() * types.length)],
-        camX + WIDTH / 2 + side * (WIDTH / 2 + 50),
-        WALL_H + 30 + Math.random() * (HEIGHT - WALL_H - 60),
-        spawner.scale(true)
-      );
-      enemies.push(e);
+  // elite waves: two crashes before the boss — 3:20 (6 elites) and 4:00 (8),
+  // each warned 8 seconds ahead. eliteWave counts phases: 0..4
+  const ELITE_WAVES = [
+    { warnAt: 192, at: 200, count: 6 },
+    { warnAt: 232, at: 240, count: 8 },
+  ];
+  const waveIdx = Math.floor(eliteWave / 2);
+  const wave = ELITE_WAVES[waveIdx];
+  if (wave && !bossFight) {
+    if (eliteWave % 2 === 0 && elapsed >= wave.warnAt) {
+      eliteWave += 1;
+      floatingTexts.push(new FloatingText(player.x, player.y - 60, "※ 精英潮来袭！", "#ffd166"));
+    } else if (eliteWave % 2 === 1 && elapsed >= wave.at) {
+      eliteWave += 1;
+      const types = ["tank", "red", "orange", "blue", "purple", "ghost"];
+      for (let i = 0; i < wave.count; i++) {
+        const side = i % 2 === 0 ? -1 : 1;
+        const e = new Enemy(
+          types[Math.floor(Math.random() * types.length)],
+          camX + WIDTH / 2 + side * (WIDTH / 2 + 50),
+          WALL_H + 30 + Math.random() * (HEIGHT - WALL_H - 60),
+          spawner.scale(true)
+        );
+        enemies.push(e);
+      }
     }
   }
 
@@ -2918,6 +2926,9 @@ function draw() {
       { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
       { text: `金币 +${lastRunCoins}  (钱包 ${getCoins()} · 标题页可进强化商店)`, font: "14px monospace", color: "#ffd166" },
       ...(bestTitle() ? [{ text: `称号:「${bestTitle().name}」`, font: "13px monospace", color: "#c59bff" }] : []),
+      ...(runOutcome === "victory" && getDifficulty().id < 2
+        ? [{ text: "⚠ 觉得太简单？选人页可切换 狂暴/地狱 难度,金币加成更高", font: "13px monospace", color: "#ff8a5d" }]
+        : []),
       ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),
       ...(wasDaily
         ? [

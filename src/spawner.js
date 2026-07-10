@@ -60,7 +60,7 @@ export class Spawner {
   scale(elite) {
     const t = this.elapsed;
     // linear early; from 3:00 on it compounds so strong builds stay pressured
-    let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.18, (t - 180) / 30) : 1 + t / 22;
+    let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.22, (t - 180) / 30) : 1 + t / 22;
     // warm-up minute: lots of frail enemies so the opening feels like mowing
     if (t < 60) hpMult *= 0.6 + 0.4 * (t / 60);
     // endless judgement rounds: each round adds a pressure the player can
@@ -74,8 +74,8 @@ export class Spawner {
     const rHp = r >= 5 ? Math.min(1 + 0.1 * (r - 4), 3) : 1;
     return {
       hpMult: hpMult * this.diffHp * rHp,
-      dmgMult: (1 + t / 50) * this.diffDmg * rDmg,
-      speedMult: (1 + Math.min(t / 90, 0.35)) * rSpeed,
+      dmgMult: (1 + t / 40) * this.diffDmg * rDmg,
+      speedMult: (1 + Math.min(t / 90, 0.5)) * rSpeed,
       xpMult: 1 + t / 60,
       elite,
     };
