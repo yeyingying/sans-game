@@ -818,7 +818,7 @@ export function cosmeticItemRect(i, width, height) {
 }
 
 // souls: [{id, name, color, desc, price, owned, equipped}]
-export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = [], infoLine = "") {
+export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = [], infoLine = "", showCosmetics = true) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
   ctx.fillRect(0, 0, width, height);
@@ -827,7 +827,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 30px monospace";
   ctx.fillText("商 店", width / 2, 46);
-  for (const [i, label] of [[0, "能力升级"], [1, "灵魂加护"]]) {
+  for (const [i, label] of showCosmetics ? [[0, "能力升级"], [1, "灵魂加护"]] : []) {
     const r = shopTabRect(i, width);
     const active = tab === i;
     ctx.fillStyle = active ? "#2e2748" : "#181521";

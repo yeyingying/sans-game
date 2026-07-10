@@ -304,6 +304,10 @@ let roundBanner = null; // {text, sub, t} full-screen announcement
 let hazardTimer = 0; // round 4+: periodic danger zones
 let hazards = []; // {x, y, t} telegraphed player-damaging zones
 
+// 2026-07-11 user decision: cosmetics are OFF the shop shelves (pure-gameplay
+// store). System kept intact — earned rewards (金色之花) and already-owned
+// equips still work; flip to true to restock the 灵魂加护 tab.
+const COSMETICS_SHOP_ENABLED = false;
 let shopTab = 0; // 0 = ability upgrades, 1 = 灵魂加护 cosmetics
 let codexSelected = 0;
 let deathShatter = null; // UT-style soul shatter on death {t, color}
@@ -353,7 +357,7 @@ function unlockEchoToast(id) {
   if (unlockedEchoCount() >= ECHOES.length) {
     if (grantCosmetic("goldenflower")) {
       lastGoldenFlower = true;
-      tipQueue.push({ title: "❀ 花田满开", lines: ["「金色之花」已绽放在你的灵魂上(商店·灵魂加护可换装)"], t: 9 });
+      tipQueue.push({ title: "❀ 花田满开", lines: ["「金色之花」已自动绽放在你的灵魂上"], t: 9 });
       sfxFanfare();
     }
     if (unlockTitle("listener")) lastNewTitles.push("聆听者");
@@ -1705,13 +1709,13 @@ function handleCanvasTap(pos) {
       return;
     }
     for (const i of [0, 1]) {
-      if (inRect(pos, shopTabRect(i, WIDTH))) {
+      if (COSMETICS_SHOP_ENABLED && inRect(pos, shopTabRect(i, WIDTH))) {
         shopTab = i;
         sfxClick();
         return;
       }
     }
-    if (shopTab === 1) {
+    if (COSMETICS_SHOP_ENABLED && shopTab === 1) {
       // 灵魂加护: buy once, then click toggles equip/unequip
       const visible = visibleCosmetics();
       for (let i = 0; i < visible.length; i++) {
@@ -3814,7 +3818,8 @@ function draw() {
         owned: cosmeticOwned(c.id),
         equipped: equippedCosmetic()?.id === c.id || equippedBoneSkin()?.id === c.id,
       })),
-      shopTab === 0 ? metaBonusLine() : cosmeticEquipLine()
+      shopTab === 0 ? metaBonusLine() : cosmeticEquipLine(),
+      COSMETICS_SHOP_ENABLED
     );
   } else if (state === "codex") {
     const st = getStats();
