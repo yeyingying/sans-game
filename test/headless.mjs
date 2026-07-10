@@ -451,10 +451,9 @@ if (MODE === "normal") {
   const dEnd = dbg();
   check("coins earned and banked", dEnd.lastRunCoins > 0 && dEnd.wallet > 0, `last=${dEnd.lastRunCoins} wallet=${dEnd.wallet}`);
 
-  // daily challenge: seeded run with a rotating character, local best kept
-  key(" "); // gameover -> charselect
-  tap(84, 560); // back to title (back button)
-  check("back on title", dbg().state === "title");
+  // 🏠 direct home from the settlement card
+  tap(861, 560); // home button (bottom-right)
+  check("home button returns to title", dbg().state === "title");
   tap(221, 565); // ✦ 每日挑战 button
   check("daily intro shows first", dbg().state === "dailyintro", dbg().state);
   frame(); // render the intro screen once (catches reference errors)

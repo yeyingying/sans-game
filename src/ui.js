@@ -332,6 +332,25 @@ export function drawContractChips(ctx, width, height, contracts, selected) {
   ctx.restore();
 }
 
+export function homeButtonRect(width, height) {
+  return { x: width - 174, y: height - 62, w: 150, h: 44 };
+}
+
+export function drawHomeButton(ctx, width, height) {
+  const btn = homeButtonRect(width, height);
+  ctx.save();
+  ctx.fillStyle = "#141a26";
+  ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.strokeStyle = "#8fd6ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.fillStyle = "#8fd6ff";
+  ctx.font = "bold 15px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("🏠 回主页", btn.x + btn.w / 2, btn.y + 28);
+  ctx.restore();
+}
+
 export function shareButtonRect(width, height) {
   return { x: 24, y: height - 62, w: 150, h: 44 };
 }

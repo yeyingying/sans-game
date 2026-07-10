@@ -172,6 +172,8 @@ import {
   questButtonRect,
   shareButtonRect,
   drawShareButton,
+  homeButtonRect,
+  drawHomeButton,
   contractChipRect,
   drawContractChips,
   questRowRect,
@@ -796,6 +798,16 @@ function settleGame(kind) {
   if (lvlAfter >= 1) unlockEchoToast(player.character + "1");
   if (lvlAfter >= 3) unlockEchoToast(player.character + "2");
 }
+function goTitle() {
+  exitDailyMode();
+  reset(currentWeaponList()[0].id);
+  bgm.pause();
+  bgm.muted = true;
+  bgm.currentTime = 0;
+  titleMenuOpen = false;
+  state = "title";
+}
+
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
   exitDailyMode(); // safety: never leak the seeded RNG into normal play
@@ -1833,6 +1845,12 @@ function handleCanvasTap(pos) {
       sfxClick();
       return;
     }
+    if (inRect(pos, homeButtonRect(WIDTH, HEIGHT))) {
+      pauseQuit(); // coins/stats banked exactly like a normal quit…
+      goTitle(); // …but skip the ceremony and land on the title page
+      sfxClick();
+      return;
+    }
     if (inRect(pos, resumeButtonRect(WIDTH, HEIGHT))) {
       state = "playing";
       bgmPlay();
@@ -1853,6 +1871,11 @@ function handleCanvasTap(pos) {
       }
     }
   } else if (state === "gameover") {
+    if (inRect(pos, homeButtonRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      goTitle();
+      return;
+    }
     if (inRect(pos, shareButtonRect(WIDTH, HEIGHT))) {
       sfxClick();
       shareRun();
@@ -1994,6 +2017,8 @@ window.addEventListener("keydown", (e) => {
     } else if (k === "escape") state = "charselect";
   } else if (state === "choice") {
     if (k >= "1" && k <= "3") applyChoice(Number(k) - 1);
+  } else if (state === "gameover" && k === "escape") {
+    goTitle();
   } else if (state === "gameover" && (k === " " || k === "enter")) {
     toCharSelect();
   }
@@ -3880,6 +3905,7 @@ function draw() {
       -100 // keep clear of the volume control below
     );
     drawVolumeControl(ctx, WIDTH, HEIGHT, bgmVolume, sfxVolume);
+    drawHomeButton(ctx, WIDTH, HEIGHT);
     // 本局属性面板(左)+ 外观与称号(右)——暂停就是查看构筑的地方
     ctx.save();
     const px0 = 36;
@@ -4100,6 +4126,7 @@ function draw() {
       { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
     ]);
     drawShareButton(ctx, WIDTH, HEIGHT);
+    drawHomeButton(ctx, WIDTH, HEIGHT);
   }
   // UT-style soul shatter: black cover, the soul cracks, pieces fly, fade out
   if (deathShatter && state === "gameover" && deathShatter.t < 2.0) {
