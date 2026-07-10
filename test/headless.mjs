@@ -427,6 +427,8 @@ if (MODE === "normal") {
   d = dbg();
   check("B: endless starts only after choosing continue", d.state === "playing" && d.endless === true && d.round === 1, JSON.stringify(d));
   check("B: round1 coin factor 50%", d.coinFactor === 0.5);
+  frame(); // one tick so the queued onboarding tip becomes active
+  check("B: endless onboarding tip shown once", storage.tip_endless === "1" && dbg().tip === "什么是无尽审判？", `tip=${dbg().tip}`);
   // survive round 1 by kiting right; the wrapped-ahead champion gets mowed
   hold("ArrowRight");
   let sawBossAlive = false;

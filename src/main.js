@@ -253,6 +253,15 @@ let roundBanner = null; // {text, sub, t} full-screen announcement
 let hazardTimer = 0; // round 4+: periodic danger zones
 let hazards = []; // {x, y, t} telegraphed player-damaging zones
 
+// one-time onboarding tips: each fires once per install (localStorage flag)
+let tipQueue = [];
+let activeTip = null;
+function queueTipOnce(flag, title, lines) {
+  if (localStorage.getItem("tip_" + flag)) return;
+  localStorage.setItem("tip_" + flag, "1");
+  tipQueue.push({ title, lines, t: 9 });
+}
+
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
 const ENEMY_NAMES = {
   slime: "青蛙怪",
@@ -454,6 +463,8 @@ function reset(weaponId) {
   roundBanner = null;
   hazardTimer = 0;
   hazards = [];
+  tipQueue = [];
+  activeTip = null;
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -611,6 +622,10 @@ function bossClearContinue() {
   spawner.endless = true;
   nextChoiceAt = elapsed + choiceInterval; // no backlog of choice screens
   floatingTexts.push(new FloatingText(player.x, player.y - 26, "决心！全属性提升", "#ffffff"));
+  queueTipOnce("endless", "什么是无尽审判？", [
+    "每 90 秒为一轮，轮末 15 秒会出现强化首领",
+    "击杀首领完成本轮，可选择撤离结算，或进入更危险的下一轮",
+  ]);
   startRound(1);
 }
 
@@ -1521,6 +1536,10 @@ function update(dt) {
   }
   if (roundBanner && (roundBanner.t -= dt) <= 0) roundBanner = null;
 
+  // onboarding tips: one at a time, each lingers ~9s
+  if (!activeTip && tipQueue.length) activeTip = tipQueue.shift();
+  if (activeTip && (activeTip.t -= dt) <= 0) activeTip = null;
+
   // enemies left far behind wrap around to just ahead of the view so
   // running sideways forever doesn't shake off the horde
   for (const e of enemies) {
@@ -1786,8 +1805,15 @@ function update(dt) {
       } else if (pu.kind === "coin") {
         // in endless the coin rides in the round's pending pot: banked only
         // when the round is survived, lost if the player dies mid-round
-        if (endlessRound > 0) roundPendingCoins += pu.data.value;
-        else runCoins += pu.data.value;
+        if (endlessRound > 0) {
+          roundPendingCoins += pu.data.value;
+          queueTipOnce("pending", "本轮待结算金币", [
+            "无尽中拾取的金币先进入“待结算”池，完成本轮才真正入账",
+            "轮中死亡或暂停退出，将失去当前轮的待结算金币",
+          ]);
+        } else {
+          runCoins += pu.data.value;
+        }
         sfxCoin();
       } else {
         pu.data.type.apply(player);
@@ -2528,6 +2554,33 @@ function draw() {
     ctx.restore();
   }
 
+  // one-time onboarding tip card (top center, under the HUD)
+  if (activeTip && (state === "playing" || state === "choice")) {
+    const a = Math.min(1, activeTip.t / 0.8);
+    const w = 640;
+    const h = 34 + activeTip.lines.length * 18;
+    const x = WIDTH / 2 - w / 2;
+    const y = 96;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = "rgba(10, 8, 16, 0.92)";
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "#ffd166";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText(`💡 ${activeTip.title}`, WIDTH / 2, y + 20);
+    ctx.fillStyle = "#e8e2d4";
+    ctx.font = "12px monospace";
+    activeTip.lines.forEach((line, i) => {
+      ctx.fillText(line, WIDTH / 2, y + 40 + i * 18);
+    });
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
   // endless round banner: loud full-screen announcement + red pulse
   if (roundBanner && (state === "playing" || state === "choice")) {
     const a = Math.min(1, roundBanner.t / 0.6);
@@ -2803,6 +2856,7 @@ window.__dbg = () => ({
   roundsCleared,
   bestEndlessRound: player ? bestEndlessRoundOf(player.character) : 0,
   coinFactor: currentCoinFactor(),
+  tip: activeTip ? activeTip.title : null,
 });
 window.__test = DEBUG_BOSS !== null
   ? {
