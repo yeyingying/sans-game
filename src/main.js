@@ -287,6 +287,8 @@ function soulHeartSprite(color) {
   return (SOUL_HEART_CACHE[color] ||= tintSprite(PICKUP_XP, color, 0.85));
 }
 
+let candyBanner = null; // UT-style "* 你吃下了怪物糖" narration {text, t}
+
 // one-time onboarding tips: each fires once per install (localStorage flag)
 let tipQueue = [];
 let activeTip = null;
@@ -495,6 +497,7 @@ function reset(weaponId) {
   tipQueue = [];
   activeTip = null;
   soulTrail = [];
+  candyBanner = null;
   deathShatter = null;
   runOffense = false;
   lastNewTitles = [];
@@ -1460,8 +1463,10 @@ function spawnDrops(enemy) {
       new Pickup(enemy.x + (Math.random() - 0.5) * 10, enemy.y + (Math.random() - 0.5) * 10, "coin", { value })
     );
   }
-  // 怪物糖 (UT: healing is food): rare, and only drops when actually hurt
-  if (!enemy.elite && player.hp < player.maxHp * 0.85 && Math.random() < 0.04) {
+  // 怪物糖 (UT: healing is food): a rare clutch save — the closer to death,
+  // the likelier the miracle (2.5% hurt / 6% below 40% hp)
+  const candyChance = player.hp < player.maxHp * 0.4 ? 0.06 : player.hp < player.maxHp * 0.85 ? 0.025 : 0;
+  if (!enemy.elite && Math.random() < candyChance) {
     pickups.push(new Pickup(enemy.x + (Math.random() - 0.5) * 12, enemy.y + (Math.random() - 0.5) * 12, "candy", {}));
   }
 }
@@ -1635,6 +1640,8 @@ function update(dt) {
     hazards = hazards.filter((hz) => hz.t > 0);
   }
   if (roundBanner && (roundBanner.t -= dt) <= 0) roundBanner = null;
+
+  if (candyBanner && (candyBanner.t -= dt) <= 0) candyBanner = null;
 
   // onboarding tips: one at a time, each lingers ~9s
   if (!activeTip && tipQueue.length) activeTip = tipQueue.shift();
@@ -1915,9 +1922,12 @@ function update(dt) {
         saveSafeProgressCheckpoint(runCoins);
         sfxFanfare();
       } else if (pu.kind === "candy") {
-        const heal = Math.round(Math.max(15, player.maxHp * 0.2) * healScale());
+        const heal = Math.round(Math.max(10, player.maxHp * 0.12) * healScale());
         player.hp = Math.min(player.maxHp, player.hp + heal);
-        floatingTexts.push(new FloatingText(pu.x, pu.y - 14, `怪物糖 +${heal}`, "#7cf28a"));
+        floatingTexts.push(new FloatingText(player.x, player.y - 34, "HP++", "#7cf28a"));
+        candyBanner = { text: `* 你吃下了怪物糖。HP 回复了 ${heal} 点！`, t: 1.8 };
+        explosions.push(new Explosion(player.x, player.y, 46, "#7cf28a", true));
+        healFlash = 0.45;
         sfxCandy();
       } else if (pu.kind === "coin") {
         // in endless the coin rides in the round's pending pot: banked only
@@ -2725,6 +2735,25 @@ function draw() {
     activeTip.lines.forEach((line, i) => {
       ctx.fillText(line, WIDTH / 2, y + 40 + i * 18);
     });
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
+  // UT-style narration line when a candy is eaten
+  if (candyBanner && (state === "playing" || state === "choice")) {
+    const a = Math.min(1, candyBanner.t / 0.5);
+    ctx.save();
+    ctx.globalAlpha = a;
+    const bw = 480;
+    ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
+    ctx.fillRect(WIDTH / 2 - bw / 2, HEIGHT - 92, bw, 34);
+    ctx.strokeStyle = "#7cf28a";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(WIDTH / 2 - bw / 2, HEIGHT - 92, bw, 34);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#7cf28a";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText(candyBanner.text, WIDTH / 2, HEIGHT - 70);
     ctx.restore();
     ctx.textAlign = "left";
   }
