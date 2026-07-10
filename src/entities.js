@@ -19,6 +19,7 @@ export class Player {
     this.invuln = 0;
     this.activeInvuln = 0; // slam-enhance i-frames: white pulse instead of blink
     this.regen = 0;
+    this.regenPct = 0; // %-of-maxHp regen per second (the scaling regen card)
     this.thorns = 0; // contact damage dealt back to touching enemies
     this.dodge = 0; // chance to ignore a hit, capped at 0.45
     this.dmgReduction = 0; // incoming damage cut, capped at 0.9
@@ -60,7 +61,8 @@ export class Player {
     }
     if (this.invuln > 0) this.invuln -= dt;
     if (this.activeInvuln > 0) this.activeInvuln -= dt;
-    if (this.regen > 0) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
+    const regenTotal = this.regen + this.maxHp * this.regenPct;
+    if (regenTotal > 0) this.hp = Math.min(this.maxHp, this.hp + regenTotal * dt);
   }
 
   takeDamage(amount) {

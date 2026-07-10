@@ -796,17 +796,18 @@ function buildChoicePool() {
       kind: "regen",
       weight: 12,
       make: () => ({
-        title: "每秒回血 +2",
-        desc: `持续恢复生命 (当前 ${player.regen}/秒，上限 10)`,
+        title: "每秒回血 +1%",
+        // scales with max hp so it never falls behind late game
+        desc: `每秒回复 1% 最大生命\n(当前 ${(player.regen + player.maxHp * player.regenPct).toFixed(1)}/秒，上限 5%)`,
         color: "#7cf28a",
         apply: () => {
-          player.regen = Math.min(player.regen + 2, 10);
+          player.regenPct = Math.min(player.regenPct + 0.01, 0.05);
         },
       }),
     },
-  ].filter((c) => c.kind !== "regen" || player.regen < 10);
+  ].filter((c) => c.kind !== "regen" || player.regenPct < 0.05);
 
-  // (regen capped at 10/s — the card stops appearing at the cap)
+  // (regen capped at 5% of max hp — the card stops appearing at the cap)
   pool.push({
     kind: "thorns",
     weight: 10,
@@ -1451,11 +1452,14 @@ function update(dt) {
       : 1;
   const baseMove = player.moveSpeed;
   const baseRegen = player.regen;
+  const baseRegenPct = player.regenPct;
   player.moveSpeed *= shieldBuff;
   player.regen *= shieldBuff * healScale(); // round 3+: regeneration halved
+  player.regenPct *= shieldBuff * healScale();
   player.update(dt, moveVec, bounds);
   player.moveSpeed = baseMove;
   player.regen = baseRegen;
+  player.regenPct = baseRegenPct;
   camX = player.x - WIDTH / 2;
 
   if (!bossCutscene) {
