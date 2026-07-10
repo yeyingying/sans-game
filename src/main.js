@@ -66,6 +66,11 @@ import {
   reviveCost,
   buyReviveStock,
   consumeRevive,
+  getDailyQuests,
+  questEvent,
+  masteryOf,
+  masteryNextAt,
+  claimDailyFlower,
   rerollBonus,
   recordRun,
   isCharUnlocked,
@@ -158,6 +163,9 @@ import {
   drawBossClearScreen,
   drawDailyIntro,
   echoButtonRect,
+  questButtonRect,
+  questRowRect,
+  drawQuestsScreen,
   echoFlowerRect,
   drawEchoField,
   drawEchoRead,
@@ -292,6 +300,8 @@ let runOffense = false; // picked any atk/amp card this run (和平主义者 tit
 let lastNewTitles = []; // titles earned at this settlement (gameover toast)
 let lastNewEchoes = []; // echo fragments unlocked this run (gameover line)
 let lastGoldenFlower = false; // full-bloom reward granted at this settlement
+let lastNewQuests = []; // bounties finished this run (gameover lines)
+let lastMasteryUp = null; // "角色 专精 LvN (+coins)" line
 
 // bone weapon skin: tint the default white bone sprite at runtime
 const BONE_SKIN_CACHE = {};
@@ -588,6 +598,8 @@ function reset(weaponId) {
   lastNewTitles = [];
   lastNewEchoes = [];
   lastGoldenFlower = false;
+  lastNewQuests = [];
+  lastMasteryUp = null;
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -720,6 +732,18 @@ function settleGame(kind) {
   if (Object.keys(getStats().evolved || {}).length >= 32) unlockEchoToast("gift");
   if (codexCompletion() >= 100) unlockEchoToast("end");
   deathQuote = runOutcome === "death" || runOutcome === "endlessDeath" ? randomEchoQuote() : null;
+  // bounties settled at run end
+  if (bossDefeated) questToasts(questEvent("boss", 1));
+  questToasts(questEvent("survive", Math.floor(elapsed)));
+  // 角色专精: lifetime kills crossed a level? coins + line
+  const killsAfter = getStats().charKills[player.character] || 0;
+  const lvlBefore = masteryOf(killsAfter - player.kills);
+  const lvlAfter = masteryOf(killsAfter);
+  if (lvlAfter > lvlBefore) {
+    const bonus = 80 * (lvlAfter - lvlBefore) * lvlAfter;
+    addCoins(bonus);
+    lastMasteryUp = `⚔ ${currentCharacter().name} 专精升至 Lv${lvlAfter}(+${bonus}金币)`;
+  }
 }
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
@@ -729,6 +753,46 @@ function toCharSelect() {
   bgm.muted = true;
   bgm.currentTime = 0;
   state = "charselect";
+}
+
+// ---- daily stickiness: bounties + login flower ------------------------------
+function yesterdayKey() {
+  const d = new Date(Date.now() - 86400000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+getDailyQuests(todayKey(), CHARACTERS.map((c) => c.id)); // materialize today's三条
+const flowerGift = claimDailyFlower(todayKey(), yesterdayKey());
+const flowerGiftLine = flowerGift.already
+  ? `❀ 连日之花:第 ${flowerGift.days} 天(今日礼物已领取)`
+  : `❀ 连日之花:第 ${flowerGift.days} 天,花为你留了 ${flowerGift.coins} 金币`;
+
+const QUEST_KIND_DESC = {
+  kills: (q) => `击杀 ${q.target} 只怪物`,
+  charKills: (q) => `用「${(CHARACTERS.find((c) => c.id === q.charId) || CHARACTERS[0]).name}」击杀 ${q.target} 只`,
+  coins: (q) => `拾取 ${q.target} 枚金币`,
+  candy: (q) => `吃下 ${q.target} 颗怪物糖`,
+  elites: (q) => `击败 ${q.target} 名精英`,
+  boss: () => `击败一次天意侵蚀Sans`,
+  round: (q) => `完成无尽审判第 ${q.target} 轮`,
+  streak: (q) => `达成一次 ${q.target} 连杀`,
+  evolve: () => `完成一次武器进化`,
+  survive: (q) => `单局存活 ${q.target} 秒`,
+};
+function questView() {
+  return getDailyQuests(todayKey(), CHARACTERS.map((c) => c.id)).map((q) => ({
+    ...q,
+    desc: QUEST_KIND_DESC[q.kind](q),
+  }));
+}
+function questToasts(completed) {
+  for (const q of completed) {
+    const line = QUEST_KIND_DESC[q.kind](q);
+    lastNewQuests.push(`${line} +${q.reward}金币`);
+    if (state === "playing" || state === "choice") {
+      tipQueue.push({ title: "📜 悬赏完成!", lines: [`${line} —— 赏金 ${q.reward} 金币已入账`], t: 7 });
+    }
+    sfxEquip();
+  }
 }
 
 // debug: open the page with ?boss to skip to the boss, ?boss=weak for a frail one
@@ -1220,6 +1284,7 @@ function applyChoice(i) {
   if (!opt) return;
   opt.apply();
   if (opt.fanfare) {
+    questToasts(questEvent("evolve", 1));
     sfxFanfare(); // weapon evolution deserves the full jingle
     killFlash = 0.3;
   } else {
@@ -1271,6 +1336,9 @@ function handleCanvasTap(pos) {
     } else if (inRect(pos, codexButtonRect(WIDTH, HEIGHT))) {
       state = "codex";
       sfxClick();
+    } else if (inRect(pos, questButtonRect(WIDTH, HEIGHT))) {
+      state = "quests";
+      sfxClick();
     } else if (inRect(pos, echoButtonRect(WIDTH, HEIGHT))) {
       state = "echoes";
       sfxClick();
@@ -1281,6 +1349,13 @@ function handleCanvasTap(pos) {
       sfxClick();
     } else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) {
       toCharSelect();
+      sfxClick();
+    }
+    return;
+  }
+  if (state === "quests") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "title";
       sfxClick();
     }
     return;
@@ -1555,7 +1630,7 @@ window.addEventListener("keydown", (e) => {
     }
     return;
   }
-  if (state === "echoes") {
+  if (state === "quests" || state === "echoes") {
     if (k === "escape") state = "title";
     return;
   }
@@ -1907,6 +1982,7 @@ function update(dt) {
     // the round ends when the clock is out AND the champion is down
     if (roundTimer <= 0 && roundBossSpawned && roundBossDown) {
       roundsCleared = endlessRound;
+      questToasts(questEvent("round", roundsCleared));
       bossClearChoice = 0;
       state = "roundclear";
       saveSafeProgressCheckpoint(runCoins + roundPendingCoins);
@@ -2176,10 +2252,15 @@ function update(dt) {
   }
   enemies = enemies.filter((e) => (e.hp > 0 || e.boss));
   if (dead.length > 0) {
+    questToasts(questEvent("kills", dead.length));
+    questToasts(questEvent("charKills", dead.length, { charId: player.character }));
+    const eliteDead = dead.filter((e) => e.elite).length;
+    if (eliteDead) questToasts(questEvent("elites", eliteDead));
     sfxKill(dead.length);
     // chained kills build the streak; milestones pop the screen
     streak += dead.length;
     runMaxStreak = Math.max(runMaxStreak, streak);
+    questToasts(questEvent("streak", streak));
     streakTimer = 1.6;
     while (streak >= nextStreakAt) {
       killFlash = 0.22;
@@ -2224,12 +2305,14 @@ function update(dt) {
         player.hp = Math.min(player.maxHp, player.hp + heal);
         floatingTexts.push(new FloatingText(player.x, player.y - 34, "HP++", "#7cf28a"));
         candyBanner = { text: `* 你吃下了怪物糖。HP 回复了 ${heal} 点！`, t: 1.8 };
+        questToasts(questEvent("candy", 1));
         explosions.push(new Explosion(player.x, player.y, 46, "#7cf28a", true));
         healFlash = 0.45;
         sfxCandy();
       } else if (pu.kind === "coin") {
         // in endless the coin rides in the round's pending pot: banked only
         // when the round is survived, lost if the player dies mid-round
+        questToasts(questEvent("coins", pu.data.value));
         if (endlessRound > 0) {
           roundPendingCoins += pu.data.value;
           queueTipOnce("pending", "本轮待结算金币", [
@@ -3263,7 +3346,17 @@ function draw() {
   }
 
   if (state === "title") {
-    drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans], getCoins(), codexCompletion(), `${unlockedEchoCount()}/10`);
+    drawTitleScreen(
+      ctx,
+      WIDTH,
+      HEIGHT,
+      [PLAYER_SPRITES.sans],
+      getCoins(),
+      codexCompletion(),
+      `${unlockedEchoCount()}/10`,
+      `${questView().filter((q) => q.done).length}/3`,
+      flowerGiftLine
+    );
   } else if (state === "shop") {
     drawShopScreen(
       ctx,
@@ -3309,7 +3402,13 @@ function draw() {
       PLAYER_SPRITES,
       Object.fromEntries(CHARACTERS.map((c) => [c.id, bestScoreOf(c.id)])),
       charLocks(),
-      diffPills()
+      diffPills(),
+      Object.fromEntries(
+        CHARACTERS.map((c) => {
+          const k = getStats().charKills[c.id] || 0;
+          return [c.id, { lvl: masteryOf(k), kills: k, next: masteryNextAt(masteryOf(k)) }];
+        })
+      )
     );
   } else if (state === "select") {
     drawWeaponSelect(ctx, WIDTH, HEIGHT, currentWeaponList(), selectedWeapon, currentCharacter().name, weaponLocks());
@@ -3379,6 +3478,8 @@ function draw() {
     drawQuitButton(ctx, WIDTH, HEIGHT);
   } else if (state === "choice") {
     drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollsLeft);
+  } else if (state === "quests") {
+    drawQuestsScreen(ctx, WIDTH, HEIGHT, questView());
   } else if (state === "echoes") {
     drawEchoField(
       ctx,
@@ -3460,6 +3561,8 @@ function draw() {
       ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),
       ...lastNewEchoes.map((n) => ({ text: `❀ 回响解锁:「${n}」(标题页❀回响聆听)`, font: "13px monospace", color: "#6bd0ff" })),
       ...(lastGoldenFlower ? [{ text: "❀ 花田满开——「金色之花」已绽放", font: "bold 13px monospace", color: "#ffd93d" }] : []),
+      ...lastNewQuests.map((n) => ({ text: `📜 悬赏完成:${n}`, font: "13px monospace", color: "#ffd166" })),
+      ...(lastMasteryUp ? [{ text: lastMasteryUp, font: "13px monospace", color: "#7cf28a" }] : []),
       ...(deathQuote ? [{ text: deathQuote, font: "13px monospace", color: "#8fa8c9" }] : []),
       ...(wasDaily
         ? [

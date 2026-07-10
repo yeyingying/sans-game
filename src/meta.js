@@ -234,6 +234,109 @@ export function bestTitle() {
   return null;
 }
 
+// ---- 每日悬赏 (daily bounties) ----------------------------------------------
+// Three deterministic quests per calendar day; progress accrues across runs
+// and rewards pay out the moment a quest completes.
+
+function questRng(dateStr) {
+  let h = 2166136261;
+  const key = dateStr + "#quests";
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let a = h >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// kinds: additive progress unless noted; streak/survive/round track the max
+const QUEST_POOL = [
+  { kind: "kills", target: 500, reward: 120 },
+  { kind: "charKills", target: 300, reward: 150 },
+  { kind: "coins", target: 120, reward: 100 },
+  { kind: "candy", target: 2, reward: 100 },
+  { kind: "elites", target: 8, reward: 130 },
+  { kind: "boss", target: 1, reward: 200 },
+  { kind: "round", target: 1, reward: 180 },
+  { kind: "streak", target: 40, reward: 120 },
+  { kind: "evolve", target: 1, reward: 150 },
+  { kind: "survive", target: 240, reward: 120 },
+];
+const QUEST_MAX_KINDS = new Set(["streak", "survive", "round"]);
+
+let questState = readJson("dailyQuests", null);
+
+export function getDailyQuests(dateStr, charIds = []) {
+  if (!questState || questState.date !== dateStr) {
+    const rng = questRng(dateStr);
+    const pool = [...QUEST_POOL];
+    const picked = [];
+    for (let i = 0; i < 3 && pool.length; i++) {
+      const idx = Math.floor(rng() * pool.length);
+      const q = pool.splice(idx, 1)[0];
+      picked.push({
+        kind: q.kind,
+        target: q.target,
+        reward: q.reward,
+        progress: 0,
+        done: false,
+        charId: q.kind === "charKills" && charIds.length ? charIds[Math.floor(rng() * charIds.length)] : null,
+      });
+    }
+    questState = { date: dateStr, quests: picked };
+    store.setItem("dailyQuests", JSON.stringify(questState));
+  }
+  return questState.quests;
+}
+
+// feed a game signal in; returns the quests it just completed (award incl.)
+export function questEvent(kind, amount = 1, ctx = {}) {
+  if (!questState) return [];
+  const completed = [];
+  for (const q of questState.quests) {
+    if (q.done || q.kind !== kind) continue;
+    if (kind === "charKills" && q.charId && ctx.charId !== q.charId) continue;
+    q.progress = QUEST_MAX_KINDS.has(kind) ? Math.max(q.progress, amount) : q.progress + amount;
+    if (q.progress >= q.target) {
+      q.progress = q.target;
+      q.done = true;
+      addCoins(q.reward);
+      completed.push(q);
+    }
+  }
+  store.setItem("dailyQuests", JSON.stringify(questState));
+  return completed;
+}
+
+// ---- 角色专精 (per-character mastery from lifetime kills) -------------------
+
+// level N needs 120*N^2 lifetime kills on that character
+export function masteryOf(kills) {
+  return Math.floor(Math.sqrt(Math.max(0, kills) / 120));
+}
+
+export function masteryNextAt(lvl) {
+  return 120 * (lvl + 1) * (lvl + 1);
+}
+
+// ---- 连日之花 (daily login flower; streaks never punish a miss) -------------
+
+export function claimDailyFlower(todayStr, yesterdayStr) {
+  const st = readJson("loginFlower", { last: null, days: 0 });
+  if (st.last === todayStr) return { days: st.days, coins: 0, already: true };
+  const days = st.last === yesterdayStr ? st.days + 1 : 1;
+  const coins = Math.min(20 + days * 10, 100);
+  addCoins(coins);
+  store.setItem("loginFlower", JSON.stringify({ last: todayStr, days }));
+  return { days, coins, already: false };
+}
+
 // ---- lifetime stats --------------------------------------------------------
 
 let stats = readJson("metaStats", { totalKills: 0, runs: 0, bossKills: 0 });

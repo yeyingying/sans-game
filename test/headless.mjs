@@ -152,6 +152,11 @@ function run(seconds, onFrame) {
   // Use a separate module instance and restore storage afterwards so shop
   // purchases, unlocks and revives never leak into the game-flow tests.
   const storageBeforeMetaTests = { ...storage };
+  // the login flower gifted coins at main.js boot — zero the unit instance's
+  // starting keys so the absolute assertions below stay meaningful
+  storage.coins = "0";
+  delete storage.loginFlower;
+  delete storage.dailyQuests;
   const M = await import(new URL(`../src/meta.js?unit=${MODE}`, import.meta.url));
   check("wallet starts empty", M.getCoins() === 0);
   const permanentShopTotal = M.UPGRADES.reduce((sum, u) => sum + u.base * ((u.max * (u.max + 1)) / 2), 0);
@@ -222,6 +227,22 @@ function run(seconds, onFrame) {
   M.spendCoins(2400);
   check("屠杀 unlock sticky after spending", M.isDifficultyUnlocked(3) && M.setDifficulty(3));
   M.setDifficulty(0);
+  // 每日悬赏 / 专精 / 连日之花
+  const qs = M.getDailyQuests("2099-01-01", ["sans", "ukb"]);
+  check("three deterministic quests", qs.length === 3 && JSON.stringify(qs) === JSON.stringify(M.getDailyQuests("2099-01-01", ["sans"])));
+  const killsQuest = qs.find((q) => q.kind === "kills" || q.kind === "charKills" || q.kind === "coins");
+  const wBeforeQuest = M.getCoins();
+  if (killsQuest) {
+    const done = M.questEvent(killsQuest.kind, killsQuest.target, { charId: killsQuest.charId || "sans" });
+    check("quest completes and pays", done.length >= 1 && M.getCoins() === wBeforeQuest + done.reduce((t, q) => t + q.reward, 0));
+    check("quest completes only once", M.questEvent(killsQuest.kind, killsQuest.target, { charId: killsQuest.charId || "sans" }).length === 0);
+  }
+  check("mastery thresholds", M.masteryOf(119) === 0 && M.masteryOf(120) === 1 && M.masteryOf(480) === 2);
+  const f1 = M.claimDailyFlower("2099-01-01", "2098-12-31");
+  const f2 = M.claimDailyFlower("2099-01-01", "2098-12-31");
+  const f3 = M.claimDailyFlower("2099-01-02", "2099-01-01");
+  check("flower gift once per day", f1.coins === 30 && f2.already === true && f2.coins === 0);
+  check("flower streak grows next day", f3.days === 2 && f3.coins === 40);
   // codex collection tracking
   M.recordRun({ killsByType: { slime: 10, bat: 3 }, weaponsUsed: ["bone", "orbit"], evolvedIds: ["bone"] });
   const st = M.getStats();
@@ -320,7 +341,7 @@ console.log(`--- mode: ${MODE} ---`);
 frame(); // first frame after module load
 
 check("boots to title", dbg().state === "title");
-check("game-flow storage is isolated", dbg().wallet === 0);
+check("game-flow storage isolated (only day-1 flower gift banked)", dbg().wallet === 30, `wallet=${dbg().wallet}`);
 
 // UI smoke: tap into the codex and the shop, render a frame in each, tap back
 function tap(x, y) {
@@ -332,6 +353,11 @@ check("codex opens", dbg().state === "codex");
 frame(); // draws the codex screen (catches reference errors)
 tap(84, 560); // back
 check("codex closes", dbg().state === "title");
+tap(716, 565); // daily bounties button
+check("quests screen opens", dbg().state === "quests");
+frame(); // render it once
+tap(84, 560); // back
+check("quests screen closes", dbg().state === "title");
 tap(581, 565); // echo flowers button
 check("echo field opens", dbg().state === "echoes");
 frame(); // render the flower field once

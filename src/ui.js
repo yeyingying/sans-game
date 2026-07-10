@@ -191,7 +191,7 @@ export function shopButtonRect(width, height) {
   return { x: 16, y: height - 52, w: 190, h: 34 };
 }
 
-export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexPct = 0, echoCount = "") {
+export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexPct = 0, echoCount = "", questDone = "", giftLine = "") {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.99)";
   ctx.fillRect(0, 0, width, height);
@@ -242,6 +242,24 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.font = "bold 14px monospace";
   ctx.fillText("制作名单", cb.x + cb.w / 2, cb.y + 22);
 
+  // daily bounties
+  const qb = questButtonRect(width, height);
+  ctx.fillStyle = "#1f1a10";
+  ctx.fillRect(qb.x, qb.y, qb.w, qb.h);
+  ctx.strokeStyle = "#ffd166";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(qb.x, qb.y, qb.w, qb.h);
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText(`📜 悬赏 ${questDone}`, qb.x + qb.w / 2, qb.y + 22);
+
+  // 连日之花 greeting under the subtitle
+  if (giftLine) {
+    ctx.fillStyle = "#ffd93d";
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(giftLine, width / 2, height / 2 - 70);
+  }
+
   // echo flowers (story fragments), between daily and credits
   const eb = echoButtonRect(width, height);
   ctx.fillStyle = "#10141f";
@@ -285,6 +303,59 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.fillStyle = "#c59bff";
   ctx.font = "bold 14px monospace";
   ctx.fillText("每日挑战 ✦", db.x + db.w / 2, db.y + 22);
+  ctx.restore();
+}
+
+export function questButtonRect(width, height) {
+  return { x: 656, y: height - 52, w: 120, h: 34 };
+}
+
+export function questRowRect(i, width, height) {
+  const w = 620;
+  return { x: width / 2 - w / 2, y: 140 + i * 92, w, h: 78 };
+}
+
+// quests: [{desc, progress, target, reward, done}]
+export function drawQuestsScreen(ctx, width, height, quests) {
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 8, 16, 0.97)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 30px monospace";
+  ctx.fillText("📜 今 日 悬 赏", width / 2, 62);
+  ctx.fillStyle = "#9a93ab";
+  ctx.font = "13px monospace";
+  ctx.fillText("回声花的今日委托 · 进度跨局累计 · 完成即发金币 · 每天刷新", width / 2, 92);
+  quests.forEach((q, i) => {
+    const box = questRowRect(i, width, height);
+    ctx.fillStyle = q.done ? "#14241a" : "#1d1828";
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeStyle = q.done ? "#7cf28a" : "#5a5468";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+    ctx.textAlign = "left";
+    ctx.fillStyle = q.done ? "#7cf28a" : "#f2ead8";
+    ctx.font = "bold 15px monospace";
+    ctx.fillText(`${q.done ? "✓ " : ""}${q.desc}`, box.x + 18, box.y + 28);
+    const bw = box.w - 160;
+    ctx.fillStyle = "#241f2b";
+    ctx.fillRect(box.x + 18, box.y + 44, bw, 14);
+    ctx.fillStyle = q.done ? "#7cf28a" : "#ffd166";
+    ctx.fillRect(box.x + 20, box.y + 46, (bw - 4) * Math.min(1, q.progress / q.target), 10);
+    ctx.strokeStyle = "#5a5468";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(box.x + 18, box.y + 44, bw, 14);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#c8c2d4";
+    ctx.font = "12px monospace";
+    ctx.fillText(`${Math.min(q.progress, q.target)}/${q.target}`, box.x + box.w - 96, box.y + 55);
+    ctx.fillStyle = q.done ? "#7cf28a" : "#ffd166";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText(q.done ? "已入账" : `ⓖ ${q.reward}`, box.x + box.w - 18, box.y + 34);
+  });
+  ctx.textAlign = "center";
+  drawBackButton(ctx, width, height);
   ctx.restore();
 }
 
@@ -842,7 +913,7 @@ function drawDifficultyRow(ctx, width, height, diffs) {
 }
 
 // locks: {charId: {hint, progress}} — present only for still-locked characters
-export function drawCharSelect(ctx, width, height, characters, selected, sprites, bests = {}, locks = {}, diffs = null) {
+export function drawCharSelect(ctx, width, height, characters, selected, sprites, bests = {}, locks = {}, diffs = null, masteries = {}) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
   ctx.fillRect(0, 0, width, height);
@@ -902,7 +973,12 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
       ctx.fillText(c.desc, box.x + box.w / 2, box.y + 250);
       ctx.fillStyle = "#ffd166";
       ctx.font = "12px monospace";
-      ctx.fillText(bests[c.id] > 0 ? `历史最高 ${bests[c.id]}` : "历史最高 --", box.x + box.w / 2, box.y + 270);
+      const m = masteries[c.id];
+      ctx.fillText(
+        `${bests[c.id] > 0 ? `最高 ${bests[c.id]}` : "最高 --"}${m ? ` · 专精 Lv${m.lvl}` : ""}`,
+        box.x + box.w / 2,
+        box.y + 270
+      );
     }
     ctx.fillStyle = c.color;
     ctx.font = "bold 13px monospace";
