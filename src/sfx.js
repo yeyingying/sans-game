@@ -78,14 +78,14 @@ export function sfxClick() {
 // weapon lands on an enemy: tiny quiet tick, heavily throttled
 export function sfxHit() {
   if (throttled("hit", 0.055)) return;
-  blip({ from: 480 + Math.random() * 120, to: 260, dur: 0.045, gain: 0.06 });
+  blip({ from: 480 + Math.random() * 120, to: 260, dur: 0.045, gain: 0.045 });
 }
 
 // enemy dies: satisfying downward pop; bigger batches get a second layer
 export function sfxKill(count = 1) {
   if (throttled("kill", 0.05)) return;
-  blip({ from: 720 + Math.random() * 80, to: 160, dur: 0.08, gain: 0.13 });
-  if (count >= 3) blip({ type: "triangle", from: 340, to: 90, dur: 0.12, gain: 0.14, delay: 0.02 });
+  blip({ from: 720 + Math.random() * 80, to: 160, dur: 0.08, gain: 0.1 });
+  if (count >= 3) blip({ type: "triangle", from: 340, to: 90, dur: 0.12, gain: 0.11, delay: 0.02 });
 }
 
 // xp soul absorbed: soft rising tick whose pitch climbs while souls
@@ -99,21 +99,21 @@ export function sfxPickup() {
   lastPickupAt = now;
   if (throttled("pickup", 0.045)) return;
   const f = 880 * Math.pow(1.045, pickupCombo);
-  blip({ type: "triangle", from: f, to: f * 1.6, dur: 0.05, gain: 0.07 });
+  blip({ type: "triangle", from: f, to: f * 1.6, dur: 0.05, gain: 0.055 });
 }
 
 // coin collected: bright little ching
 export function sfxCoin() {
   if (throttled("coin", 0.05)) return;
-  blip({ from: 1319, dur: 0.05, gain: 0.09 });
-  blip({ from: 1760, dur: 0.09, gain: 0.08, delay: 0.05 });
+  blip({ from: 1319, dur: 0.05, gain: 0.07 });
+  blip({ from: 1760, dur: 0.09, gain: 0.06, delay: 0.05 });
 }
 
 // elite goes down: deep two-layer boom
 export function sfxEliteDown() {
-  blip({ type: "sawtooth", from: 200, to: 40, dur: 0.25, gain: 0.26 });
-  noiseBurst({ dur: 0.16, gain: 0.14 });
-  blip({ type: "triangle", from: 500, to: 120, dur: 0.18, gain: 0.16, delay: 0.03 });
+  blip({ type: "sawtooth", from: 200, to: 40, dur: 0.25, gain: 0.2 });
+  noiseBurst({ dur: 0.16, gain: 0.11 });
+  blip({ type: "triangle", from: 500, to: 120, dur: 0.18, gain: 0.13, delay: 0.03 });
 }
 
 // low-hp heartbeat: lub-dub
@@ -144,15 +144,15 @@ export function sfxChoice() {
 // player takes damage: low crunch + noise
 export function sfxHurt() {
   if (throttled("hurt", 0.18)) return;
-  blip({ from: 140, to: 60, dur: 0.16, gain: 0.3 });
-  noiseBurst({ dur: 0.1, gain: 0.16 });
+  blip({ from: 140, to: 60, dur: 0.16, gain: 0.24 });
+  noiseBurst({ dur: 0.1, gain: 0.13 });
 }
 
 // kill-streak milestone: pitch climbs with each tier reached
 export function sfxStreak(tier = 0) {
   const base = 520 * Math.pow(1.13, Math.min(tier, 10));
-  blip({ type: "triangle", from: base, to: base * 1.5, dur: 0.12, gain: 0.2 });
-  blip({ type: "square", from: base * 2, dur: 0.05, gain: 0.1, delay: 0.1 });
+  blip({ type: "triangle", from: base, to: base * 1.5, dur: 0.12, gain: 0.16 });
+  blip({ type: "square", from: base * 2, dur: 0.05, gain: 0.08, delay: 0.1 });
 }
 
 // boss incoming: ominous two-tone siren

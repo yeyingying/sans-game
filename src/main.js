@@ -391,12 +391,10 @@ function codexCompletion() {
   return Math.floor((have / total) * 100);
 }
 
+// 2026-07-10 user decision: all four characters are freely selectable from
+// the start — no character locks (weapon unlocks per character remain).
 function charLocks() {
-  const locks = {};
-  for (const c of CHARACTERS) {
-    if (!isCharUnlocked(c.id, bestScoreOf(c.id))) locks[c.id] = charUnlockInfo(c.id);
-  }
-  return locks;
+  return {};
 }
 
 function shopItems() {
@@ -733,7 +731,11 @@ function startGame() {
   }
   timeScale = 1;
   state = "playing";
-  introBlack = 1.5; // brief black screen while the music crossfades
+  introBlack = 1.5; // brief black screen while the battle music fades in
+  // hard-stop the menu theme so it never overlaps the battle track
+  menuBgm.pause();
+  menuBgm.currentTime = 0;
+  menuBgm.volume = 0;
   const track = BGM_TRACKS[currentCharacter().id] || "MEGALOVANIA.mp3";
   bgm.src = track; // reload also resets playback to the start
   bgm.volume = 0; // fades up during the intro
