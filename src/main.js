@@ -824,10 +824,12 @@ function buildChoicePool() {
     weight: 12,
     make: () => ({
       title: "紧急治疗",
-      desc: "立即恢复 50 点生命",
+      // percentage-based so it never becomes chip healing late game
+      desc: `立即恢复 35% 最大生命 (约${Math.max(50, Math.round(player.maxHp * 0.35))}点)`,
       color: "#7cf28a",
       apply: () => {
-        player.hp = Math.min(player.maxHp, player.hp + Math.round(50 * healScale()));
+        const amount = Math.max(50, Math.round(player.maxHp * 0.35));
+        player.hp = Math.min(player.maxHp, player.hp + Math.round(amount * healScale()));
       },
     }),
   });
