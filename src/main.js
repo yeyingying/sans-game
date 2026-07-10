@@ -168,6 +168,8 @@ import {
   questButtonRect,
   shareButtonRect,
   drawShareButton,
+  contractChipRect,
+  drawContractChips,
   questRowRect,
   drawQuestsScreen,
   echoFlowerRect,
@@ -250,7 +252,8 @@ let lastScore = 0;
 let lastBest = 0;
 let newRecord = false;
 function currentScore() {
-  return Math.floor((player.kills * 5 + Math.floor(elapsed) * 2.5) * getDifficulty().scoreMult);
+  const contractScore = activeContract?.id === "silence" ? 1.35 : 1;
+  return Math.floor((player.kills * 5 + Math.floor(elapsed) * 2.5) * getDifficulty().scoreMult * contractScore);
 }
 function bestScoreOf(charId) {
   return parseInt(localStorage.getItem("best_" + charId) || "0", 10) || 0;
@@ -304,6 +307,9 @@ let runOffense = false; // picked any atk/amp card this run (和平主义者 tit
 let lastNewTitles = []; // titles earned at this settlement (gameover toast)
 let lastNewEchoes = []; // echo fragments unlocked this run (gameover line)
 let lastGoldenFlower = false; // full-bloom reward granted at this settlement
+let offeredContracts = [];
+let selectedContract = -1; // -1 = 无契
+let activeContract = null; // the pact this run runs under
 let lastNewQuests = []; // bounties finished this run (gameover lines)
 let lastMasteryUp = null; // "角色 专精 LvN (+coins)" line
 
@@ -614,6 +620,7 @@ function reset(weaponId) {
   lastGoldenFlower = false;
   lastNewQuests = [];
   lastMasteryUp = null;
+  activeContract = null;
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -818,6 +825,24 @@ function questToasts(completed) {
   }
 }
 
+// ---- 审判契约: optional blessing/price pacts, rolled per select-screen visit
+const CONTRACTS = [
+  { id: "glass", name: "玻璃之契", up: "攻击 +35%", down: "生命上限 -30%" },
+  { id: "iron", name: "铁誓之契", up: "减伤 +15%", down: "移速 -15%" },
+  { id: "greed", name: "贪婪之契", up: "金币 +50%", down: "怪物伤害 +25%" },
+  { id: "wind", name: "疾风之契", up: "移速+20% 攻速+10%", down: "不再掉落怪物糖" },
+  { id: "silence", name: "静默之契", up: "得分 +35%", down: "治疗效果减半" },
+  { id: "hunt", name: "狩猎之契", up: "精英金币 ×3", down: "精英两倍频率" },
+];
+function rollContracts() {
+  const pool = [...CONTRACTS];
+  offeredContracts = [];
+  for (let i = 0; i < 3 && pool.length; i++) {
+    offeredContracts.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  selectedContract = -1;
+}
+
 // ---- 结算分享卡: a 720x960 pixel-styled run card --------------------------
 function buildShareCard() {
   const c = document.createElement("canvas");
@@ -863,6 +888,7 @@ function buildShareCard() {
   ];
   if (endlessResult) lines.push([`无尽审判 ${endlessResult.rounds} 轮 · 无尽得分 ${endlessResult.score}`, "#ff8a5d", "22px monospace"]);
   lines.push([`金币 +${lastRunCoins}`, "#ffd166", "22px monospace"]);
+  if (activeContract) lines.push([`契约「${activeContract.name}」`, "#d9c47a", "22px monospace"]);
   if (bestTitle()) lines.push([`称号「${bestTitle().name}」`, "#c59bff", "22px monospace"]);
   if (deathQuote) lines.push([deathQuote, "#8fa8c9", "20px monospace"]);
   else if (lastDeathBy && runOutcome !== "retreat") lines.push([`死于:${lastDeathBy}`, "#c95d5d", "20px monospace"]);
@@ -986,9 +1012,9 @@ function currentCoinFactor() {
   return roundCoinFactor(endlessRound);
 }
 
-// round 3+: healing and regeneration are halved
+// round 3+ (and the silence pact): healing and regeneration are halved
 function healScale() {
-  return endlessRound >= 3 ? 0.5 : 1;
+  return (endlessRound >= 3 ? 0.5 : 1) * (activeContract?.id === "silence" ? 0.5 : 1);
 }
 
 // ---- daily challenge -------------------------------------------------------
@@ -1053,6 +1079,27 @@ function startGame() {
     player.atk += 40;
     player.regen += 15;
     player.dmgReduction = 0.6; // survivable enough to watch the whole show
+  }
+  // 审判契约: the pact takes hold before anything else enters the hall
+  activeContract = DEBUG_BOSS === null && !dailyMode ? offeredContracts[selectedContract] || null : null;
+  if (activeContract) {
+    const c = activeContract.id;
+    if (c === "glass") {
+      player.atk = Math.round(player.atk * 1.35);
+      player.maxHp = Math.round(player.maxHp * 0.7);
+      player.hp = player.maxHp;
+    } else if (c === "iron") {
+      player.dmgReduction = Math.min(player.dmgReduction + 0.15, 0.9);
+      player.moveSpeed = Math.round(player.moveSpeed * 0.85);
+    } else if (c === "greed") {
+      spawner.diffDmg *= 1.25;
+    } else if (c === "wind") {
+      player.moveSpeed = Math.round(player.moveSpeed * 1.2);
+      player.fireRate *= 1.1;
+    } else if (c === "hunt") {
+      spawner.eliteMult = 0.5;
+    }
+    floatingTexts.push(new FloatingText(player.x, player.y - 44, `⚖ 契约生效:「${activeContract.name}」`, "#d9c47a"));
   }
   // 重燃决心(消耗品): arm one revive if stocked — 屠杀线没有第二次机会
   player.revives = getDifficulty().id === 3 || reviveStock() <= 0 ? 0 : 1;
@@ -1623,9 +1670,17 @@ function handleCanvasTap(pos) {
       }
       selectedWeapon = 0;
       state = "select";
+      rollContracts();
       sfxClick();
     }
   } else if (state === "select") {
+    for (let i = 0; i < offeredContracts.length; i++) {
+      if (inRect(pos, contractChipRect(i, WIDTH, HEIGHT))) {
+        selectedContract = selectedContract === i ? -1 : i;
+        sfxClick();
+        return;
+      }
+    }
     if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
       state = "charselect";
       sfxClick();
@@ -1804,8 +1859,14 @@ window.addEventListener("keydown", (e) => {
       }
       selectedWeapon = 0;
       state = "select";
+      rollContracts();
     }
   } else if (state === "select") {
+    if (k === "c") {
+      selectedContract = selectedContract >= offeredContracts.length - 1 ? -1 : selectedContract + 1;
+      sfxClick();
+      return;
+    }
     const n = currentWeaponList().length;
     if (k === "arrowup") selectedWeapon = (selectedWeapon + n - 1) % n;
     else if (k === "arrowdown") selectedWeapon = (selectedWeapon + 1) % n;
@@ -1866,7 +1927,13 @@ function explodeBomb(b) {
 function spawnDrops(enemy) {
   pickups.push(new Pickup(enemy.x, enemy.y, "xp", { amount: enemy.xp }));
   const eliteTier = enemy.eliteProfile ? enemy.eliteTier : 0;
-  const equipmentDrops = enemy.elite ? 1 + (eliteTier >= 3 ? 1 : eliteTier >= 2 && Math.random() < 0.35 ? 1 : 0) : Math.random() < 0.12 ? 1 : 0;
+  const equipmentDrops = enemy.championProfile
+    ? 2
+    : enemy.elite
+      ? 1 + (eliteTier >= 3 ? 1 : eliteTier >= 2 && Math.random() < 0.35 ? 1 : 0)
+      : Math.random() < 0.12
+        ? 1
+        : 0;
   for (let i = 0; i < equipmentDrops; i++) {
     const type = rollEquipmentDrop();
     pickups.push(
@@ -1878,15 +1945,18 @@ function spawnDrops(enemy) {
   // can't be defeated by Math.max(1) rounding on tiny values.
   const coinFactor = currentCoinFactor();
   if (coinFactor > 0 && (enemy.elite || Math.random() < 0.13) && Math.random() < coinFactor) {
-    const base = (enemy.elite ? 6 + eliteTier * 2 : 1) * (1 + Math.floor(elapsed / 150));
-    const value = Math.max(1, Math.round(base * coinGainMult() * getDifficulty().coinMult));
+    const base = (enemy.championProfile ? 12 + (enemy.championRound || 1) * 2 : enemy.elite ? 6 + eliteTier * 2 : 1) *
+      (1 + Math.floor(elapsed / 150));
+    const contractCoin = (activeContract?.id === "greed" ? 1.5 : 1) * (enemy.elite && activeContract?.id === "hunt" ? 3 : 1);
+    const value = Math.max(1, Math.round(base * coinGainMult() * getDifficulty().coinMult * contractCoin));
     pickups.push(
       new Pickup(enemy.x + (Math.random() - 0.5) * 10, enemy.y + (Math.random() - 0.5) * 10, "coin", { value })
     );
   }
   // 怪物糖 (UT: healing is food): a rare clutch save — the closer to death,
   // the likelier the miracle (2.5% hurt / 6% below 40% hp)
-  const candyChance = player.hp < player.maxHp * 0.4 ? 0.015 : player.hp < player.maxHp * 0.85 ? 0.006 : 0;
+  const candyChance =
+    activeContract?.id === "wind" ? 0 : player.hp < player.maxHp * 0.4 ? 0.015 : player.hp < player.maxHp * 0.85 ? 0.006 : 0;
   if (!enemy.elite && Math.random() < candyChance) {
     pickups.push(new Pickup(enemy.x + (Math.random() - 0.5) * 12, enemy.y + (Math.random() - 0.5) * 12, "candy", {}));
   }
@@ -2135,27 +2205,35 @@ function update(dt) {
   // ---- endless judgement rounds -------------------------------------------
   if (endlessRound > 0) {
     if (roundTimer > 0) roundTimer -= dt;
-    // T-15s: the round's champion — a souped-up elite of an existing monster
+    // T-15s: an Undertale round champion. R5+ rotates the same four with the
+    // existing endless stat pressure layered on top.
     if (!roundBossSpawned && roundTimer <= 15) {
       roundBossSpawned = true;
-      const namedTypes = eliteTypePool(getDifficulty().id, elapsed);
-      const types = namedTypes || ["tank", "red", "orange", "blue", "purple", "ghost"];
-      const ty = types[Math.floor(Math.random() * types.length)];
+      const profile = championForRound(endlessRound);
       const side = Math.random() < 0.5 ? -1 : 1;
       const b = new Enemy(
-        ty,
+        profile.baseType,
         camX + WIDTH / 2 + side * (WIDTH / 2 + 60),
         WALL_H + 40 + Math.random() * (HEIGHT - WALL_H - 80),
-        spawner.scale(true, !!namedTypes)
+        spawner.scale(true, false)
       );
+      b.championProfile = profile;
+      b.eliteProfile = profile;
+      b.championRound = endlessRound;
       b.roundBoss = true;
-      b.maxHp = Math.round(b.maxHp * (4 + endlessRound));
+      b.maxLives = 1;
+      b.lives = 1;
+      b.teleporter = false;
+      b.mark = null;
+      b.maxHp = Math.round(b.maxHp * (4 + endlessRound) * profile.hpFactor);
       b.hp = b.maxHp;
-      b.dmg = Math.round(b.dmg * 1.5);
-      b.radius = Math.round(b.radius * 1.35);
-      b.xp = Math.round(b.xp * 4);
+      b.dmg = Math.round(b.dmg * 1.35 * profile.dmgFactor);
+      b.radius = Math.round(b.radius * 1.5);
+      b.attackRange = b.radius;
+      b.xp = Math.round(b.xp * 6);
+      b.eliteSkillTimer = 1.8;
       enemies.push(b);
-      roundBanner = { text: "⚠ 首领接近", sub: `消灭它以完成第 ${endlessRound} 轮审判`, t: 2.2 };
+      roundBanner = { text: `⚠ ${profile.name} 接近`, sub: `${profile.english} · 第 ${endlessRound} 轮审判`, t: 2.2 };
       sfxAlarm();
     }
     // the round ends when the clock is out AND the champion is down
@@ -2420,7 +2498,7 @@ function update(dt) {
     if (!e.noXp) spawnDrops(e);
     if (e.roundBoss) {
       roundBossDown = true;
-      floatingTexts.push(new FloatingText(e.x, e.y - 30, "★ 首领被击败！", "#ffd166"));
+      floatingTexts.push(new FloatingText(e.x, e.y - 30, `★ ${enemyDisplayName(e)}被击败！`, "#ffd166"));
     }
     if (e.elite) {
       // elites go out with a bang: shock ring + deep boom
@@ -2843,6 +2921,54 @@ function draw() {
         ctx.fill();
         ctx.globalAlpha = 0.4 + p * 0.5;
       }
+    } else if (cast.skill === "dogCharge") {
+      ctx.strokeStyle = p > 0.58 ? "#ffffff" : "#68bfff";
+      ctx.lineWidth = 9 - p * 4;
+      ctx.globalAlpha = 0.28 + p * 0.55;
+      ctx.beginPath();
+      ctx.moveTo(cast.fromX, cast.fromY);
+      ctx.lineTo(cast.x, cast.y);
+      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = "#d9ecff";
+      ctx.stroke();
+    } else if (cast.skill === "dummyVolley") {
+      ctx.strokeStyle = p > 0.65 ? "#ff5d73" : "#ffd166";
+      ctx.beginPath();
+      ctx.arc(cast.x, cast.y, 76 - p * 35, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        const a = elapsed * 3 + (i / 4) * Math.PI * 2;
+        ctx.fillStyle = "#ffd166";
+        ctx.fillRect(cast.x + Math.cos(a) * 52 - 4, cast.y + Math.sin(a) * 52 - 4, 8, 8);
+      }
+    } else if (cast.skill === "moonfall") {
+      for (let i = 0; i < cast.marks.length; i++) {
+        const mark = cast.marks[i];
+        ctx.globalAlpha = 0.3 + p * 0.65;
+        ctx.strokeStyle = i % 2 === 0 ? "#e8e1ff" : "#9ff4ff";
+        ctx.beginPath();
+        ctx.arc(mark.x, mark.y, 48 - p * 20, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(mark.x, mark.y - 34);
+        ctx.lineTo(mark.x, mark.y + 34);
+        ctx.moveTo(mark.x - 34, mark.y);
+        ctx.lineTo(mark.x + 34, mark.y);
+        ctx.stroke();
+      }
+    } else if (cast.skill === "webFeast") {
+      for (const lane of cast.lanes) {
+        const danger = lane === cast.dangerY;
+        ctx.strokeStyle = danger ? (p > 0.55 ? "#ffffff" : "#d67cff") : "#7d4f92";
+        ctx.globalAlpha = danger ? 0.45 + p * 0.5 : 0.28;
+        ctx.lineWidth = danger ? 4 : 2;
+        ctx.beginPath();
+        ctx.moveTo(camX, lane);
+        ctx.lineTo(camX + WIDTH, lane);
+        ctx.stroke();
+      }
     }
     ctx.restore();
   }
@@ -2932,8 +3058,11 @@ function draw() {
       ctx.globalAlpha = 0.45 + 0.2 * Math.sin(elapsed * 25);
     }
     // per-sprite render scale: tall/wide extracted sprites need tuning
-    const spriteScale = { bat: 2.2, tank: 3.2, ghost: 2.9, blue: 2.8, red: 2.7, purple: 2.7, orange: 3.0 }[e.sprite] || 2.6;
-    drawSprite(ctx, ENEMY_SPRITES[e.sprite], e.x, e.y, e.radius * spriteScale);
+    const spriteScale = e.championProfile
+      ? 3.8
+      : { bat: 2.2, tank: 3.2, ghost: 2.9, blue: 2.8, red: 2.7, purple: 2.7, orange: 3.0 }[e.sprite] || 2.6;
+    const enemySprite = e.championProfile ? CHAMPION_SPRITES[e.championProfile.key] : ENEMY_SPRITES[e.sprite];
+    drawSprite(ctx, enemySprite, e.x, e.y, e.radius * spriteScale);
     if (flicker) ctx.restore();
     // root-immunity: small grey broken ring (diminishing returns active)
     if (e.rootImmune > 0 && e.rootTimer <= 0) {
@@ -3495,6 +3624,10 @@ function draw() {
       ctx.fillStyle = "#c59bff";
       ctx.fillText("✦ 每日挑战", WIDTH - 16, endlessRound > 0 ? 140 : 86);
     }
+    if (activeContract) {
+      ctx.fillStyle = "#d9c47a";
+      ctx.fillText(`⚖ 「${activeContract.name}」`, WIDTH - 16, endlessRound > 0 ? 158 : dailyMode ? 104 : 86);
+    }
     ctx.restore();
     ctx.textAlign = "left";
   }
@@ -3555,9 +3688,10 @@ function draw() {
     const st = getStats();
     const monsters = CODEX_MONSTERS.map((m) => ({
       ...m,
-      sprite: ENEMY_SPRITES[m.type],
+      sprite: CHAMPION_SPRITES[m.key] || ENEMY_SPRITES[m.type],
       kills: st.killsByType[m.key] || 0,
-      elite: m.key.startsWith("elite_"),
+      elite: m.key.startsWith("elite_") || m.key.startsWith("champion_"),
+      champion: m.key.startsWith("champion_"),
     }));
     const weaponRows = CHARACTERS.map((c) => {
       const list = WEAPON_LISTS[c.id];
@@ -3591,6 +3725,7 @@ function draw() {
     );
   } else if (state === "select") {
     drawWeaponSelect(ctx, WIDTH, HEIGHT, currentWeaponList(), selectedWeapon, currentCharacter().name, weaponLocks());
+    drawContractChips(ctx, WIDTH, HEIGHT, offeredContracts, selectedContract);
   } else if (state === "paused") {
     drawCenterText(
       ctx,
@@ -3737,6 +3872,7 @@ function draw() {
         font: "16px monospace",
       },
       { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
+      ...(activeContract ? [{ text: `⚖ 契约「${activeContract.name}」`, font: "13px monospace", color: "#d9c47a" }] : []),
       { text: `金币 +${lastRunCoins}  (钱包 ${getCoins()} · 标题页可进强化商店)`, font: "14px monospace", color: "#ffd166" },
       ...(bestTitle() ? [{ text: `称号:「${bestTitle().name}」`, font: "13px monospace", color: "#c59bff" }] : []),
       ...(runOutcome === "victory" && getDifficulty().id < 3

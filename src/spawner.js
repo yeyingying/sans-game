@@ -40,6 +40,7 @@ export class Spawner {
     this.spawnTimer = 0;
     this.eliteTimer = 25;
     this.introduced = new Set();
+    this.eliteMult = 1; // 狩猎之契 halves the elite interval
     this.endless = false; // post-boss endless judgement
     this.round = 0; // current judgement round (1-based); set by main
   }
@@ -132,7 +133,7 @@ export class Spawner {
       // endless: elites arrive faster and in bigger packs each round,
       // capped so phones don't melt
       const r = this.endless ? this.round : 0;
-      this.eliteTimer = this.endless ? Math.max(6, 15 - (r - 1) * 1.5) : 30;
+      this.eliteTimer = (this.endless ? Math.max(6, 15 - (r - 1) * 1.5) : 30) * this.eliteMult;
       const eliteCount = this.endless ? Math.min(2 + Math.floor((r - 1) / 2), 5) : 1;
       const namedPool = eliteTypePool(this.difficultyId, this.elapsed);
       for (let i = 0; i < eliteCount; i++) {

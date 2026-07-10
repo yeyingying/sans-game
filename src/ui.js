@@ -306,6 +306,45 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.restore();
 }
 
+// 审判契约 chips on the weapon-select screen (blessing / price pairs)
+export function contractChipRect(i, width, height) {
+  const w = 214;
+  const gap = 14;
+  const total = 3 * w + 2 * gap;
+  return { x: width / 2 - total / 2 + i * (w + gap), y: height - 152, w, h: 60 };
+}
+
+// contracts: [{name, up, down}]; selected -1 = 无契
+export function drawContractChips(ctx, width, height, contracts, selected) {
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#d9c47a";
+  ctx.font = "bold 13px monospace";
+  ctx.fillText(
+    selected < 0 ? "⚖ 审判契约(可选):点击签订,再点解除 · 按 C 循环" : "⚖ 已签契约——审判会记得你的选择",
+    width / 2,
+    height - 164
+  );
+  contracts.forEach((c, i) => {
+    const box = contractChipRect(i, width, height);
+    const on = i === selected;
+    ctx.fillStyle = on ? "#2e2748" : "#161221";
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeStyle = on ? "#ffd166" : "#3a2f4a";
+    ctx.lineWidth = on ? 3 : 2;
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+    ctx.fillStyle = on ? "#ffd166" : "#c8c2d4";
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(c.name, box.x + box.w / 2, box.y + 18);
+    ctx.fillStyle = "#7cf28a";
+    ctx.font = "10px monospace";
+    ctx.fillText(`✚ ${c.up}`, box.x + box.w / 2, box.y + 35);
+    ctx.fillStyle = "#ff8a8a";
+    ctx.fillText(`✖ ${c.down}`, box.x + box.w / 2, box.y + 50);
+  });
+  ctx.restore();
+}
+
 export function shareButtonRect(width, height) {
   return { x: 24, y: height - 62, w: 150, h: 44 };
 }
@@ -630,13 +669,14 @@ export function drawRoundClearScreen(ctx, width, height, round, selected, pendin
 
 export function codexEntryRect(i, width) {
   const gap = 9;
-  const w = Math.min(142, Math.floor((width - 92 - gap * 5) / 6));
-  const total = w * 6 + gap * 5;
-  return { x: width / 2 - total / 2 + (i % 6) * (w + gap), y: 78 + Math.floor(i / 6) * 84, w, h: 76 };
+  const columns = 8;
+  const w = Math.min(130, Math.floor((width - 92 - gap * (columns - 1)) / columns));
+  const total = w * columns + gap * (columns - 1);
+  return { x: width / 2 - total / 2 + (i % columns) * (w + gap), y: 78 + Math.floor(i / columns) * 84, w, h: 76 };
 }
 
-// monsters include both the eight base encounters and four difficulty elites.
-// A compact two-row index leaves a stable detail area on phone landscape.
+// Eight base encounters, four difficulty elites and four round champions fit
+// in a stable 8x2 index on phone landscape.
 export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponRows, pct = 0, selected = 0) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
@@ -683,7 +723,8 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.fillText(seen ? m.name : "？？？", x + box.w / 2, y + 55);
     ctx.fillStyle = seen ? (m.elite ? m.color : "#9a93ab") : "#3c3548";
     ctx.font = "10px monospace";
-    ctx.fillText(seen ? `${m.elite ? "精英 · " : ""}击杀 ${m.kills}` : m.elite ? "高难度精英" : "尚未遭遇", x + box.w / 2, y + 69);
+    const rank = m.champion ? "首领 · " : m.elite ? "精英 · " : "";
+    ctx.fillText(seen ? `${rank}击杀 ${m.kills}` : m.champion ? "无尽首领" : m.elite ? "高难度精英" : "尚未遭遇", x + box.w / 2, y + 69);
   });
 
   const chosen = monsters[Math.max(0, Math.min(selected, monsters.length - 1))];
@@ -713,7 +754,11 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     if (chosen.elite) {
       ctx.fillStyle = "#ffd166";
       ctx.font = "11px monospace";
-      ctx.fillText(`${chosen.unlock} · 屠杀难度进入处决态`, detail.x + 130, detail.y + 132);
+      ctx.fillText(
+        chosen.champion ? `${chosen.unlock} · 第 5 轮起循环并继续强化` : `${chosen.unlock} · 屠杀难度进入处决态`,
+        detail.x + 130,
+        detail.y + 132
+      );
     }
     ctx.textAlign = "center";
   } else {
