@@ -171,6 +171,13 @@ function run(seconds, onFrame) {
   check("gear upgrade buyable", M.buyUpgrade("gear") && M.upgradeLevel("gear") === 1);
   check("revive upgrade buyable", M.buyUpgrade("revive") && M.upgradeLevel("revive") === 1);
   check("revive maxes at 1", M.upgradeCost("revive") === null);
+  // cosmetics: 灵魂加护 (buy once, equip toggle, no stats)
+  M.addCoins(300);
+  check("soul cosmetic buyable", M.buyCosmetic("bravery") && M.cosmeticOwned("bravery"));
+  check("bought soul auto-equipped", M.equippedCosmetic()?.id === "bravery");
+  check("cannot rebuy owned soul", !M.buyCosmetic("bravery"));
+  check("unequip works", M.equipCosmetic(null) && M.equippedCosmetic() === null);
+  check("cannot equip unowned", !M.equipCosmetic("determination"));
   // codex collection tracking
   M.recordRun({ killsByType: { slime: 10, bat: 3 }, weaponsUsed: ["bone", "orbit"], evolvedIds: ["bone"] });
   const st = M.getStats();

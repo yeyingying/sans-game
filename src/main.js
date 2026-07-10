@@ -74,6 +74,11 @@ import {
   setDifficulty,
   saveSafeRunCheckpoint,
   clearSafeRunCheckpoint,
+  COSMETICS,
+  cosmeticOwned,
+  equippedCosmetic,
+  buyCosmetic,
+  equipCosmetic,
 } from "./meta.js";
 import {
   initSfx,
@@ -122,6 +127,7 @@ import {
   drawTitleScreen,
   shopButtonRect,
   shopItemRect,
+  shopTabRect,
   drawShopScreen,
   codexButtonRect,
   drawCodexScreen,
@@ -252,6 +258,16 @@ let runCheckpointId = null;
 let roundBanner = null; // {text, sub, t} full-screen announcement
 let hazardTimer = 0; // round 4+: periodic danger zones
 let hazards = []; // {x, y, t} telegraphed player-damaging zones
+
+let shopTab = 0; // 0 = ability upgrades, 1 = 灵魂加护 cosmetics
+
+// soul cosmetic: heart trail dropped while moving (pure looks)
+let soulTrail = []; // {x, y, t}
+let soulTrailTimer = 0;
+const SOUL_HEART_CACHE = {};
+function soulHeartSprite(color) {
+  return (SOUL_HEART_CACHE[color] ||= tintSprite(PICKUP_XP, color, 0.85));
+}
 
 // one-time onboarding tips: each fires once per install (localStorage flag)
 let tipQueue = [];
@@ -460,6 +476,7 @@ function reset(weaponId) {
   hazards = [];
   tipQueue = [];
   activeTip = null;
+  soulTrail = [];
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -1114,6 +1131,33 @@ function handleCanvasTap(pos) {
       sfxClick();
       return;
     }
+    for (const i of [0, 1]) {
+      if (inRect(pos, shopTabRect(i, WIDTH))) {
+        shopTab = i;
+        sfxClick();
+        return;
+      }
+    }
+    if (shopTab === 1) {
+      // 灵魂加护: buy once, then click toggles equip/unequip
+      for (let i = 0; i < COSMETICS.length; i++) {
+        if (inRect(pos, shopItemRect(i, WIDTH, HEIGHT))) {
+          const c = COSMETICS[i];
+          if (!cosmeticOwned(c.id)) {
+            if (buyCosmetic(c.id)) sfxFanfare();
+            else sfxHurt();
+          } else if (equippedCosmetic()?.id === c.id) {
+            equipCosmetic(null);
+            sfxClick();
+          } else {
+            equipCosmetic(c.id);
+            sfxEquip();
+          }
+          return;
+        }
+      }
+      return;
+    }
     const items = shopItems();
     for (let i = 0; i < items.length; i++) {
       if (inRect(pos, shopItemRect(i, WIDTH, HEIGHT))) {
@@ -1545,6 +1589,18 @@ function update(dt) {
   // onboarding tips: one at a time, each lingers ~9s
   if (!activeTip && tipQueue.length) activeTip = tipQueue.shift();
   if (activeTip && (activeTip.t -= dt) <= 0) activeTip = null;
+
+  // soul cosmetic: drop little hearts while moving
+  if (equippedCosmetic() && player.moving) {
+    soulTrailTimer -= dt;
+    if (soulTrailTimer <= 0) {
+      soulTrailTimer = 0.12;
+      soulTrail.push({ x: player.x + (Math.random() - 0.5) * 10, y: player.y + 8, t: 0 });
+      if (soulTrail.length > 12) soulTrail.shift();
+    }
+  }
+  for (const s of soulTrail) s.t += dt;
+  soulTrail = soulTrail.filter((s) => s.t < 0.6);
 
   // enemies left far behind wrap around to just ahead of the view so
   // running sideways forever doesn't shake off the horde
@@ -2508,8 +2564,21 @@ function draw() {
         ctx.restore();
       }
     }
+    // 灵魂加护 cosmetic: fading heart trail + soul-colored glow
+    const soulEq = equippedCosmetic();
+    if (soulEq) {
+      for (const s of soulTrail) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - s.t / 0.6) * 0.55;
+        drawSprite(ctx, soulHeartSprite(soulEq.color), s.x, s.y, 9 + s.t * 6);
+        ctx.restore();
+      }
+    }
     ctx.save();
-    if (CHAR_GLOWS[player.character]) {
+    if (soulEq) {
+      ctx.shadowColor = soulEq.color;
+      ctx.shadowBlur = 18;
+    } else if (CHAR_GLOWS[player.character]) {
       ctx.shadowColor = CHAR_GLOWS[player.character];
       ctx.shadowBlur = 16;
     }
@@ -2695,7 +2764,19 @@ function draw() {
   if (state === "title") {
     drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans], getCoins(), codexCompletion());
   } else if (state === "shop") {
-    drawShopScreen(ctx, WIDTH, HEIGHT, shopItems(), getCoins());
+    drawShopScreen(
+      ctx,
+      WIDTH,
+      HEIGHT,
+      shopItems(),
+      getCoins(),
+      shopTab,
+      COSMETICS.map((c) => ({
+        ...c,
+        owned: cosmeticOwned(c.id),
+        equipped: equippedCosmetic()?.id === c.id,
+      }))
+    );
   } else if (state === "codex") {
     const st = getStats();
     const monsters = Object.keys(ENEMY_NAMES).map((t) => ({

@@ -90,6 +90,47 @@ export function rerollBonus() {
   return upgradeLevel("reroll");
 }
 
+// ---- cosmetics: 灵魂加护 (Undertale's seven human souls) --------------------
+
+// pure looks, zero stats: player glow + heart trail in the soul's color.
+// Lore: six fallen humans' souls + the protagonist's own DETERMINATION.
+export const COSMETICS = [
+  { id: "bravery", name: "勇气之魂", color: "#ff9e3d", desc: "橙色——戴着拳套的孩子留下的魂", price: 250 },
+  { id: "justice", name: "正义之魂", color: "#ffef3d", desc: "黄色——牛仔帽与左轮的主人", price: 250 },
+  { id: "kindness", name: "善良之魂", color: "#4ade5a", desc: "绿色——围裙与平底锅的温柔", price: 250 },
+  { id: "patience", name: "耐心之魂", color: "#5ee6e6", desc: "浅蓝——丝带与玩具刀的等待", price: 250 },
+  { id: "integrity", name: "诚实之魂", color: "#4f6dff", desc: "深蓝——芭蕾舞鞋的正直", price: 250 },
+  { id: "perseverance", name: "毅力之魂", color: "#b45df0", desc: "紫色——眼镜与笔记本的坚持", price: 250 },
+  { id: "determination", name: "决心", color: "#ff3d5a", desc: "红色——你自己的灵魂。DETERMINATION.", price: 800 },
+];
+
+let cosmetics = readJson("metaCosmetics", { owned: {}, equipped: null });
+
+export function cosmeticOwned(id) {
+  return !!cosmetics.owned[id];
+}
+
+export function equippedCosmetic() {
+  return cosmetics.equipped ? COSMETICS.find((c) => c.id === cosmetics.equipped) || null : null;
+}
+
+export function buyCosmetic(id) {
+  const c = COSMETICS.find((x) => x.id === id);
+  if (!c || cosmetics.owned[id] || !spendCoins(c.price)) return false;
+  cosmetics.owned[id] = true;
+  cosmetics.equipped = id; // wear it right away
+  store.setItem("metaCosmetics", JSON.stringify(cosmetics));
+  return true;
+}
+
+export function equipCosmetic(id) {
+  // id null = take it off; owned check keeps saves honest
+  if (id !== null && !cosmetics.owned[id]) return false;
+  cosmetics.equipped = id;
+  store.setItem("metaCosmetics", JSON.stringify(cosmetics));
+  return true;
+}
+
 // ---- lifetime stats --------------------------------------------------------
 
 let stats = readJson("metaStats", { totalKills: 0, runs: 0, bossKills: 0 });

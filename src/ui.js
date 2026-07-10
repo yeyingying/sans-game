@@ -467,8 +467,13 @@ export function shopItemRect(i, width, height) {
   return { x, y: 120 + (i % 4) * (h + gap), w, h };
 }
 
-// items: [{name, desc, lvl, max, cost, color}], cost null = maxed
-export function drawShopScreen(ctx, width, height, items, coins) {
+// tab pills: 0 = 能力升级, 1 = 灵魂加护 (cosmetics)
+export function shopTabRect(i, width) {
+  return { x: width / 2 - 190 + i * 200, y: 66, w: 180, h: 32 };
+}
+
+// souls: [{id, name, color, desc, price, owned, equipped}]
+export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = []) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
   ctx.fillRect(0, 0, width, height);
@@ -476,10 +481,72 @@ export function drawShopScreen(ctx, width, height, items, coins) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 30px monospace";
-  ctx.fillText("强 化 商 店", width / 2, 58);
+  ctx.fillText("商 店", width / 2, 46);
+  for (const [i, label] of [[0, "能力升级"], [1, "灵魂加护"]]) {
+    const r = shopTabRect(i, width);
+    const active = tab === i;
+    ctx.fillStyle = active ? "#2e2748" : "#181521";
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = active ? "#ffd166" : "#453f52";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = active ? "#ffd166" : "#7d7690";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText(label, r.x + r.w / 2, r.y + 21);
+  }
   ctx.fillStyle = "#f2ead8";
-  ctx.font = "14px monospace";
-  ctx.fillText(`金币 ⓖ ${coins} · 升级永久生效`, width / 2, 88);
+  ctx.font = "13px monospace";
+  ctx.fillText(
+    tab === 0 ? `金币 ⓖ ${coins} · 升级永久生效` : `金币 ⓖ ${coins} · 六个坠落人类的灵魂,与你自己的决心`,
+    width / 2,
+    112
+  );
+
+  if (tab === 1) {
+    for (let i = 0; i < souls.length; i++) {
+      const c = souls[i];
+      const box = shopItemRect(i, width, height);
+      const affordable = coins >= c.price;
+      ctx.fillStyle = "#1d1828";
+      ctx.fillRect(box.x, box.y, box.w, box.h);
+      ctx.strokeStyle = c.equipped ? "#ffffff" : c.owned || affordable ? c.color : "#5a5468";
+      ctx.lineWidth = c.equipped ? 3 : 2;
+      ctx.strokeRect(box.x, box.y, box.w, box.h);
+      // soul heart swatch
+      ctx.fillStyle = c.color;
+      ctx.save();
+      ctx.translate(box.x + 24, box.y + box.h / 2);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-7, -7, 14, 14); // rotated square reads as a pixel heart
+      ctx.restore();
+      ctx.textAlign = "left";
+      ctx.fillStyle = c.color;
+      ctx.font = "bold 16px monospace";
+      ctx.fillText(c.name, box.x + 46, box.y + 24);
+      ctx.fillStyle = "#b9b2c9";
+      ctx.font = "11px monospace";
+      ctx.fillText(c.desc, box.x + 46, box.y + 44);
+      ctx.textAlign = "right";
+      ctx.font = "bold 13px monospace";
+      if (c.equipped) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText("装备中 · 点击卸下", box.x + box.w - 16, box.y + 24);
+      } else if (c.owned) {
+        ctx.fillStyle = "#7cf28a";
+        ctx.fillText("已拥有 · 点击装备", box.x + box.w - 16, box.y + 24);
+      } else {
+        ctx.fillStyle = affordable ? "#ffd166" : "#6b6578";
+        ctx.fillText(`ⓖ ${c.price}`, box.x + box.w - 16, box.y + 24);
+        ctx.font = "11px monospace";
+        ctx.fillStyle = affordable ? "#7d7690" : "#5a5468";
+        ctx.fillText(affordable ? "点击购买" : "金币不足", box.x + box.w - 16, box.y + 44);
+      }
+    }
+    ctx.textAlign = "center";
+    drawBackButton(ctx, width, height);
+    ctx.restore();
+    return;
+  }
 
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
