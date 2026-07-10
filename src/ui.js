@@ -191,7 +191,7 @@ export function shopButtonRect(width, height) {
   return { x: 16, y: height - 52, w: 190, h: 34 };
 }
 
-export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexPct = 0) {
+export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexPct = 0, echoCount = "") {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.99)";
   ctx.fillRect(0, 0, width, height);
@@ -242,6 +242,17 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.font = "bold 14px monospace";
   ctx.fillText("制作名单", cb.x + cb.w / 2, cb.y + 22);
 
+  // echo flowers (story fragments), between daily and credits
+  const eb = echoButtonRect(width, height);
+  ctx.fillStyle = "#10141f";
+  ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
+  ctx.strokeStyle = "#6bd0ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(eb.x, eb.y, eb.w, eb.h);
+  ctx.fillStyle = "#6bd0ff";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText(`❀ 回响 ${echoCount}`, eb.x + eb.w / 2, eb.y + 22);
+
   // upgrade shop entrance, bottom-left, with the wallet on display
   const sb = shopButtonRect(width, height);
   ctx.fillStyle = "#241c10";
@@ -274,6 +285,107 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.fillStyle = "#c59bff";
   ctx.font = "bold 14px monospace";
   ctx.fillText("每日挑战 ✦", db.x + db.w / 2, db.y + 22);
+  ctx.restore();
+}
+
+export function echoButtonRect(width, height) {
+  return { x: 516, y: height - 52, w: 130, h: 34 };
+}
+
+// 回响花田: 5x2 grid of echo flowers
+export function echoFlowerRect(i, width, height) {
+  const w = 168;
+  const h = 168;
+  const gap = 16;
+  const col = i % 5;
+  const row = Math.floor(i / 5);
+  const total = 5 * w + 4 * gap;
+  return { x: width / 2 - total / 2 + col * (w + gap), y: 118 + row * (h + gap), w, h };
+}
+
+// entries: [{title, hint, unlocked}]
+export function drawEchoField(ctx, width, height, entries, budSprite, bloomSprite, count) {
+  ctx.save();
+  ctx.fillStyle = "rgba(8, 10, 18, 0.97)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#6bd0ff";
+  ctx.font = "bold 30px monospace";
+  ctx.fillText("❀ 回 响", width / 2, 52);
+  ctx.fillStyle = "#9ab8d0";
+  ctx.font = "13px monospace";
+  ctx.fillText(`审判廊的回声花,记得每一次轮回 · 已聆听 ${count}/${entries.length}`, width / 2, 82);
+  ctx.imageSmoothingEnabled = false;
+  entries.forEach((e, i) => {
+    const box = echoFlowerRect(i, width, height);
+    ctx.fillStyle = e.unlocked ? "#141c2c" : "#10131d";
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeStyle = e.unlocked ? "#6bd0ff" : "#2c3346";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+    const spr = e.unlocked ? bloomSprite : budSprite;
+    const size = e.unlocked ? 72 : 52;
+    ctx.save();
+    if (e.unlocked) {
+      ctx.shadowColor = "#6bd0ff";
+      ctx.shadowBlur = 14;
+    } else {
+      ctx.globalAlpha = 0.55;
+    }
+    ctx.drawImage(spr, box.x + box.w / 2 - size / 2, box.y + 88 - size, size, (spr.height / spr.width) * size);
+    ctx.restore();
+    ctx.fillStyle = e.unlocked ? "#e8f4ff" : "#5c6478";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText(e.unlocked ? `「${e.title}」` : "???", box.x + box.w / 2, box.y + 122);
+    ctx.fillStyle = e.unlocked ? "#6bd0ff" : "#4a5164";
+    ctx.font = "10px monospace";
+    ctx.fillText(e.unlocked ? "点击聆听" : e.hint, box.x + box.w / 2, box.y + 144);
+  });
+  drawBackButton(ctx, width, height);
+  ctx.restore();
+}
+
+// the Undertale dialogue box: black, thick white border, asterisk lines,
+// typewriter-revealed text with the bloomed flower glowing beside it
+export function drawEchoRead(ctx, width, height, echo, charsShown, bloomSprite) {
+  ctx.save();
+  ctx.fillStyle = "rgba(4, 5, 10, 0.97)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#6bd0ff";
+  ctx.font = "bold 22px monospace";
+  ctx.fillText(`「${echo.title}」`, width / 2, height / 2 - 158);
+  // the flower listens with you
+  ctx.imageSmoothingEnabled = false;
+  ctx.save();
+  ctx.shadowColor = "#6bd0ff";
+  ctx.shadowBlur = 18;
+  ctx.drawImage(bloomSprite, width / 2 - 300, height / 2 - 96, 64, (bloomSprite.height / bloomSprite.width) * 64);
+  ctx.restore();
+  // UT dialogue box
+  const bw = 560;
+  const bh = 168;
+  const bx = width / 2 - bw / 2 + 40;
+  const by = height / 2 - 96;
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = "#f2ead8";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(bx, by, bw, bh);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#f2ead8";
+  ctx.font = "15px monospace";
+  let remaining = charsShown;
+  echo.lines.forEach((line, i) => {
+    if (remaining <= 0) return;
+    const shown = line.slice(0, Math.max(0, remaining));
+    remaining -= line.length;
+    ctx.fillText(shown, bx + 24, by + 34 + i * 32);
+  });
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#7d8698";
+  ctx.font = "12px monospace";
+  ctx.fillText("点击/Enter 继续 · Esc 返回花田", width / 2, by + bh + 34);
   ctx.restore();
 }
 

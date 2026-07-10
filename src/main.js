@@ -52,6 +52,7 @@ import {
   canEvolve,
 } from "./weapon.js";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
+import { ECHOES, ECHO_BUD, ECHO_BLOOM, echoUnlocked, unlockEcho, unlockedEchoCount, randomEchoQuote } from "./echo.js";
 import {
   getCoins,
   addCoins,
@@ -107,6 +108,7 @@ import {
   sfxCoin,
   sfxShatter,
   sfxCandy,
+  sfxType,
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
@@ -154,6 +156,10 @@ import {
   bossClearContinueRect,
   drawBossClearScreen,
   drawDailyIntro,
+  echoButtonRect,
+  echoFlowerRect,
+  drawEchoField,
+  drawEchoRead,
   drawRoundClearScreen,
   volumeMinusRect,
   volumePlusRect,
@@ -283,6 +289,7 @@ let codexSelected = 0;
 let deathShatter = null; // UT-style soul shatter on death {t, color}
 let runOffense = false; // picked any atk/amp card this run (和平主义者 title)
 let lastNewTitles = []; // titles earned at this settlement (gameover toast)
+let lastNewEchoes = []; // echo fragments unlocked this run (gameover line)
 
 // bone weapon skin: tint the default white bone sprite at runtime
 const BONE_SKIN_CACHE = {};
@@ -298,6 +305,19 @@ let soulTrailTimer = 0;
 const SOUL_HEART_CACHE = {};
 function soulHeartSprite(color) {
   return (SOUL_HEART_CACHE[color] ||= tintSprite(PICKUP_XP, color, 0.85));
+}
+
+let echoRead = null; // {echo, t, chars, done} typewriter state
+let deathQuote = null; // a remembered echo line shown on the gameover card
+function unlockEchoToast(id) {
+  if (!unlockEcho(id)) return;
+  const e = ECHOES.find((x) => x.id === id);
+  lastNewEchoes.push(e.title);
+  // in-run: floating tip card; at settlement the gameover card lists it
+  if (state === "playing" || state === "choice") {
+    tipQueue.push({ title: `❀ 回响解锁:「${e.title}」`, lines: ["标题页 ❀回响 里,花会为你重述这段记忆"], t: 8 });
+  }
+  sfxCandy();
 }
 
 let candyBanner = null; // UT-style "* 你吃下了怪物糖" narration {text, t}
@@ -551,6 +571,7 @@ function reset(weaponId) {
   deathShatter = null;
   runOffense = false;
   lastNewTitles = [];
+  lastNewEchoes = [];
   lastHitBy = null;
   lastDeathBy = null;
   nextWarnBeep = BOSS_WARN_TIME;
@@ -673,6 +694,16 @@ function settleGame(kind) {
   ]) {
     if (ok && unlockTitle(id)) lastNewTitles.push(TITLES.find((t) => t.id === id).name);
   }
+  // 回响 story fragments — the hall remembers this run's milestones
+  if (runOutcome === "death" || runOutcome === "endlessDeath") unlockEchoToast("stay");
+  if (bossDefeated) unlockEchoToast("after");
+  if (roundsCleared >= 5) unlockEchoToast("deeper");
+  if (getStats().runs >= 20) unlockEchoToast("back");
+  if (bossDefeated && getDifficulty().id === 2) unlockEchoToast("wd");
+  if (bossDefeated && getDifficulty().id === 3) unlockEchoToast("dust");
+  if (Object.keys(getStats().evolved || {}).length >= 32) unlockEchoToast("gift");
+  if (codexCompletion() >= 100) unlockEchoToast("end");
+  deathQuote = runOutcome === "death" || runOutcome === "endlessDeath" ? randomEchoQuote() : null;
 }
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
@@ -724,6 +755,7 @@ function bossClearContinue() {
   spawner.endless = true;
   nextChoiceAt = elapsed + choiceInterval; // no backlog of choice screens
   floatingTexts.push(new FloatingText(player.x, player.y - 26, "决心！全属性提升", "#ffffff"));
+  unlockEchoToast("why");
   queueTipOnce("endless", "什么是无尽审判？", [
     "每 90 秒为一轮，轮末 15 秒会出现强化首领",
     "击杀首领完成本轮，可选择撤离结算，或进入更危险的下一轮",
@@ -1223,6 +1255,9 @@ function handleCanvasTap(pos) {
     } else if (inRect(pos, codexButtonRect(WIDTH, HEIGHT))) {
       state = "codex";
       sfxClick();
+    } else if (inRect(pos, echoButtonRect(WIDTH, HEIGHT))) {
+      state = "echoes";
+      sfxClick();
     } else if (inRect(pos, dailyButtonRect(WIDTH, HEIGHT))) {
       state = "dailyintro"; // explain the mode first — never start cold
       bossClearChoice = 1;
@@ -1232,6 +1267,36 @@ function handleCanvasTap(pos) {
       toCharSelect();
       sfxClick();
     }
+    return;
+  }
+  if (state === "echoes") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "title";
+      sfxClick();
+      return;
+    }
+    for (let i = 0; i < ECHOES.length; i++) {
+      if (inRect(pos, echoFlowerRect(i, WIDTH, HEIGHT))) {
+        if (echoUnlocked(ECHOES[i].id)) {
+          echoRead = { echo: ECHOES[i], t: 0, chars: 0, done: false };
+          state = "echoread";
+          sfxClick();
+        } else {
+          sfxHurt(); // still a bud
+        }
+        return;
+      }
+    }
+    return;
+  }
+  if (state === "echoread") {
+    if (echoRead && !echoRead.done) {
+      echoRead.done = true; // skip the typewriter
+      echoRead.chars = 9999;
+    } else {
+      state = "echoes";
+    }
+    sfxClick();
     return;
   }
   if (state === "dailyintro") {
@@ -1470,6 +1535,20 @@ window.addEventListener("keydown", (e) => {
     } else if (state === "codex" && (k === "arrowup" || k === "arrowdown")) {
       codexSelected = (codexSelected + (k === "arrowdown" ? 6 : CODEX_MONSTERS.length - 6)) % CODEX_MONSTERS.length;
       sfxClick();
+    }
+    return;
+  }
+  if (state === "echoes") {
+    if (k === "escape") state = "title";
+    return;
+  }
+  if (state === "echoread") {
+    if (k === "escape") state = "echoes";
+    else if (k === " " || k === "enter") {
+      if (echoRead && !echoRead.done) {
+        echoRead.done = true;
+        echoRead.chars = 9999;
+      } else state = "echoes";
     }
     return;
   }
@@ -2075,6 +2154,7 @@ function update(dt) {
       // elites go out with a bang: shock ring + deep boom
       explosions.push(new Explosion(e.x, e.y, e.radius * 3.4, "#ffd166", true));
       sfxEliteDown();
+      if (e.eliteProfile) unlockEchoToast("names"); // a NAMED resident fell
     }
   }
   enemies = enemies.filter((e) => (e.hp > 0 || e.boss));
@@ -3152,7 +3232,7 @@ function draw() {
   }
 
   if (state === "title") {
-    drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans], getCoins(), codexCompletion());
+    drawTitleScreen(ctx, WIDTH, HEIGHT, [PLAYER_SPRITES.sans], getCoins(), codexCompletion(), `${unlockedEchoCount()}/10`);
   } else if (state === "shop") {
     drawShopScreen(
       ctx,
@@ -3268,6 +3348,18 @@ function draw() {
     drawQuitButton(ctx, WIDTH, HEIGHT);
   } else if (state === "choice") {
     drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollsLeft);
+  } else if (state === "echoes") {
+    drawEchoField(
+      ctx,
+      WIDTH,
+      HEIGHT,
+      ECHOES.map((e) => ({ title: e.title, hint: e.hint, unlocked: echoUnlocked(e.id) })),
+      ECHO_BUD,
+      ECHO_BLOOM,
+      unlockedEchoCount()
+    );
+  } else if (state === "echoread") {
+    if (echoRead) drawEchoRead(ctx, WIDTH, HEIGHT, echoRead.echo, echoRead.chars, ECHO_BLOOM);
   } else if (state === "dailyintro") {
     const seed = dailySeed();
     drawDailyIntro(
@@ -3335,6 +3427,8 @@ function draw() {
         ? [{ text: "⚠ 觉得太简单？选人页可切换 狂暴/地狱 难度,金币加成更高", font: "13px monospace", color: "#ff8a5d" }]
         : []),
       ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),
+      ...lastNewEchoes.map((n) => ({ text: `❀ 回响解锁:「${n}」(标题页❀回响聆听)`, font: "13px monospace", color: "#6bd0ff" })),
+      ...(deathQuote ? [{ text: deathQuote, font: "13px monospace", color: "#8fa8c9" }] : []),
       ...(wasDaily
         ? [
             {
@@ -3465,6 +3559,16 @@ function loop(now) {
   }
 
   if (deathShatter && state === "gameover") deathShatter.t += dt;
+  if (state === "echoread" && echoRead && !echoRead.done) {
+    echoRead.t += dt;
+    const want = Math.floor(echoRead.t * 26); // ~26 chars/sec, UT cadence
+    if (want > echoRead.chars) {
+      echoRead.chars = want;
+      sfxType();
+    }
+    const total = echoRead.echo.lines.reduce((s, l) => s + l.length, 0);
+    if (echoRead.chars >= total) echoRead.done = true;
+  }
   setMovementEnabled(state === "playing" && introBlack <= 0);
   if (introBlack > 0) {
     introBlack -= dt; // hold the world frozen behind the black screen

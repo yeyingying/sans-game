@@ -109,6 +109,12 @@ export function sfxCoin() {
   blip({ from: 1760, dur: 0.09, gain: 0.06, delay: 0.05 });
 }
 
+// Undertale typewriter voice blip
+export function sfxType() {
+  if (throttled("type", 0.03)) return;
+  blip({ type: "square", from: 520 + Math.random() * 240, dur: 0.022, gain: 0.045 });
+}
+
 // monster candy: soft sweet chime
 export function sfxCandy() {
   blip({ type: "triangle", from: 740, dur: 0.06, gain: 0.12 });

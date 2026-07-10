@@ -328,6 +328,11 @@ check("codex opens", dbg().state === "codex");
 frame(); // draws the codex screen (catches reference errors)
 tap(84, 560); // back
 check("codex closes", dbg().state === "title");
+tap(581, 565); // echo flowers button
+check("echo field opens", dbg().state === "echoes");
+frame(); // render the flower field once
+tap(84, 560); // back
+check("echo field closes", dbg().state === "title");
 tap(111, 565); // shop button
 check("shop opens", dbg().state === "shop");
 frame();
@@ -393,6 +398,7 @@ if (MODE === "normal") {
   check("death recap present", firstDeath && typeof firstDeath.deathBy === "string" && firstDeath.deathBy.length > 0, `deathBy=${firstDeath && firstDeath.deathBy}`);
   if (firstDeath) console.log(`      死于:${firstDeath.deathBy}, kills=${firstDeath.kills}, elapsed=${firstDeath.elapsed}s`);
   check("kills accumulated (mowing works)", bestKills > 15, `bestKills=${bestKills}`);
+  check("first-death echo unlocked", (JSON.parse(storage.metaEchoes || "{}").stay || false) === true, storage.metaEchoes);
   const dEnd = dbg();
   check("coins earned and banked", dEnd.lastRunCoins > 0 && dEnd.wallet > 0, `last=${dEnd.lastRunCoins} wallet=${dEnd.wallet}`);
 
@@ -506,9 +512,13 @@ if (MODE === "normal") {
   const safeBeforePauseQuit = d.runCoins;
   check("B: deterministic pending pot prepared", d.pending === 17, `pending=${d.pending}`);
   const savedRoundCheckpoint = JSON.parse(storage.safeRunCheckpoint_v1);
+  // the checkpoint is written at the instant the round completes; a coin
+  // magneted in that same frame may land just after it, so assert bounds:
+  // never above the banked total (the fresh 17-pending must be excluded)
   check(
     "B: checkpoint excludes unfinished-round pending",
-    savedRoundCheckpoint.walletFloor === d.wallet + safeBeforePauseQuit,
+    savedRoundCheckpoint.walletFloor <= d.wallet + safeBeforePauseQuit &&
+      savedRoundCheckpoint.walletFloor > d.wallet,
     `floor=${savedRoundCheckpoint.walletFloor} wallet=${d.wallet} safe=${safeBeforePauseQuit} pending=${d.pending}`
   );
   key("z"); // pause mid-round…
