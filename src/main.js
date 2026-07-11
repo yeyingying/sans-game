@@ -143,6 +143,9 @@ import {
   pickDogLine,
   pickFlowerLine,
   championEntrance,
+  pickShareRoast,
+  codexNote,
+  pickPauseTip,
 } from "./narrative.js";
 import {
   drawHud,
@@ -428,6 +431,8 @@ let bark = null; // {text, t} one-liner bubble above the player's head
 let barkFired = {}; // per-run: each bark event speaks at most once
 let chapterQueue = []; // 审判纪元 chapters earned this settlement, story order
 let chapterShow = null; // {chapter, line, t} the cutscene being typed out
+let shareRoast = null; // 裂缝外锐评 line for the share card
+let pauseTip = null; // 小贴士 picked fresh each time the game pauses
 let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
 let visitorRolls = { dog: false, flower: false }; // one visit of each per run
@@ -708,6 +713,7 @@ function reset(weaponId) {
   barkFired = {};
   chapterQueue = [];
   chapterShow = null;
+  shareRoast = null;
   dogVisit = null;
   flowerVisit = null;
   visitorRolls = { dog: false, flower: false };
@@ -771,6 +777,15 @@ function settleGame(kind) {
     difficultyId: getDifficulty().id,
     outcome: runOutcome,
     rounds: roundsCleared,
+  });
+  shareRoast = pickShareRoast({
+    outcome: runOutcome,
+    deathKind: player.hp <= 0 ? lastHitKind : null,
+    survived: Math.floor(bossDefeated ? stageClearTime : elapsed),
+    clearTime: stageClearTime,
+    maxStreak: runMaxStreak,
+    rounds: roundsCleared,
+    hpPct: player.maxHp > 0 ? player.hp / player.maxHp : 0,
   });
   // UT-style death: the soul appears, cracks, shatters (equipped soul color)
   deathShatter = player.hp <= 0 ? { t: 0, color: equippedCosmetic()?.color || "#ff3d5a" } : null;
@@ -1227,6 +1242,13 @@ function buildShareCard() {
     g.shadowBlur = 10;
     g.drawImage(ECHO_BLOOM, 240 + i * 52, 830, 40, (ECHO_BLOOM.height / ECHO_BLOOM.width) * 40);
     g.restore();
+  }
+  // 裂缝外锐评: the community's one-line verdict, right where it belongs —
+  // on the card that gets shared back to the community
+  if (shareRoast) {
+    g.fillStyle = "#8fa8c9";
+    g.font = "16px monospace";
+    g.fillText(shareRoast, 360, 900);
   }
   g.fillStyle = "#7d7690";
   g.font = "18px monospace";
@@ -1843,6 +1865,7 @@ function handleCanvasTap(pos) {
     sfxClick();
     if (state === "playing") {
       state = "paused";
+      pauseTip = pickPauseTip();
       bgm.pause();
     } else {
       state = "playing";
@@ -2210,6 +2233,7 @@ window.addEventListener("keydown", (e) => {
   if (k === "z") {
     if (state === "playing") {
       state = "paused";
+      pauseTip = pickPauseTip();
       bgm.pause();
     } else if (state === "paused") {
       state = "playing";
@@ -4801,6 +4825,7 @@ function draw() {
       kills: st.killsByType[m.key] || 0,
       elite: m.key.startsWith("elite_") || m.key.startsWith("champion_"),
       champion: m.key.startsWith("champion_"),
+      note: codexNote(m.key),
     }));
     const weaponRows = CHARACTERS.map((c) => {
       const list = WEAPON_LISTS[c.id];
@@ -4896,6 +4921,12 @@ function draw() {
     ctx.fillText(`骨之涂装:${boneNow ? boneNow.name : "默认白骨"}`, qx0 + 14, py0 + 76);
     ctx.fillStyle = "#c8c2d4";
     ctx.fillText(`称号:${bestTitle() ? "「" + bestTitle().name + "」" : "无"}`, qx0 + 14, py0 + 102);
+    // 小贴士: half mechanics, half memes — refreshed on every pause
+    if (pauseTip) {
+      ctx.fillStyle = "#9a93ab";
+      ctx.font = "12px monospace";
+      ctx.fillText(`💡 小贴士:${pauseTip}`, px0, py0 + 246 + 24);
+    }
     ctx.restore();
     ctx.textAlign = "center";
     drawResumeButton(ctx, WIDTH, HEIGHT);

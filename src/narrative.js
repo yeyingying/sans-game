@@ -551,6 +551,81 @@ export function championEntrance(championId) {
   return CHAMPION_ENTRANCES[championId] || null;
 }
 
+// ---- 分享卡「裂缝外锐评」: one gray line of community judgement -------------
+// priority chain: the juiciest angle wins; generic pools keep repeats fresh
+
+export function pickShareRoast({ outcome, deathKind, survived = 0, clearTime = 0, maxStreak = 0, rounds = 0, hpPct = 0 } = {}) {
+  if (deathKind === "tank") return "* 裂缝外锐评:死于杰瑞。公开处刑。";
+  if (outcome === "victory" && clearTime <= 350) return "* 裂缝外锐评:这手速,建议直播。";
+  if (outcome === "victory" && hpPct >= 0.99) return "* 裂缝外锐评:满血通关,手元警告。";
+  if ((outcome === "death" || outcome === "quit") && survived < 60) return "* 裂缝外锐评:下饭,但下的是我。";
+  if (maxStreak >= 50) return "* 裂缝外锐评:割草机成精了。";
+  if (rounds >= 5) return "* 裂缝外锐评:肝帝认证,泪目。";
+  if (outcome === "retreat") return "* 裂缝外锐评:见好就收,高手。";
+  if (outcome === "victory")
+    return pickFrom(["* 裂缝外锐评:正常发挥,收藏了。", "* 裂缝外锐评:爷的决心,回来了。"]);
+  return pickFrom(["* 裂缝外锐评:典。", "* 裂缝外锐评:差亿点点。", "* 裂缝外锐评:重开,这把有了。"]);
+}
+
+// ---- 图鉴「裂缝外批注」: one-line community graffiti per codex entry --------
+// the serious lore stays untouched; this is the wiki hot-comment underneath
+
+const CODEX_NOTES = {
+  slime: "初学者之敌,毕业者之友。",
+  bat: "它先道歉的。",
+  ghost: "妈妈说的都对。",
+  tank: "公认的。",
+  red: "别盯着看,会长针眼。",
+  orange: "谢幕之前,别鼓掌。",
+  blue: "洗澡水温,刚刚好。",
+  purple: "帽子真好看(违心)。",
+  elite_final_froggit: "呱学十级学者。",
+  elite_whimsalot: "全体起立。",
+  elite_astigmatism: "服从性测试现场。",
+  elite_parsnik: "画饼冠军。",
+  elite_moldessa: "五官自由行动中。",
+  elite_migospel: "小丑竟是……算了。",
+  elite_aaron: ";)",
+  elite_pyrope: "热度就是生命。",
+  elite_memoryhead: "别接那个电话。",
+  elite_reaper_bird: "缝合怪,但缝的是遗愿。",
+  champion_greater_dog: "awsl(阵亡原因)。",
+  champion_mad_dummy: "先动手的,但有理。",
+  champion_knight_knight: "助眠区UP主,勿扰。",
+  champion_muffet: "人均欠她9999G。",
+  champion_royal_guards: "锁了,民政局连夜盖章。",
+  champion_mettaton_ex: "腿是真的。",
+  champion_glyde: "数值保密,自信公开。",
+  champion_so_sorry: "他真的道歉了无数次。",
+  champion_endogeny: "里面每一只,都是好狗。",
+  champion_lemon_bread: "地狱也有柠檬味。",
+};
+
+export function codexNote(key) {
+  return CODEX_NOTES[key] || null;
+}
+
+// ---- 暂停小贴士: half real mechanics, half memes grown on the mechanics -----
+
+const PAUSE_TIPS = [
+  "蓝色攻击,不要动。真的,别动。",
+  "橙色火焰:保持移动。反着记,就死两次。",
+  "宝箱歪了不怪你,保底在路上。",
+  "杰瑞不强。但杰瑞,是杰瑞。",
+  "残血别慌,怪物糖是甜的。",
+  "连杀不断,经验不断。像极了不敢停下来的你。",
+  "商店里的力量永不稀释。这是数学,不是鸡汤。",
+  "无尽第4轮以后金币断供。再往深走,只有荣誉和刀。",
+  "复活很贵。但决心无价。(真实验室对此有不同意见。)",
+  "跑图口诀:贴墙走,看红圈,别贪糖。",
+  "打不过就换难度,没人笑你。笑你的,都卡在同一关。",
+  "今天也要,充满决心。",
+];
+
+export function pickPauseTip() {
+  return pickFrom(PAUSE_TIPS);
+}
+
 const FLOWER_LINES = [
   "……你充满了决心……你充满了决心……",
   "……三师傅,放过我……",

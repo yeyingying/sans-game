@@ -159,6 +159,13 @@ function run(seconds, onFrame) {
     "named killer death lines with future-proof fallback",
     typeof N.pickDeathLine("elite_memoryhead", 2) === "string" && typeof N.pickDeathLine("elite_not_written_yet", 2) === "string",
   );
+  check("codex notes cover base + jerry canon", N.codexNote("tank") === "公认的。" && N.codexNote("unknown_future") === null);
+  check(
+    "share roast: jerry execution outranks everything",
+    N.pickShareRoast({ outcome: "death", deathKind: "tank", survived: 30 }).includes("公开处刑") &&
+      typeof N.pickShareRoast({ outcome: "victory", clearTime: 400, hpPct: 0.5 }) === "string" &&
+      typeof N.pickPauseTip() === "string",
+  );
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };

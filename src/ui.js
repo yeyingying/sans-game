@@ -959,6 +959,14 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.fillStyle = chosen.color;
     ctx.font = "bold 18px monospace";
     ctx.fillText(`${chosen.name}  ${chosen.english}`, detail.x + 130, detail.y + 28);
+    // 裂缝外批注: community graffiti pinned to the corner of the dossier
+    if (chosen.note) {
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#6f8aa8";
+      ctx.font = "11px monospace";
+      ctx.fillText(`「${chosen.note}」——裂缝外`, detail.x + detail.w - 16, detail.y + 28);
+      ctx.textAlign = "left";
+    }
     ctx.fillStyle = "#9a93ab";
     ctx.font = "11px monospace";
     ctx.fillText(`${chosen.region} · ${chosen.title} · 累计击杀 ${chosen.kills}`, detail.x + 130, detail.y + 50);
