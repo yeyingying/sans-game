@@ -353,6 +353,15 @@ function tap(x, y) {
     fn({ clientX: x, clientY: y, isPrimary: true, button: 0, preventDefault: () => {} });
 }
 tap(71, 565); // ☰ 菜单
+tap(134, 338); // ⚔ 武器图鉴 (drawer item 4)
+check("weapon book opens", dbg().state === "weaponbook");
+frame(); // render list + detail table (catches formatting errors)
+key("ArrowRight"); // switch character tab
+key("ArrowDown"); // move selection
+frame();
+tap(84, 560); // back
+check("weapon book closes", dbg().state === "title");
+tap(71, 565); // ☰ 菜单
 tap(134, 476); // 图鉴 (drawer item 1)
 check("codex opens", dbg().state === "codex");
 frame(); // draws the codex screen (catches reference errors)

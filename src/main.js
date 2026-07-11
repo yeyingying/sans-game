@@ -169,6 +169,9 @@ import {
   echoButtonRect,
   menuButtonRect,
   titleMenuItemRect,
+  bookCharPillRect,
+  bookRowRect,
+  drawWeaponBook,
   questButtonRect,
   shareButtonRect,
   drawShareButton,
@@ -1135,6 +1138,8 @@ function healScale() {
 // rotating character (locks bypassed — it doubles as a demo), local best kept.
 
 let titleMenuOpen = false; // ☰ drawer on the title screen
+let bookChar = 0; // 武器图鉴: active character tab
+let bookSel = 0; // 武器图鉴: selected weapon row
 let dailyMode = false;
 const nativeRandom = Math.random.bind(Math);
 
@@ -1612,7 +1617,7 @@ function handleCanvasTap(pos) {
   }
   if (state === "title") {
     if (titleMenuOpen) {
-      const targets = ["shop", "codex", "echoes", "quests"];
+      const targets = ["shop", "codex", "echoes", "quests", "weaponbook"];
       for (let i = 0; i < targets.length; i++) {
         if (inRect(pos, titleMenuItemRect(i, WIDTH, HEIGHT))) {
           state = targets[i];
@@ -1647,6 +1652,30 @@ function handleCanvasTap(pos) {
     if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
       state = "title";
       sfxClick();
+    }
+    return;
+  }
+  if (state === "weaponbook") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "title";
+      sfxClick();
+      return;
+    }
+    for (let i = 0; i < CHARACTERS.length; i++) {
+      if (inRect(pos, bookCharPillRect(i, WIDTH))) {
+        bookChar = i;
+        bookSel = 0;
+        sfxClick();
+        return;
+      }
+    }
+    const list = WEAPON_LISTS[CHARACTERS[bookChar].id];
+    for (let i = 0; i < list.length; i++) {
+      if (inRect(pos, bookRowRect(i, WIDTH, HEIGHT))) {
+        bookSel = i;
+        sfxClick();
+        return;
+      }
     }
     return;
   }
@@ -1950,6 +1979,15 @@ window.addEventListener("keydown", (e) => {
   }
   if (state === "quests" || state === "echoes") {
     if (k === "escape") state = "title";
+    return;
+  }
+  if (state === "weaponbook") {
+    const list = WEAPON_LISTS[CHARACTERS[bookChar].id];
+    if (k === "escape") state = "title";
+    else if (k === "arrowleft") { bookChar = (bookChar + CHARACTERS.length - 1) % CHARACTERS.length; bookSel = 0; }
+    else if (k === "arrowright") { bookChar = (bookChar + 1) % CHARACTERS.length; bookSel = 0; }
+    else if (k === "arrowup") bookSel = (bookSel + list.length - 1) % list.length;
+    else if (k === "arrowdown") bookSel = (bookSel + 1) % list.length;
     return;
   }
   if (state === "chest") {
@@ -3964,6 +4002,16 @@ function draw() {
     drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollsLeft);
   } else if (state === "quests") {
     drawQuestsScreen(ctx, WIDTH, HEIGHT, questView());
+  } else if (state === "weaponbook") {
+    drawWeaponBook(
+      ctx,
+      WIDTH,
+      HEIGHT,
+      CHARACTERS,
+      bookChar,
+      WEAPON_LISTS[CHARACTERS[bookChar].id],
+      bookSel
+    );
   } else if (state === "echoes") {
     drawEchoField(
       ctx,

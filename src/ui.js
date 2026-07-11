@@ -265,6 +265,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
       { label: `图鉴 ${codexPct}%`, color: "#7ea8ff" },
       { label: `❀ 回响 ${echoCount}`, color: "#6bd0ff" },
       { label: `📜 悬赏 ${questDone}`, color: "#ffd166" },
+      { label: "⚔ 武器图鉴", color: "#c8c2d4" },
     ];
     items.forEach((it, i) => {
       const r = titleMenuItemRect(i, width, height);
@@ -367,6 +368,169 @@ export function drawShareButton(ctx, width, height) {
   ctx.font = "bold 15px monospace";
   ctx.textAlign = "center";
   ctx.fillText("📤 分享战绩", btn.x + btn.w / 2, btn.y + 28);
+  ctx.restore();
+}
+
+// ---- 武器图鉴 (weapon manual) ------------------------------------------------
+export function bookCharPillRect(i, width) {
+  const w = 150;
+  const gap = 12;
+  const total = 4 * w + 3 * gap;
+  return { x: width / 2 - total / 2 + i * (w + gap), y: 64, w, h: 30 };
+}
+
+export function bookRowRect(i, width, height) {
+  return { x: 20, y: 112 + i * 48, w: 340, h: 42 };
+}
+
+const TIER_FIELD_LABELS = {
+  projectiles: "发数", count: "数量", spread: "散布", pierce: "穿透",
+  dmgMult: "伤害", rateMult: "攻速", size: "尺寸", radius: "半径",
+  spin: "转速", turn: "转向", bombs: "雷数", blast: "爆围",
+  beams: "光束", duration: "持续", width: "宽度", targets: "目标",
+  spikes: "骨刺", boomerangs: "镖数", smashes: "砸击", root: "禁锢",
+  waves: "波数", bones: "骨数", boneSize: "骨长", healChance: "吸血",
+  bonesPer: "每目标", chains: "锁链", lasers: "光线", dashes: "突刺",
+  split: "裂变", ringBones: "环骨", shards: "碎片", rings: "环数",
+  orbs: "光球", ring: "阵径",
+};
+
+function fmtTierVal(key, v) {
+  if (v === undefined) return "—";
+  if (key === "dmgMult" || key === "rateMult") return `×${v}`;
+  if (key === "root" || key === "duration") return `${v}s`;
+  if (key === "healChance") return `${Math.round(v * 100)}%`;
+  return String(v);
+}
+
+// chars: [{name,color}], list: weapon defs of the active char
+export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx) {
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 8, 16, 0.97)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#7ea8ff";
+  ctx.font = "bold 26px monospace";
+  ctx.fillText("⚔ 武 器 图 鉴", width / 2, 40);
+
+  chars.forEach((c, i) => {
+    const r = bookCharPillRect(i, width);
+    const on = i === charIdx;
+    ctx.fillStyle = on ? "#2e2748" : "#161221";
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = on ? c.color : "#3a2f4a";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = on ? c.color : "#8d8798";
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(c.name, r.x + r.w / 2, r.y + 20);
+  });
+
+  // left: weapon list
+  list.forEach((w, i) => {
+    const r = bookRowRect(i, width, height);
+    const on = i === selIdx;
+    ctx.fillStyle = on ? "#2e2748" : "#1d1828";
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = on ? w.color : "#3a2f4a";
+    ctx.lineWidth = on ? 2 : 1;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = w.color;
+    ctx.fillRect(r.x + 10, r.y + r.h / 2 - 6, 12, 12);
+    ctx.textAlign = "left";
+    ctx.fillStyle = on ? "#ffffff" : "#c8c2d4";
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(w.name, r.x + 32, r.y + 19);
+    ctx.fillStyle = "#7d7690";
+    ctx.font = "10px monospace";
+    ctx.fillText(`[${w.tag}]${w.support ? " · 辅助:仅局内获取" : ""}`, r.x + 32, r.y + 34);
+    ctx.textAlign = "center";
+  });
+
+  // right: detail panel
+  const w = list[selIdx];
+  if (w) {
+    const px = 380;
+    const pw = width - px - 20;
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(16, 13, 26, 0.9)";
+    ctx.fillRect(px, 112, pw, height - 178);
+    ctx.strokeStyle = w.color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px, 112, pw, height - 178);
+    ctx.fillStyle = w.color;
+    ctx.font = "bold 20px monospace";
+    ctx.fillText(`${w.name}  [${w.tag}]`, px + 18, 140);
+    ctx.fillStyle = "#c8c2d4";
+    ctx.font = "12px monospace";
+    ctx.fillText(w.desc, px + 18, 162);
+
+    // tier table: rows = fields, cols = Lv1..Lv5 (+ 觉醒 gold column)
+    const keys = [];
+    for (const t of w.tiers) for (const k of Object.keys(t)) if (!keys.includes(k)) keys.push(k);
+    const cols = 5 + (w.evolve ? 1 : 0);
+    const colW = Math.min(74, Math.floor((pw - 90) / cols));
+    const tx = px + 18;
+    let ty = 192;
+    ctx.font = "bold 11px monospace";
+    ctx.fillStyle = "#9a93ab";
+    ctx.fillText("属性", tx, ty);
+    for (let c = 0; c < 5; c++) {
+      ctx.fillStyle = "#9a93ab";
+      ctx.fillText(`Lv${c + 1}`, tx + 64 + c * colW, ty);
+    }
+    if (w.evolve) {
+      ctx.fillStyle = "#ffd166";
+      ctx.fillText("觉醒", tx + 64 + 5 * colW, ty);
+    }
+    ty += 8;
+    ctx.strokeStyle = "#3a2f4a";
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(px + pw - 18, ty);
+    ctx.stroke();
+    ty += 16;
+    ctx.font = "11px monospace";
+    for (const k of keys) {
+      ctx.fillStyle = "#c8c2d4";
+      ctx.fillText(TIER_FIELD_LABELS[k] || k, tx, ty);
+      w.tiers.forEach((t, c) => {
+        ctx.fillStyle = "#e8e2d4";
+        ctx.fillText(fmtTierVal(k, t[k]), tx + 64 + c * colW, ty);
+      });
+      if (w.evolve) {
+        ctx.fillStyle = "#ffd166";
+        ctx.fillText(fmtTierVal(k, w.evolve.tier[k]), tx + 64 + 5 * colW, ty);
+      }
+      ty += 17;
+    }
+
+    // enhance + evolve blurbs
+    ty += 10;
+    ctx.fillStyle = "#c59bff";
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(`专属强化:${w.enhance.desc}`, tx, ty);
+    ty += 17;
+    ctx.fillStyle = "#9a93ab";
+    ctx.font = "11px monospace";
+    ctx.fillText(`叠层:${w.enhance.detail}`, tx, ty);
+    if (w.evolve) {
+      ty += 22;
+      ctx.fillStyle = "#ffd166";
+      ctx.font = "bold 12px monospace";
+      ctx.fillText(`觉醒:「${w.evolve.name}」— ${w.evolve.desc}`, tx, ty);
+      ty += 17;
+      ctx.fillStyle = "#9a93ab";
+      ctx.font = "11px monospace";
+      ctx.fillText("条件:品阶升满 Lv5 且专属强化叠满 3 层 → 选卡出现金色进化卡", tx, ty);
+    }
+  }
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#7d7690";
+  ctx.font = "11px monospace";
+  ctx.fillText("←→ 切换角色 · ↑↓ 选武器 · Esc 返回", width / 2, height - 26);
+  drawBackButton(ctx, width, height);
   ctx.restore();
 }
 
