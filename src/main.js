@@ -1052,6 +1052,9 @@ function shareRun() {
 
 // debug: open the page with ?boss to skip to the boss, ?boss=weak for a frail one
 const DEBUG_BOSS = new URLSearchParams(location.search).get("boss");
+// debug: ?evolve pre-maxes the starting weapon (tier 5 + 3 stacks) so the
+// golden evolution card shows up on the very first choice screen
+const DEBUG_EVOLVE = new URLSearchParams(location.search).get("evolve");
 
 // ---- boss-clear choices ----------------------------------------------------
 
@@ -1248,6 +1251,10 @@ function startGame() {
       }
       enemies.push(new Enemy(type, ex, clamp(ey, WALL_H + 24, HEIGHT - 24), spawner.scale(false)));
     }
+  }
+  if (DEBUG_EVOLVE !== null && player.weapons[0]) {
+    player.weapons[0].tier = 4;
+    player.weapons[0].enhance = 3;
   }
   timeScale = 1;
   state = "playing";
