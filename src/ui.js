@@ -268,6 +268,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
       { label: `❀ 回响 ${echoCount}`, color: "#6bd0ff" },
       { label: `📜 悬赏 ${questDone}`, color: "#ffd166" },
       { label: "⚔ 武器图鉴", color: "#c8c2d4" },
+      { label: "★ 审判排行榜", color: "#ff8a5d" },
     ];
     items.forEach((it, i) => {
       const r = titleMenuItemRect(i, width, height);

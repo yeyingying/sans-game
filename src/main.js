@@ -122,6 +122,7 @@ import {
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
+import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js";
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
@@ -499,7 +500,7 @@ const BGM_TRACKS = {
 };
 // per-character loudness tweak (horror's track is a touch quiet)
 const CHAR_VOL = { horror: 1.4 };
-const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop", "codex", "quests", "echoes", "echoread", "weaponbook", "savecode", "dailyintro"]);
+const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop", "codex", "quests", "echoes", "echoread", "weaponbook", "savecode", "dailyintro", "leaderboard"]);
 let bgmVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem("bgmVolume") ?? "0.5") || 0.5));
 
 // menu theme plays on the title / select screens with a gentle fade
@@ -828,6 +829,7 @@ function settleGame(kind) {
   // the normal best NEVER absorbs endless-inflated scores: once the boss is
   // down, the stage score is frozen at the moment the heart was taken
   lastScore = bossDefeated ? stageClearScore : currentScore();
+  if (bossDefeated) finishRankedRun({ mode: runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
   lastBest = bestScoreOf(player.character);
   newRecord = lastScore > lastBest;
   if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
@@ -1868,6 +1870,7 @@ function applyChoice(i) {
   floatingTexts.push(new FloatingText(player.x, player.y - 26, opt.title, opt.color));
   choiceOptions = [];
   state = "playing";
+  beginRankedRun({ character: player.character, difficulty: getDifficulty().id, silence: activeContract?.id === "silence", debug: DEBUG_BOSS !== null || dailyMode }, () => ({ elapsed, kills: player.kills, rounds: roundsCleared }));
 }
 
 // ---- input ---------------------------------------------------------------
@@ -1904,10 +1907,11 @@ function handleCanvasTap(pos) {
   }
   if (state === "title") {
     if (titleMenuOpen) {
-      const targets = ["shop", "codex", "echoes", "quests", "weaponbook", "savecode"];
+      const targets = ["shop", "codex", "echoes", "quests", "weaponbook", "leaderboard"];
       for (let i = 0; i < targets.length; i++) {
         if (inRect(pos, titleMenuItemRect(i, WIDTH, HEIGHT))) {
           state = targets[i];
+          if (state === "leaderboard") loadLeaderboard();
           titleMenuOpen = false;
           sfxClick();
           return;
@@ -2282,6 +2286,10 @@ window.addEventListener("keydown", (e) => {
     if (k === " " || k === "enter") state = "charselect";
     return;
   }
+  if (state === "leaderboard") {
+    if (leaderboardTap(pos.x, pos.y, WIDTH, HEIGHT) === "back") state = "title";
+    return;
+  }
   if (state === "credits") {
     if (k === " " || k === "enter" || k === "escape") state = "title";
     return;
@@ -2382,6 +2390,8 @@ window.addEventListener("keydown", (e) => {
     } else if (k === "escape") state = "charselect";
   } else if (state === "choice") {
     if (k >= "1" && k <= "3") applyChoice(Number(k) - 1);
+  } else if (state === "leaderboard" && k === "escape") {
+    state = "title";
   } else if (state === "gameover" && k === "escape") {
     goTitle();
   } else if (state === "gameover" && (k === " " || k === "enter")) {
@@ -5039,6 +5049,8 @@ function draw() {
       };
     });
     drawCodexScreen(ctx, WIDTH, HEIGHT, monsters, st.bossKills, weaponRows, codexCompletion(), codexSelected);
+  } else if (state === "leaderboard") {
+    drawLeaderboard(ctx, WIDTH, HEIGHT);
   } else if (state === "charselect") {
     drawCharSelect(
       ctx,
@@ -5654,3 +5666,4 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+initLeaderboard();
