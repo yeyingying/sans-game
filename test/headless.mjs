@@ -178,7 +178,8 @@ function run(seconds, onFrame) {
   check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 210);
   const p = { atk: 6, maxHp: 100, hp: 100, moveSpeed: 165, magnetRadius: 90, dmgAmp: 1 };
   M.applyMetaUpgrades(p);
-  check("power upgrade is multiplicative dmgAmp", Math.abs(p.dmgAmp - 1.06) < 1e-9, `amp=${p.dmgAmp}`);
+  check("power = independent meta multiplier", Math.abs(p.metaDmg - 1.06) < 1e-9, `metaDmg=${p.metaDmg}`);
+  check("hp shop is percentage bulk", p.hpAmp === 1 && p.maxHp === 100); // hp not bought yet in this sequence
   check("sans always unlocked", M.isCharUnlocked("sans"));
   check("ukb locked at zero kills", !M.isCharUnlocked("ukb"));
   check("grandfathered by best score", M.isCharUnlocked("ukb", 500));

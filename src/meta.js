@@ -42,8 +42,8 @@ export function spendCoins(n) {
 
 // cost = base * (level+1); apply() runs once at the start of every run
 export const UPGRADES = [
-  { id: "atk", name: "力量刻印", desc: "最终伤害 +6% / 级(全程生效)", max: 5, base: 90, color: "#ff6b6b" },
-  { id: "hp", name: "决心之心", desc: "初始生命上限 +35 / 级", max: 5, base: 75, color: "#ff8fc7" },
+  { id: "atk", name: "力量刻印", desc: "最终伤害 ×1.06 / 级(独立乘区,永不稀释)", max: 5, base: 90, color: "#ff6b6b" },
+  { id: "hp", name: "决心之心", desc: "生命上限 +7% / 级(升级成长同享)", max: 5, base: 75, color: "#ff8fc7" },
   { id: "speed", name: "疾行之靴", desc: "初始移速 +8 / 级", max: 3, base: 110, color: "#8fd6ff" },
   { id: "magnet", name: "引魂磁石", desc: "初始磁吸范围 +25 / 级", max: 3, base: 90, color: "#c59bff" },
   { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", max: 5, base: 160, color: "#ffd166" },
@@ -92,10 +92,12 @@ export function buyUpgrade(id) {
 
 // starting-stat bonuses, applied right after the Player is created
 export function applyMetaUpgrades(player) {
-  // 力量刻印 is multiplicative (final-damage amp): wall-breaking power must
-  // stay relevant mid/late run, not fade like a flat starting bonus
-  player.dmgAmp = (player.dmgAmp || 1) + 0.06 * upgradeLevel("atk");
-  player.maxHp += 35 * upgradeLevel("hp");
+  // 力量刻印: an INDEPENDENT multiplier lane (metaDmg), applied inside
+  // weaponDmg alongside in-run amp cards — its relative value never dilutes
+  player.metaDmg = Math.pow(1.06, upgradeLevel("atk"));
+  // 决心之心: percentage bulk that also scales every level-up hp gain
+  player.hpAmp = 1 + 0.07 * upgradeLevel("hp");
+  player.maxHp = Math.round(player.maxHp * player.hpAmp);
   player.hp = player.maxHp;
   player.moveSpeed += 8 * upgradeLevel("speed");
   player.magnetRadius += 25 * upgradeLevel("magnet");

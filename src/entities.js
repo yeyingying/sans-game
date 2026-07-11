@@ -86,8 +86,9 @@ export class Player {
       this.xp -= this.xpToNext;
       this.level += 1;
       this.xpToNext = Math.round(this.xpToNext * 1.22 + 6);
-      this.maxHp += 5;
-      this.hp = Math.min(this.maxHp, this.hp + 5);
+      const hpGain = Math.round(5 * (this.hpAmp || 1)); // 决心之心 scales growth
+      this.maxHp += hpGain;
+      this.hp = Math.min(this.maxHp, this.hp + hpGain);
       this.atk += 1;
       levels += 1;
     }

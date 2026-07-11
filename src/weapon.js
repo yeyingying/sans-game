@@ -792,7 +792,9 @@ export function weaponSummary(player, sep = " · ") {
 
 // all weapon damage funnels through this so 增伤 cards affect everything
 export function weaponDmg(player, mult) {
-  return Math.max(1, Math.round(player.atk * mult * (player.dmgAmp || 1)));
+  // the single damage funnel: in-run amp cards AND the shop's independent
+  // meta multiplier both live here so nothing ever bypasses either
+  return Math.max(1, Math.round(player.atk * mult * (player.dmgAmp || 1) * (player.metaDmg || 1)));
 }
 
 export function findNearestEnemy(x, y, range, enemies) {
