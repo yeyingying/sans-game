@@ -64,10 +64,12 @@ const POWER_GATED = new Set(["atk", "hp"]);
 export function upgradeGate(id) {
   if (!POWER_GATED.has(id)) return null;
   const lvl = upgradeLevel(id);
-  const needClear = lvl - 1; // buying Lv3 (lvl=2 now) needs diffCleared>=1 …
-  if (needClear >= 1 && stats.diffCleared < needClear) {
-    return ["狂暴", "地狱", "屠杀"][needClear - 1] + "难度通关后解锁";
-  }
+  // gates lag ONE tier behind the wall: the power that helps you beat a
+  // difficulty is always grindable while you are stuck on it, but power
+  // two tiers ahead can never be bought (2026-07-12 user design call)
+  if (lvl >= 2 && stats.bossKills < 1) return "通关普通难度后解锁";
+  if (lvl >= 3 && stats.diffCleared < 1) return "狂暴难度通关后解锁";
+  if (lvl >= 4 && stats.diffCleared < 2) return "地狱难度通关后解锁";
   return null;
 }
 

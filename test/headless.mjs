@@ -203,15 +203,16 @@ function run(seconds, onFrame) {
   check("difficulty multipliers wired", M.getDifficulty().hpMult === 2.8 && M.getDifficulty().coinMult === 1.6);
   check("cannot set locked difficulty", !M.setDifficulty(2));
   M.setDifficulty(0); // restore for the game-flow run below
-  // 力量门槛: Lv3+ power upgrades demand difficulty clears, money alone fails
+  // 力量门槛滞后一级: the tier that beats your current wall is always
+  // grindable; two tiers ahead never is
   M.addCoins(2000);
   M.buyUpgrade("atk"); // -> Lv2 (Lv1 bought earlier)
-  check("power Lv3 gated behind 狂暴 clear", M.upgradeGate("atk") !== null && !M.buyUpgrade("atk"));
+  check("Lv3 open after normal clear (grind path)", M.upgradeGate("atk") === null && M.buyUpgrade("atk") && M.upgradeLevel("atk") === 3);
+  check("Lv4 gated behind 狂暴 clear", M.upgradeGate("atk") !== null && !M.buyUpgrade("atk"));
   check("QoL upgrades never gated", M.upgradeGate("magnet") === null);
   M.recordRun({ bossKilled: true, difficulty: 1 }); // 狂暴 cleared
-  check("gate lifts after the clear", M.upgradeGate("atk") === null && M.buyUpgrade("atk") && M.upgradeLevel("atk") === 3);
-  check("next gate is 地狱", M.upgradeGate("atk") !== null);
-  M.spendCoins(1460); // burn the test funds: the 屠杀 wallet-threshold checks below assume poverty
+  check("Lv4 opens, Lv5 still gated", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 4 && M.upgradeGate("atk") !== null);
+  M.spendCoins(2000 - 180 - 360 - 720); // burn surplus: 屠杀-threshold checks below assume poverty
   // new shop items: 行前整备 (start gear) and 重燃决心 (revive)
   M.addCoins(1400); // gear 320 + revives 3×300
   check("gear upgrade buyable", M.buyUpgrade("gear") && M.upgradeLevel("gear") === 1);
