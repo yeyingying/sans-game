@@ -224,9 +224,9 @@ export const ELITE_MONSTERS = [
     lore: "由六张面孔、骨头与脑状雾团组成的融合怪。它通过电话杂音说话，并邀请听见的人加入它们。",
     skill: "故障增殖：细小噪点在玩家周围生成，随后膨胀成五张扭曲笑脸并同时爆裂。",
     color: "#a8f0d0",
-    minDifficulty: 3,
-    debutTime: 270,
-    unlock: "屠杀难度 4:00 后出现",
+    minDifficulty: 2,
+    debutTime: 225,
+    unlock: "地狱 3:45 / 屠杀 3:15 后出现",
     skillId: "memoryFaces",
   },
   {
@@ -240,8 +240,8 @@ export const ELITE_MONSTERS = [
     skill: "Everyman 蝶群：无头人影横穿战场，追踪头颅在预定位置聚拢，右侧留有撤离通道。",
     color: "#e8d8ff",
     minDifficulty: 3,
-    debutTime: 300,
-    unlock: "屠杀难度 4:30 后出现",
+    debutTime: 270,
+    unlock: "屠杀难度 4:00 后出现",
     skillId: "everymanFlock",
   },
 ];
@@ -344,7 +344,7 @@ export const ROUND_CHAMPIONS = [
     lore: "真正的身体为聚光灯而生。对他而言，攻击、舞步与收视率从来都是同一场演出。",
     skill: "黄金舞台：九宫格聚光灯交替点亮，踩进亮起的危险格会遭到舞台爆破。",
     color: "#ff78b8",
-    unlock: "无尽审判第 6 轮首领",
+    unlock: "无尽审判第 8 轮首领",
     skillId: "ratingStage",
     hpFactor: 2.35,
     dmgFactor: 1.15,
@@ -361,7 +361,7 @@ export const ROUND_CHAMPIONS = [
     lore: "在神秘门外等待足够久才会现身。它自信得近乎傲慢，连自己的倒影都会令它嫉妒。",
     skill: "巨星爆场：三重星环轮流点亮危险带，中央巨星还会间歇反转近身安全区。",
     color: "#ffe36b",
-    unlock: "无尽审判第 7 轮首领",
+    unlock: "无尽审判第 9 轮首领",
     skillId: "starBurst",
     hpFactor: 2.55,
     dmgFactor: 1.18,
@@ -378,7 +378,7 @@ export const ROUND_CHAMPIONS = [
     lore: "它并不想伤害任何人，只是尾巴、废纸和涂鸦总在最糟糕的时机失去控制。",
     skill: "蓝橙速写：蓝色尾击要求静止，橙色尾击要求移动，同时避开环形涂鸦爆点。",
     color: "#7fb7ff",
-    unlock: "无尽审判第 8 轮首领",
+    unlock: "无尽审判第 10 轮首领",
     skillId: "tailSketch",
     hpFactor: 2.8,
     dmgFactor: 1.2,
@@ -395,10 +395,10 @@ export const ROUND_CHAMPIONS = [
     lore: "数只雪镇犬类怪物融合后的形态。它仍渴望呼唤、玩耍和抚摸，只是兴奋时会沿墙疯狂冲刺。",
     skill: "火箭犬群：三条平行冲锋线轮流点亮，融合犬沿危险线高速贯穿并留下反向箭雨。",
     color: "#d8f3ff",
-    unlock: "无尽审判第 9 轮首领",
+    unlock: "无尽审判第 6 轮首领",
     skillId: "rocketPack",
-    hpFactor: 3.05,
-    dmgFactor: 1.24,
+    hpFactor: 2.3,
+    dmgFactor: 1.15,
   },
   {
     key: "champion_lemon_bread",
@@ -412,10 +412,10 @@ export const ROUND_CHAMPIONS = [
     lore: "由害羞塞壬的姐姐、亚伦与模具怪等怪物融合而成。巨口闭合前，整片战场都会变成它的牙床。",
     skill: "巨齿牢笼：上下牙列同时咬合，只留下提前标出的单一横向安全带。",
     color: "#fff1a8",
-    unlock: "无尽审判第 10 轮首领",
+    unlock: "无尽审判第 7 轮首领",
     skillId: "toothCage",
-    hpFactor: 3.3,
-    dmgFactor: 1.28,
+    hpFactor: 2.5,
+    dmgFactor: 1.18,
   },
 ];
 
@@ -453,5 +453,6 @@ export function codexKeyForEnemy(enemy) {
 }
 
 export function championForRound(round) {
-  return ROUND_CHAMPIONS[(Math.max(1, round) - 1) % ROUND_CHAMPIONS.length];
+  const rotation = [0, 1, 2, 3, 4, 8, 9, 5, 6, 7];
+  return ROUND_CHAMPIONS[rotation[(Math.max(1, round) - 1) % rotation.length]];
 }
