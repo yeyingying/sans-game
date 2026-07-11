@@ -114,6 +114,7 @@ function run(seconds, onFrame) {
     frame();
     if (dbg().state === "choice") key("1");
     if (dbg().state === "chest") { key("Enter"); key("Enter"); }
+    if (dbg().state === "chapter") key("Enter");
     if (onFrame && onFrame(dbg())) return;
   }
 }
@@ -562,6 +563,11 @@ if (MODE === "normal") {
   check("bossclear: safe checkpoint written", !!storage.safeRunCheckpoint_v1);
   stageScores.push(d.stageScore);
   tap(350, 371); // “带着战利品离开”
+  d = dbg();
+  // 审判纪元: the first victory ever opens chapter ch1 before the results
+  check("A: first victory opens chapter ch1", d.state === "chapter" && d.chapter === "ch1", JSON.stringify({ state: d.state, chapter: d.chapter }));
+  for (let i = 0; i < 40 && dbg().state === "chapter"; i++) key("Enter"); // type out + advance every line
+  check("A: chapter marked seen", JSON.parse(storage.metaChapters || "{}").ch1 === true, storage.metaChapters);
   d = dbg();
   check("A: victory settlement", d.state === "gameover" && d.outcome === "victory", d.outcome);
   check("A: no death cause on victory", d.deathBy === null);

@@ -138,6 +138,10 @@ import {
   narrativeDeathStreak,
   recordNarrativeDeath,
   resetNarrativeDeathStreak,
+  unseenChapters,
+  markChapterSeen,
+  pickDogLine,
+  pickFlowerLine,
 } from "./narrative.js";
 import {
   drawHud,
@@ -421,6 +425,11 @@ let loveVerdict = null; // {lines} LOVE judgment for the settlement card
 let savepointNote = null; // {text, t} savepoint aphorism typed out at run start
 let bark = null; // {text, t} one-liner bubble above the player's head
 let barkFired = {}; // per-run: each bark event speaks at most once
+let chapterQueue = []; // 审判纪元 chapters earned this settlement, story order
+let chapterShow = null; // {chapter, line, t} the cutscene being typed out
+let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
+let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
+let visitorRolls = { dog: false, flower: false }; // one visit of each per run
 
 // death lines fall back to the base monster's pool for plain elites; named
 // elites and champions get the generic elite pool instead
@@ -694,6 +703,11 @@ function reset(weaponId) {
   savepointNote = null;
   bark = null;
   barkFired = {};
+  chapterQueue = [];
+  chapterShow = null;
+  dogVisit = null;
+  flowerVisit = null;
+  visitorRolls = { dog: false, flower: false };
   nextWarnBeep = bossWarnAt();
 }
 
@@ -867,6 +881,43 @@ function settleGame(kind) {
   // 角色残响: this timeline's private echoes open with mastery
   if (lvlAfter >= 1) unlockEchoToast(player.character + "1");
   if (lvlAfter >= 3) unlockEchoToast(player.character + "2");
+  // 审判纪元: first-time milestones open a story chapter before the results
+  chapterQueue = unseenChapters({
+    victory: runOutcome === "victory",
+    difficultyId: getDifficulty().id,
+    codexPct: codexCompletion(),
+  });
+  if (chapterQueue.length) advanceChapterQueue();
+}
+
+// pull the next due chapter into the cutscene state (or fall back to gameover)
+function advanceChapterQueue() {
+  const chapter = chapterQueue.shift();
+  if (!chapter) {
+    state = "gameover";
+    return;
+  }
+  markChapterSeen(chapter.id);
+  chapterShow = { chapter, line: 0, t: 0 };
+  state = "chapter";
+}
+
+// tap/enter on the chapter screen: finish the typing line, then step onward
+function chapterAdvance() {
+  if (!chapterShow) return;
+  const text = chapterShow.chapter.lines[chapterShow.line];
+  if (chapterShow.t * 20 < text.length) {
+    chapterShow.t = text.length / 20; // impatient tap completes the line
+    return;
+  }
+  sfxClick();
+  if (chapterShow.line < chapterShow.chapter.lines.length - 1) {
+    chapterShow.line += 1;
+    chapterShow.t = 0;
+  } else {
+    chapterShow = null;
+    advanceChapterQueue();
+  }
 }
 // ---- 存档码: manual cross-device save transfer (no server needed) ----------
 function exportSaveCode() {
@@ -2108,6 +2159,8 @@ function handleCanvasTap(pos) {
         return;
       }
     }
+  } else if (state === "chapter") {
+    chapterAdvance();
   } else if (state === "gameover") {
     if (inRect(pos, homeButtonRect(WIDTH, HEIGHT))) {
       sfxClick();
@@ -2268,6 +2321,8 @@ window.addEventListener("keydown", (e) => {
     goTitle();
   } else if (state === "gameover" && (k === " " || k === "enter")) {
     toCharSelect();
+  } else if (state === "chapter" && (k === " " || k === "enter" || k === "escape")) {
+    chapterAdvance();
   }
 });
 
@@ -2795,6 +2850,47 @@ function update(dt) {
     savepointNote.t += dt; // typewriter reveal + hold, then let the run breathe
     if (savepointNote.t > savepointNote.text.length / 24 + 4.2) savepointNote = null;
   }
+  // 访客事件: after the opening minute, rare one-time drop-ins (never during
+  // the boss, never in ?boss debug runs so the test routes stay deterministic)
+  if (state === "playing" && !DEBUG_BOSS && !bossFight && elapsed > 60) {
+    if (!visitorRolls.dog && Math.random() < dt / 150) {
+      visitorRolls.dog = true;
+      dogVisit = {
+        x: camX - 60,
+        y: WALL_H + 60 + Math.random() * (HEIGHT - WALL_H - 120),
+        vx: 230,
+        coined: false,
+      };
+      candyBanner = { text: pickDogLine(), t: 3.4 };
+      sfxCandy();
+    }
+    if (!visitorRolls.flower && Math.random() < dt / 130) {
+      visitorRolls.flower = true;
+      flowerVisit = {
+        x: clamp(player.x + (Math.random() - 0.5) * 560, camX + 40, camX + WIDTH - 40),
+        y: clamp(player.y + (Math.random() - 0.5) * 360, WALL_H + 50, HEIGHT - 40),
+        t: 0,
+        line: pickFlowerLine(),
+        heard: false,
+      };
+    }
+  }
+  if (dogVisit) {
+    dogVisit.x += dogVisit.vx * dt;
+    if (!dogVisit.coined && dogVisit.x > player.x) {
+      dogVisit.coined = true; // the dog's apology: one coin, dropped mid-cross
+      pickups.push(new Pickup(dogVisit.x, dogVisit.y, "coin", { value: 1 }));
+    }
+    if (dogVisit.x > camX + WIDTH + 80) dogVisit = null;
+  }
+  if (flowerVisit) {
+    flowerVisit.t += dt;
+    if (!flowerVisit.heard && Math.hypot(player.x - flowerVisit.x, player.y - flowerVisit.y) < 84) {
+      flowerVisit.heard = true;
+      sfxType();
+    }
+    if (flowerVisit.t > 16) flowerVisit = null;
+  }
 
   // onboarding tips: one at a time, each lingers ~9s
   if (!activeTip && tipQueue.length) activeTip = tipQueue.shift();
@@ -3197,7 +3293,7 @@ function update(dt) {
 
 // one giant hall column: only its lower half is visible — the top runs
 // off-screen so the player never sees a full column
-function drawColumn(x, baseY) {
+function drawColumn(x, baseY, wear = 0, seed = 0) {
   const w = 54;
   ctx.strokeStyle = "rgba(150, 168, 214, 0.42)";
   ctx.lineWidth = 2;
@@ -3213,6 +3309,32 @@ function drawColumn(x, baseY) {
   // base blocks
   ctx.strokeRect(x - w / 2 - 7, baseY - 18, w + 14, 8);
   ctx.strokeRect(x - w / 2 - 13, baseY - 10, w + 26, 10);
+  // 环境演变: each conquered difficulty leaves one more crack in the hall —
+  // deterministic per column so the damage never flickers between frames
+  if (wear > 0) {
+    ctx.strokeStyle = "rgba(90, 80, 120, 0.5)";
+    ctx.lineWidth = 1.5;
+    for (let c = 0; c < wear; c++) {
+      const h1 = Math.abs(Math.sin(seed * 12.9898 + c * 78.233)) % 1;
+      const h2 = Math.abs(Math.sin(seed * 39.425 + c * 11.135)) % 1;
+      let cx = x - w / 2 + 6 + h1 * (w - 12);
+      let cy = 4 + h2 * (baseY - 60);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      for (let s = 0; s < 4; s++) {
+        cx += (Math.sin(seed + c * 3 + s * 7) > 0 ? 1 : -1) * (3 + ((h1 * 37 + s * 13) % 6));
+        cy += 8 + ((h2 * 29 + s * 17) % 8);
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+// 金色之花 wall bloom: tinted once, cached (owners of the hidden cosmetic)
+let GOLD_BLOOM = null;
+function goldenBloomSprite() {
+  return (GOLD_BLOOM ||= tintSprite(ECHO_BLOOM, "#ffd93d", 0.55));
 }
 
 function drawBackground() {
@@ -3224,11 +3346,30 @@ function drawBackground() {
   ctx.fillRect(0, 0, WIDTH, WALL_H);
 
   // giant columns move in lockstep with the world (no parallax)
+  // 环境演变: boss kills crack the columns deeper with each conquered
+  // difficulty; unlocked echoes bloom as flowers along the wall base
+  const st = getStats();
+  const wear = st.bossKills > 0 ? 1 + Math.min(3, Math.max(0, st.diffCleared)) : 0;
+  const bloomCount = unlockedAllEchoCount();
+  const golden = cosmeticOwned("goldenflower");
   const spacing = 240;
   const off = camX;
   const first = Math.floor((off - 120) / spacing) * spacing;
   for (let wx = first; wx < off + WIDTH + 120; wx += spacing) {
-    drawColumn(wx - off, WALL_H);
+    drawColumn(wx - off, WALL_H, wear, wx / spacing);
+    // one flower slot between each pair of columns, filled as echoes unlock
+    const slot = (((wx / spacing) % 18) + 18) % 18;
+    if (slot < bloomCount) {
+      const sway = Math.sin(elapsed * 1.6 + slot) * 0.05;
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalAlpha = 0.85;
+      ctx.translate(wx - off + spacing / 2, WALL_H - 2);
+      ctx.rotate(sway);
+      const spr = golden && slot === 0 ? goldenBloomSprite() : ECHO_BLOOM;
+      ctx.drawImage(spr, -10, -(ECHO_BLOOM.height / ECHO_BLOOM.width) * 20, 20, (ECHO_BLOOM.height / ECHO_BLOOM.width) * 20);
+      ctx.restore();
+    }
   }
   // wall edge the play area stops at
   ctx.strokeStyle = "rgba(150, 168, 214, 0.5)";
@@ -4193,6 +4334,57 @@ function draw() {
   }
   ctx.textAlign = "left";
 
+  // 访客: the talking echo flower, swaying; whispers once the player leans in
+  if (flowerVisit && (state === "playing" || state === "choice")) {
+    const fv = flowerVisit;
+    const fade = Math.min(1, fv.t / 0.5, Math.max(0, (16 - fv.t) / 0.8));
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(fv.x, fv.y);
+    ctx.rotate(Math.sin(fv.t * 2.2) * 0.06);
+    ctx.drawImage(ECHO_BLOOM, -16, -30, 32, (ECHO_BLOOM.height / ECHO_BLOOM.width) * 32);
+    ctx.restore();
+    if (fv.heard) {
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.textAlign = "center";
+      ctx.font = "12px monospace";
+      const fw = ctx.measureText(fv.line).width + 16;
+      const fx = clamp(fv.x, camX + fw / 2 + 8, camX + WIDTH - fw / 2 - 8);
+      const fy = Math.max(fv.y - 46, WALL_H + 26);
+      ctx.fillStyle = "rgba(10, 8, 16, 0.82)";
+      ctx.fillRect(fx - fw / 2, fy - 13, fw, 20);
+      ctx.strokeStyle = "#6bd0ff";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(fx - fw / 2, fy - 13, fw, 20);
+      ctx.fillStyle = "#bfe8ff";
+      ctx.fillText(fv.line, fx, fy + 2);
+      ctx.restore();
+      ctx.textAlign = "left";
+    }
+  }
+
+  // 访客: the annoying dog trots across the battlefield, untouchable
+  if (dogVisit && (state === "playing" || state === "choice")) {
+    const d = dogVisit;
+    const ph = Math.floor(elapsed * 8) % 2; // two-frame walk
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(d.x, d.y + Math.sin(elapsed * 10) * 1.5);
+    ctx.fillStyle = "#f4f4f4";
+    ctx.fillRect(-10, -6, 15, 9); // body
+    ctx.fillRect(3, -12, 9, 9); // head
+    ctx.fillRect(4, -15, 3, 4); // ear
+    ctx.fillRect(-14, -9 + (ph ? 1 : 0), 4, 4); // wagging tail
+    ctx.fillRect(ph ? -8 : -5, 3, 3, 4); // legs
+    ctx.fillRect(ph ? 0 : 3, 3, 3, 4);
+    ctx.fillStyle = "#1a1626";
+    ctx.fillRect(8, -10, 2, 2); // eye
+    ctx.fillRect(11, -7, 2, 2); // nose
+    ctx.restore();
+  }
+
   // character bark: a one-liner speech bubble hovering over the player
   if (bark && (state === "playing" || state === "choice")) {
     const a = Math.min(1, bark.t / 0.4);
@@ -4201,7 +4393,8 @@ function draw() {
     ctx.textAlign = "center";
     ctx.font = "bold 13px monospace";
     const bw = ctx.measureText(bark.text).width + 18;
-    const bx = clamp(player.x, bw / 2 + 8, WIDTH - bw / 2 - 8);
+    // world space here: clamp against the camera window, not the raw canvas
+    const bx = clamp(player.x, camX + bw / 2 + 8, camX + WIDTH - bw / 2 - 8);
     const by = Math.max(player.y - 64, WALL_H + 30);
     ctx.fillStyle = "rgba(10, 8, 16, 0.82)";
     ctx.fillRect(bx - bw / 2, by - 15, bw, 22);
@@ -4799,6 +4992,29 @@ function draw() {
     drawBossClearScreen(ctx, WIDTH, HEIGHT, bossClearChoice);
   } else if (state === "roundclear") {
     drawRoundClearScreen(ctx, WIDTH, HEIGHT, endlessRound, bossClearChoice, roundPendingCoins);
+  } else if (state === "chapter" && chapterShow) {
+    // 审判纪元 chapter cutscene: black room, gold title, lines typed in turn
+    ctx.fillStyle = "#050308";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "bold 24px monospace";
+    const cLines = chapterShow.chapter.lines;
+    const y0 = HEIGHT / 2 - 30 - cLines.length * 17;
+    ctx.fillText(chapterShow.chapter.title, WIDTH / 2, y0 - 44);
+    ctx.font = "16px monospace";
+    for (let i = 0; i <= chapterShow.line; i++) {
+      const full = cLines[i];
+      const text = i < chapterShow.line ? full : full.slice(0, Math.floor(chapterShow.t * 20));
+      ctx.fillStyle = i === chapterShow.line ? "#f2ead8" : "#9a93ab";
+      ctx.fillText(text, WIDTH / 2, y0 + i * 34);
+    }
+    if (chapterShow.t * 20 >= cLines[chapterShow.line].length && Math.floor(chapterShow.t * 2) % 2 === 0) {
+      ctx.fillStyle = "#8fa8c9";
+      ctx.font = "13px monospace";
+      ctx.fillText("▼ 点击继续", WIDTH / 2, HEIGHT - 60);
+    }
+    ctx.textAlign = "left";
   } else if (state === "gameover") {
     const title =
       runOutcome === "victory"
@@ -4936,6 +5152,8 @@ window.__dbg = () => ({
   loveVerdict: loveVerdict ? loveVerdict.lines : null,
   savepoint: savepointNote ? savepointNote.text : null,
   bark: bark ? bark.text : null,
+  chapter: chapterShow ? chapterShow.chapter.id : null,
+  chaptersQueued: chapterQueue.length,
   warn: bossWarnActive(),
   choices: choiceOptions.map((o) => o.title),
   runCoins,
@@ -4994,6 +5212,7 @@ function loop(now) {
   }
 
   if (deathShatter && state === "gameover") deathShatter.t += dt;
+  if (chapterShow && state === "chapter") chapterShow.t += dt;
   if (state === "chest" && chestCeremony) {
     const cc = chestCeremony;
     cc.t += dt;

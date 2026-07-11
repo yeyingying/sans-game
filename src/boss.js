@@ -5,6 +5,7 @@
 // weapons target and damage it; everything else is driven from here.
 import { PROJECTILE_BONE_RED, GB_IDLE, GB_FIRE, WALK_SETS, BTN_FIGHT, BTN_MERCY } from "./sprites.js";
 import { circleHit } from "./utils.js";
+import { bossLineFor } from "./narrative.js";
 
 export const BOSS_APPEAR_TIME = 300; // 5 minutes
 const BOSS_HP = 50000; // phase 1
@@ -255,6 +256,12 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       const { player } = ctx;
       if (this.phase === 1) {
         this.p1Time = (this.p1Time || 0) + dt;
+        // the boss addresses this timeline's sans once the entry banner clears
+        if (!this._charIntroSaid && this.p1Time > 3.4) {
+          this._charIntroSaid = true;
+          const line = bossLineFor(this.character, "intro");
+          if (line) this.subtitleShow(line, 3.5);
+        }
         // adaptive phase 1 (user request 2026-07-10): a few seconds in, resize
         // the HP pool to the player's REAL dps so the phase lasts ~45s — the
         // boss must be beatable but a struggle. Weak debug bosses skip this.
@@ -485,6 +492,9 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         if (this.t > 1.0) {
           this.step = 2;
           this.t = 0;
+          // the struggle against mercy, voiced per character
+          const line = bossLineFor(this.character, "mercy");
+          if (line) this.subtitleShow(line, 2.5);
         }
       } else if (this.step === 2) {
         this.shake = Math.sin(this.t * 40) * 5 * Math.max(0, 1 - this.t / 0.6);
@@ -526,6 +536,8 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           this.homeX = ctx.camX + this.WIDTH * 0.72;
           this.homeY = HEIGHT_MID(this);
           this.startFight(2);
+          const line = bossLineFor(this.character, "p2");
+          if (line) this.subtitleShow(line, 3);
         }
       }
     },
@@ -536,6 +548,8 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       this.t = 0;
       boss.invulnTimer = 999;
       this.hazards.length = 0;
+      const line = bossLineFor(this.character, "death");
+      if (line) this.subtitleShow(line, 2.5);
       this.dust = [];
       for (let i = 0; i < 90; i++) {
         this.dust.push({

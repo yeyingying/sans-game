@@ -1,6 +1,8 @@
-// 叙事第一批:开局存档点箴言 / 角色局内絮语 bark / 死亡台词按凶手 /
-// 结算 LOVE 审判评语。纯文案与选取逻辑,不碰战斗状态;死亡计数自己持久化。
-// 文案已经用户过目批准(2026-07-12 第一批,148条),改动措辞需重新过目。
+// 叙事系统:开局存档点箴言 / 角色局内絮语 bark / 死亡台词按凶手 /
+// 结算 LOVE 审判评语 / Boss对话按角色 / 审判纪元章节 / 访客事件台词。
+// 纯文案与选取逻辑,不碰战斗状态;死亡计数与章节进度自己持久化。
+// 第一批148条已用户过目批准;第二批(Boss对话/章节/访客/网感扩充池)
+// 按用户"你设计的部分都可以做完+结合B站UT社群网感"授权实现。改措辞需过用户。
 
 // ---- 开局存档点箴言 ---------------------------------------------------------
 
@@ -99,6 +101,17 @@ const SAVE_ECHO_RICH = [
   "* 你听过太多故事,多到足以写完自己的这一篇。你充满了决心。",
 ];
 
+// B站UT社群网感池:弹幕/骨傲天/初见杀/热狗摊这一挂,低权重混入通用池,
+// 玩梗但不抢UT的庄重感
+const SAVE_MEME = [
+  "* 弹幕在很远的地方飘过:「爷的青春回来了」。你不知道那是什么,但你充满了决心。",
+  "* 有个声音押了 10 金币赌你活不过五分钟。你充满了决心,顺便想赢下这一注。",
+  "* 骨傲天的传说,今晚继续更新。你充满了决心。",
+  "* 你听见有个声音喊「前方高能」。前方确实高能。你充满了决心。",
+  "* 热狗摊今天休息。那就先上班吧。你充满了决心。",
+  "* 初见杀只对初见有效。而你,已经不是初见了。你充满了决心。",
+];
+
 function pickFrom(pool) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -112,6 +125,7 @@ export function pickSavepointQuote(ctx = {}) {
     [SAVE_GENERIC, 6],
     [SAVE_CHAR[ctx.charId] || [], 3],
     [SAVE_DIFFICULTY[ctx.difficultyId] || SAVE_DIFFICULTY[0], 3],
+    [SAVE_MEME, 2.5],
   ];
   if (ctx.deathStreak >= 3) pools.push([SAVE_DEATH_STREAK, 6]);
   if (ctx.isDaily) pools.push([SAVE_DAILY, 4]);
@@ -202,6 +216,7 @@ const DEATH_BY_KILLER = {
     "* 死于杰瑞。这件事会跟着你一辈子。",
     "* 杰瑞。居然是杰瑞。",
     "* 大家都嫌弃它。但今晚,它赢了。",
+    "* 死于杰瑞。典中典,建议裱起来。",
   ],
   red: [
     "* 别找茬。你偏偏找了。",
@@ -228,6 +243,8 @@ const DEATH_BY_KILLER = {
     "* 它替某个更高的东西看了你一眼。然后你就倒下了。",
     "* 在那双白色的眼眶里,你看见了自己的结局。",
     "* 别难过。连它自己,也只是被选中的傀儡。",
+    "* 你尝到苦头了。正如他所承诺的那样。",
+    "* GET DUNKED ON——不,他现在已经不说这句了。",
   ],
   hazard: [
     "* 红圈亮起的时候,那里就不再属于你。",
@@ -238,6 +255,7 @@ const DEATH_BY_KILLER = {
     "* 它的名字会被记进档案。你的灰尘不会。",
     "* 强者对强者。今晚它更强。",
     "* 金色的光环还在闪。像是在敬礼。",
+    "* 初见杀。下次,你就知道背板了。",
   ],
 };
 
@@ -348,4 +366,160 @@ export function resetNarrativeDeathStreak() {
   try {
     localStorage.setItem(K_STREAK, "0");
   } catch {}
+}
+
+// ---- L2: Boss对话按角色×时刻(intro/mercy/p2/death,boss.js 字幕位) --------
+
+const BOSS_LINES = {
+  sans: {
+    intro: "* 「今天天气真好。适合像你这样的家伙……化成灰。」",
+    mercy: "* 「别用那种眼神看我。它不让我停下来。」",
+    p2: "* 「接下来,你会过得非常、非常糟糕。」",
+    death: "* 「呵……原来被闪避打败,是这种感觉。」",
+  },
+  ukb: {
+    intro: "* 「业报找上门了?不。这一次,我就是业报。」",
+    mercy: "* 「天平不许我收下这份仁慈。」",
+    p2: "* 「清算,翻到第二页。」",
+    death: "* 「账……终于平了。」",
+  },
+  horror: {
+    intro: "* 「你也饿了很多年吧。我闻得出来。」",
+    mercy: "* 「仁慈?那东西……不顶饱。」",
+    p2: "* 「那就,谁都别想吃饱!」",
+    death: "* 「今晚……你们能吃顿好的了……」",
+  },
+  hard: {
+    intro: "* 「规则加载完毕。初见杀,开始。」",
+    mercy: "* 「读条完成。你的选项,已被禁用。」",
+    p2: "* 「第二阶段。难度:地狱之上。」",
+    death: "* 「挑战通过……存档,已为你保留。」",
+  },
+};
+
+export function bossLineFor(charId, moment) {
+  return BOSS_LINES[charId]?.[moment] || null;
+}
+
+// ---- L3: 审判纪元章节过场(里程碑首达时全屏逐行打字机) ----------------------
+
+export const CHAPTERS = [
+  {
+    id: "ch1",
+    title: "审判纪元 · 第一章 「白心」",
+    lines: [
+      "* 白色的心停在你手心,像一片不会融化的雪。",
+      "* 它不挣扎,也不怨恨。它只是,终于可以休息了。",
+      "* 你忽然明白:天意侵蚀的从来不是骨头,",
+      "* 是「必须战斗」这件事本身。",
+      "* ——第一纪元,就此闭卷。你充满了决心。",
+    ],
+  },
+  {
+    id: "ch2",
+    title: "审判纪元 · 第二章 「裂缝」",
+    lines: [
+      "* 第二次让天意低头,世界裂开了一道细小的缝。",
+      "* 缝隙外传来无数飘过的声音:",
+      "* 「前方高能」「初见杀警告」「就这?」",
+      "* 你听不懂。但它们,好像一直在看着你。",
+      "* 有观众的战斗,连尘埃都落得更慢一些。",
+      "* ——第二纪元:被注视者。你充满了决心。",
+    ],
+  },
+  {
+    id: "ch3",
+    title: "审判纪元 · 第三章 「天平」",
+    lines: [
+      "* 第三次。天平从云层里降下,悬在走廊正中央。",
+      "* 一端,是你救不了的;另一端,是你杀掉的。",
+      "* 它晃了很久很久,最后停在了正中间。",
+      "* 审判者合上记录:「LV再高,今天也判不了你。」",
+      "* ——第三纪元:平衡。你,还是你。",
+    ],
+  },
+  {
+    id: "ch4",
+    title: "审判纪元 · 第四章 「尘」",
+    lines: [
+      "* 没有欢呼。没有结算音乐。",
+      "* 连裂缝外的声音,都安静了。",
+      "* 走廊尽头的墙上,只有一句很旧的话:",
+      "* 「在这个世界,杀,或者被杀。」",
+      "* 你伸手把它擦掉了。灰尘沾了满手。",
+      "* ——第四纪元:尘归尘。愿你还记得自己的名字。",
+    ],
+  },
+  {
+    id: "ch5",
+    title: "审判纪元 · 终章 「守望」",
+    lines: [
+      "* 图鉴的最后一页翻过去,背面还有一行小字:",
+      "* 「谢谢你认真看完了每一个怪物。",
+      "*   它们都有名字,也都有人记得。」",
+      "* 一只小白狗不知从哪里冒出来,趴在书页上睡着了。",
+      "* 你决定不叫醒它。传说,写下这一切的就是它。",
+      "* ——终章:守望者。这个世界,交给你看管了。",
+    ],
+  },
+];
+
+const K_CHAPTERS = "metaChapters";
+
+function readChapters() {
+  try {
+    return JSON.parse(localStorage.getItem(K_CHAPTERS) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+// milestones reached this settlement but not yet shown, in story order
+export function unseenChapters({ victory = false, difficultyId = 0, codexPct = 0 } = {}) {
+  const seen = readChapters();
+  const due = [];
+  if (victory && !seen.ch1) due.push("ch1");
+  if (victory && difficultyId >= 1 && !seen.ch2) due.push("ch2");
+  if (victory && difficultyId >= 2 && !seen.ch3) due.push("ch3");
+  if (victory && difficultyId >= 3 && !seen.ch4) due.push("ch4");
+  if (codexPct >= 100 && !seen.ch5) due.push("ch5");
+  return due.map((id) => CHAPTERS.find((c) => c.id === id));
+}
+
+export function markChapterSeen(id) {
+  const seen = readChapters();
+  if (seen[id]) return;
+  seen[id] = true;
+  try {
+    localStorage.setItem(K_CHAPTERS, JSON.stringify(seen));
+  } catch {}
+}
+
+// ---- L3: 访客事件台词(烦人狗乱入 / 会说话的回声花) --------------------------
+
+const DOG_LINES = [
+  "* 一只小白狗横穿了战场。所有攻击都自动给它让了路。",
+  "* 烦人狗叼走了你的一根骨头,又觉得不好意思,还了你一枚金币。",
+  "* 狗神路过,看了一眼战况,满意地打了个哈欠。",
+];
+
+export function pickDogLine() {
+  return pickFrom(DOG_LINES);
+}
+
+const FLOWER_LINES = [
+  "……你充满了决心……你充满了决心……",
+  "……三师傅,放过我……",
+  "……就这?就这?……",
+  "……骨傲天……骨傲天……",
+  "……热狗,三十枚金币一根……",
+  "……别买番茄酱,他会直接喝掉……",
+  "……汪。……汪汪。",
+  "……前方高能……前方高能……",
+  "……存档点在你身后……骗你的……",
+  "……谢谢你还在听……",
+];
+
+export function pickFlowerLine() {
+  return pickFrom(FLOWER_LINES);
 }
