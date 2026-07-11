@@ -987,7 +987,9 @@ function buildShareCard() {
   g.fillText(`${todayKey()} · ${currentCharacter().name} · ${getDifficulty().name}难度${wasDaily ? " · ✦每日挑战" : ""}`, 360, 176);
   // portrait with soul glow
   const spr = PLAYER_SPRITES[player.character] || PLAYER_SPRITES.sans;
-  const scale = 9;
+  // fit every character into the same 240px-tall slot so the stats below
+  // never collide with a taller sprite
+  const scale = Math.max(4, Math.floor(240 / spr.height));
   g.save();
   g.imageSmoothingEnabled = false;
   const soul = equippedCosmetic();
@@ -1005,7 +1007,7 @@ function buildShareCard() {
   if (bestTitle()) lines.push([`称号「${bestTitle().name}」`, "#c59bff", "22px monospace"]);
   if (deathQuote) lines.push([deathQuote, "#8fa8c9", "20px monospace"]);
   else if (lastDeathBy && runOutcome !== "retreat") lines.push([`死于:${lastDeathBy}`, "#c95d5d", "20px monospace"]);
-  let ly = 480;
+  let ly = 210 + spr.height * scale + 62; // always clear of the portrait
   for (const [text, color, font] of lines) {
     g.fillStyle = color;
     g.font = font;
