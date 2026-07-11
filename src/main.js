@@ -146,6 +146,14 @@ import {
   pickShareRoast,
   codexNote,
   pickPauseTip,
+  codexCheck,
+  FUN_GLITCH_SAVEPOINT,
+  GASTER_GHOST_LINE,
+  GASTER_GHOST_SUB,
+  FUN_FLOWER_LINE,
+  spareNarration,
+  TEM_LINE,
+  shopDenyLine,
 } from "./narrative.js";
 import {
   drawHud,
@@ -341,6 +349,10 @@ let hazards = []; // {x, y, t} telegraphed player-damaging zones
 const COSMETICS_SHOP_ENABLED = false;
 let shopTab = 0; // 0 = ability upgrades, 1 = 灵魂加护 cosmetics
 let codexSelected = 0;
+// codex list length incl. the FUN 61-63 ghost record (drawn + clickable)
+function codexListLength() {
+  return CODEX_MONSTERS.length + (funValue >= 61 && funValue <= 63 ? 1 : 0);
+}
 let deathShatter = null; // UT-style soul shatter on death {t, color}
 let runOffense = false; // picked any atk/amp card this run (和平主义者 title)
 let lastNewTitles = []; // titles earned at this settlement (gameover toast)
@@ -435,7 +447,13 @@ let shareRoast = null; // 裂缝外锐评 line for the share card
 let pauseTip = null; // 小贴士 picked fresh each time the game pauses
 let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
-let visitorRolls = { dog: false, flower: false }; // one visit of each per run
+let spareVisit = null; // {type, x, y, t, nearT, state} yellow-name SPARE monster
+let temVisit = null; // {x, y, t} hOI!!!
+let visitorRolls = { dog: false, flower: false, spare: false, tem: false }; // once each per run
+let shopMsg = null; // {text, t} UT-style denial line in the shop
+// FUN value, UT-style: rolled per run, silently decides ultra-rare events
+// (66 = glitched savepoint, 61-63 = ghost codex entry, 100 = flower warning)
+let funValue = 1 + Math.floor(Math.random() * 100);
 
 // death lines: named elites/champions carry their codex key (own line pools,
 // falling back to the generic elite pool inside pickDeathLine); plain elites
@@ -716,7 +734,9 @@ function reset(weaponId) {
   shareRoast = null;
   dogVisit = null;
   flowerVisit = null;
-  visitorRolls = { dog: false, flower: false };
+  spareVisit = null;
+  temVisit = null;
+  visitorRolls = { dog: false, flower: false, spare: false, tem: false };
   nextWarnBeep = bossWarnAt();
 }
 
@@ -1517,6 +1537,7 @@ function startGame() {
   bgm.src = track; // reload also resets playback to the start
   bgm.volume = 0; // fades up during the intro
   bgmPlay();
+  funValue = 1 + Math.floor(Math.random() * 100); // fresh FUN roll each run
   // savepoint aphorism: typed out as the black intro lifts (UT save-star vibe)
   savepointNote = {
     text: pickSavepointQuote({
@@ -1530,6 +1551,8 @@ function startGame() {
     }),
     t: 0,
   };
+  // FUN 66: the savepoint speaks in entry seventeen
+  if (funValue === 66) savepointNote.text = FUN_GLITCH_SAVEPOINT;
 }
 
 // ---- 15s buff choices -----------------------------------------------------
@@ -2013,18 +2036,18 @@ function handleCanvasTap(pos) {
       return;
     }
     const pageSize = 16;
-    const pageCount = Math.ceil(CODEX_MONSTERS.length / pageSize);
+    const pageCount = Math.ceil(codexListLength() / pageSize);
     const currentPage = Math.floor(codexSelected / pageSize);
     for (const direction of [-1, 1]) {
       if (pageCount > 1 && inRect(pos, codexPageRect(direction, WIDTH))) {
         const page = (currentPage + direction + pageCount) % pageCount;
-        codexSelected = Math.min(page * pageSize, CODEX_MONSTERS.length - 1);
+        codexSelected = Math.min(page * pageSize, codexListLength() - 1);
         sfxClick();
         return;
       }
     }
     const pageStart = currentPage * pageSize;
-    const pageEnd = Math.min(pageStart + pageSize, CODEX_MONSTERS.length);
+    const pageEnd = Math.min(pageStart + pageSize, codexListLength());
     for (let i = pageStart; i < pageEnd; i++) {
       if (inRect(pos, codexEntryRect(i - pageStart, WIDTH))) {
         codexSelected = i;
@@ -2073,7 +2096,11 @@ function handleCanvasTap(pos) {
       if (inRect(pos, shopItemRect(i, WIDTH, HEIGHT))) {
         const ok = items[i].id === "reviveStock" ? buyReviveStock() : buyUpgrade(items[i].id);
         if (ok) sfxEquip();
-        else sfxHurt(); // maxed or broke: denial buzz
+        else {
+          sfxHurt(); // maxed or broke: denial buzz + a UT-style line
+          const it = items[i];
+          shopMsg = { text: shopDenyLine(it.lvl >= it.max ? "maxed" : it.gate ? "gated" : "broke"), t: 2.2 };
+        }
         return;
       }
     }
@@ -2256,10 +2283,10 @@ window.addEventListener("keydown", (e) => {
   if (state === "shop" || state === "codex") {
     if (k === "escape") state = "title";
     else if (state === "codex" && (k === "arrowleft" || k === "arrowright")) {
-      codexSelected = (codexSelected + (k === "arrowright" ? 1 : CODEX_MONSTERS.length - 1)) % CODEX_MONSTERS.length;
+      codexSelected = (codexSelected + (k === "arrowright" ? 1 : codexListLength() - 1)) % codexListLength();
       sfxClick();
     } else if (state === "codex" && (k === "arrowup" || k === "arrowdown")) {
-      codexSelected = (codexSelected + (k === "arrowdown" ? 8 : CODEX_MONSTERS.length - 8)) % CODEX_MONSTERS.length;
+      codexSelected = (codexSelected + (k === "arrowdown" ? 8 : codexListLength() - 8)) % codexListLength();
       sfxClick();
     }
     return;
@@ -2963,11 +2990,54 @@ function update(dt) {
         x: clamp(player.x + (Math.random() - 0.5) * 560, camX + 40, camX + WIDTH - 40),
         y: clamp(player.y + (Math.random() - 0.5) * 360, WALL_H + 50, HEIGHT - 40),
         t: 0,
-        line: pickFlowerLine(),
+        line: funValue === 100 ? FUN_FLOWER_LINE : pickFlowerLine(), // FUN 100
         heard: false,
       };
     }
+    // 黄色饶恕: a lost monster wanders in; stand close and it is spared
+    if (!visitorRolls.spare && elapsed > 45 && Math.random() < dt / 110) {
+      visitorRolls.spare = true;
+      const types = ["slime", "bat", "ghost", "tank", "red", "orange", "blue", "purple"];
+      spareVisit = {
+        type: types[Math.floor(Math.random() * types.length)],
+        x: clamp(player.x + (Math.random() - 0.5) * 480, camX + 50, camX + WIDTH - 50),
+        y: clamp(player.y + (Math.random() - 0.5) * 320, WALL_H + 60, HEIGHT - 50),
+        t: 0,
+        nearT: 0,
+        state: "wander",
+      };
+    }
+    if (!visitorRolls.tem && elapsed > 75 && Math.random() < dt / 160) {
+      visitorRolls.tem = true;
+      temVisit = {
+        x: clamp(player.x + (Math.random() - 0.5) * 420, camX + 40, camX + WIDTH - 40),
+        y: clamp(player.y + (Math.random() - 0.5) * 300, WALL_H + 50, HEIGHT - 40),
+        t: 0,
+      };
+      candyBanner = { text: TEM_LINE, t: 3.2 };
+      sfxType();
+    }
   }
+  if (spareVisit) {
+    const sv = spareVisit;
+    sv.t += dt;
+    if (sv.state === "wander") {
+      if (Math.hypot(player.x - sv.x, player.y - sv.y) < 70) sv.nearT += dt;
+      else sv.nearT = Math.max(0, sv.nearT - dt);
+      if (sv.nearT >= 1.5) {
+        sv.state = "bow"; // the SPARE lands: bow, gift, leave
+        sv.bowT = 0;
+        candyBanner = { text: spareNarration(ENEMY_NAMES[sv.type] || "怪物"), t: 3.2 };
+        pickups.push(new Pickup(sv.x, sv.y, "candy", {}));
+        sfxCandy();
+      } else if (sv.t > 18) {
+        spareVisit = null; // waited too long: it slips away, no hard feelings
+      }
+    } else if ((sv.bowT += dt) > 1.4) {
+      spareVisit = null;
+    }
+  }
+  if (temVisit && (temVisit.t += dt) > 5) temVisit = null;
   if (dogVisit) {
     dogVisit.x += dogVisit.vx * dt;
     if (!dogVisit.coined && dogVisit.x > player.x) {
@@ -4561,6 +4631,49 @@ function draw() {
     ctx.restore();
   }
 
+  // 访客: the yellow-name SPARE monster — UT players know the color on sight
+  if (spareVisit && (state === "playing" || state === "choice")) {
+    const sv = spareVisit;
+    const fadeIn = Math.min(1, sv.t / 0.5);
+    const fadeOut = sv.state === "bow" ? Math.max(0, 1 - Math.max(0, sv.bowT - 0.8) / 0.6) : 1;
+    ctx.save();
+    ctx.globalAlpha = fadeIn * fadeOut;
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(sv.x, sv.y + Math.sin(sv.t * 3) * 2);
+    if (sv.state === "bow") ctx.rotate(Math.min(0.35, sv.bowT * 0.6)); // the bow
+    const spr = ENEMY_SPRITES[sv.type];
+    if (spr) ctx.drawImage(spr, -19, -19, 38, 38);
+    ctx.rotate(sv.state === "bow" ? -Math.min(0.35, sv.bowT * 0.6) : 0);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffd93d"; // yellow name = sparable, since 2015
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(`✳ ${ENEMY_NAMES[sv.type] || "怪物"}`, 0, -28);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
+  // 访客: Temmie, vibrating at a frequency science cannot explain
+  if (temVisit && (state === "playing" || state === "choice")) {
+    const tv = temVisit;
+    const a = Math.min(1, tv.t / 0.4, Math.max(0, (5 - tv.t) / 0.5));
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(tv.x + (Math.random() - 0.5) * 3, tv.y + (Math.random() - 0.5) * 3);
+    ctx.fillStyle = "#f4f4f4";
+    ctx.fillRect(-10, -10, 20, 16); // head
+    ctx.fillRect(-9, -16, 5, 7); // left ear
+    ctx.fillRect(4, -16, 5, 7); // right ear
+    ctx.fillRect(-6, 6, 12, 6); // body
+    ctx.fillStyle = "#3a3346";
+    ctx.fillRect(-10, -10, 6, 8); // the hair patch
+    ctx.fillStyle = "#1a1626";
+    ctx.fillRect(-3, -5, 2, 3); // eyes
+    ctx.fillRect(3, -5, 2, 3);
+    ctx.fillRect(-1, 0, 3, 1); // cat mouth
+    ctx.restore();
+  }
+
   // character bark: a one-liner speech bubble hovering over the player
   if (bark && (state === "playing" || state === "choice")) {
     const a = Math.min(1, bark.t / 0.4);
@@ -4817,6 +4930,17 @@ function draw() {
       shopTab === 0 ? metaBonusLine() : cosmeticEquipLine(),
       COSMETICS_SHOP_ENABLED
     );
+    // UT-style denial narration for maxed / gated / broke purchases
+    if (shopMsg) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, shopMsg.t / 0.4);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#8fa8c9";
+      ctx.font = "bold 14px monospace";
+      ctx.fillText(shopMsg.text, WIDTH / 2, HEIGHT - 30);
+      ctx.restore();
+      ctx.textAlign = "left";
+    }
   } else if (state === "codex") {
     const st = getStats();
     const monsters = CODEX_MONSTERS.map((m) => ({
@@ -4826,7 +4950,23 @@ function draw() {
       elite: m.key.startsWith("elite_") || m.key.startsWith("champion_"),
       champion: m.key.startsWith("champion_"),
       note: codexNote(m.key),
+      check: codexCheck(m.key),
     }));
+    // FUN 61-63: a seventeenth record that was never part of this codex
+    if (funValue >= 61 && funValue <= 63) {
+      monsters.push({
+        key: "gaster",
+        name: "■■■",
+        english: "",
+        kills: 0,
+        color: "#3a3346",
+        elite: false,
+        champion: false,
+        ghost: true,
+        ghostLine: GASTER_GHOST_LINE,
+        ghostSub: GASTER_GHOST_SUB,
+      });
+    }
     const weaponRows = CHARACTERS.map((c) => {
       const list = WEAPON_LISTS[c.id];
       return {
@@ -5337,6 +5477,7 @@ window.__dbg = () => ({
   bark: bark ? bark.text : null,
   chapter: chapterShow ? chapterShow.chapter.id : null,
   chaptersQueued: chapterQueue.length,
+  fun: funValue,
   warn: bossWarnActive(),
   choices: choiceOptions.map((o) => o.title),
   runCoins,
@@ -5396,6 +5537,7 @@ function loop(now) {
 
   if (deathShatter && state === "gameover") deathShatter.t += dt;
   if (chapterShow && state === "chapter") chapterShow.t += dt;
+  if (shopMsg && (shopMsg.t -= dt) <= 0) shopMsg = null;
   if (state === "chest" && chestCeremony) {
     const cc = chestCeremony;
     cc.t += dt;

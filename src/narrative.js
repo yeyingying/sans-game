@@ -605,6 +605,65 @@ export function codexNote(key) {
   return CODEX_NOTES[key] || null;
 }
 
+// ---- 图鉴「检查」行: the ACT→Check ritual, UT's most recognizable text form --
+// numbers are flavor (Jerry's canon ATK 0 DEF 30 included), not live stats
+
+const CODEX_CHECKS = {
+  slime: "* 蛙吉特 — ATK 4 DEF 5 — 呱。(这是它的全部台词,也是全部人生。)",
+  bat: "* 忧郁虫虫 — ATK 5 DEF 0 — 碰它一下,它和你都会内疚。",
+  ghost: "* 蔬菜兽 — ATK 6 DEF 6 — 营养均衡。攻守也均衡。",
+  tank: "* 杰瑞 — ATK 0 DEF 30 — 弃之可惜。",
+  red: "* 卢克眼 — ATK 6 DEF 6 — 别找茬。它先说的。",
+  orange: "* 疯狂魔术师 — ATK 8 DEF 4 — 帽子里什么都有,除了退路。",
+  blue: "* 约刷亚 — ATK 7 DEF 5 — 想把你洗干净,从灵魂开始。",
+  purple: "* 冰帽盖 — ATK 7 DEF 7 — 摘掉帽子它就什么都不是。它知道。",
+  elite_final_froggit: "* 终极蛙吉特 — ATK 10 DEF 10 — 呱到了人生的尽头,悟了。",
+  elite_whimsalot: "* 忧伤虫爵士 — ATK 11 DEF 5 — 这一次,它不会再闭上眼睛。",
+  elite_astigmatism: "* 散光眼 — ATK 12 DEF 6 — 请直视它。这是命令。",
+  elite_parsnik: "* 欧防风兽 — ATK 12 DEF 8 — 甜的。剧毒的那种甜。",
+  elite_moldessa: "* 霉塑怪 — ATK 11 DEF 9 — 脸是乱的,刀法是准的。",
+  elite_migospel: "* 丑角福音虫 — ATK 12 DEF 7 — 笑到最后的不一定是它,但肯定不是你。",
+  elite_aaron: "* 亚伦 — ATK 13 DEF 6 — 每块肌肉都会眨眼。;)",
+  elite_pyrope: "* 焰绳怪 — ATK 14 DEF 5 — 沸点即卖点。",
+  elite_memoryhead: "* 记忆头 — ATK ? DEF ? — 数据损坏。数据损坏。数据损坏。",
+  elite_reaper_bird: "* 死神鸟 — ATK ?? DEF ?? — 检查失败:对象由三段记忆拼成,无法对焦。",
+  champion_greater_dog: "* 大犬汪 — ATK 15 DEF 12 — 它想玩。它的『玩』重达两吨。",
+  champion_mad_dummy: "* 愤怒假人 — ATK 16 DEF ? — 吵不赢的。别试。",
+  champion_knight_knight: "* 骑士骑士 — ATK 18 DEF 15 — 摇篮曲是给你唱的。",
+  champion_muffet: "* 玛菲特 — ATK 17 DEF 10 — 结账时间到,亲爱的~",
+  champion_royal_guards: "* 皇家守卫01&02 — ATK 18 DEF 18 — 数值成双,心意成对。",
+  champion_mettaton_ex: "* 镁塔顿EX — ATK 19 DEF 12 — 收视率越高,腿踢得越高。",
+  champion_glyde: "* 格莱德 — ATK ?? DEF ?? — 它捂住了检查结果。",
+  champion_so_sorry: "* 抱歉怪 — ATK 15 DEF 9 — 道歉的速度,赶不上闯祸的速度。",
+  champion_endogeny: "* 犬神融合体 — ATK 20 DEF 14 — 检测到狗×N。N值持续增长。",
+  champion_lemon_bread: "* 柠檬面包 — ATK 21 DEF 13 — 欢迎回家。这不是问候,是判决。",
+};
+
+export function codexCheck(key) {
+  return CODEX_CHECKS[key] || null;
+}
+
+// ---- FUN值 / Gaster 暗线: canon entry 17, zero memes, pure mystery ----------
+
+export const FUN_GLITCH_SAVEPOINT = "* 黑暗,更黑,愈发黑暗。■■■■■■。";
+export const GASTER_GHOST_LINE = "* 他在你看到这行字之前,就已经走了。";
+export const GASTER_GHOST_SUB = "(第十七号记录,不属于本图鉴。)";
+export const FUN_FLOWER_LINE = "……不要回头。";
+
+// ---- 黄色饶恕 / Temmie / 商店空交互 -----------------------------------------
+
+export function spareNarration(name) {
+  return `* 你饶恕了${name}。EXP +0。但有些东西 +1。`;
+}
+
+export const TEM_LINE = "* 哦咿!!!我系Temmie!!!(Temmie在剧烈震动)";
+
+export function shopDenyLine(reason) {
+  if (reason === "maxed") return "* 它已经尽力了。";
+  if (reason === "gated") return "* 但什么都没有发生。(前置未满足)";
+  return "* 你的钱包空空如也。连灰尘都没有。";
+}
+
 // ---- 暂停小贴士: half real mechanics, half memes grown on the mechanics -----
 
 const PAUSE_TIPS = [

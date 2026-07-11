@@ -161,6 +161,14 @@ function run(seconds, onFrame) {
   );
   check("codex notes cover base + jerry canon", N.codexNote("tank") === "公认的。" && N.codexNote("unknown_future") === null);
   check(
+    "check lines: jerry keeps canon DEF 30, unknown keys stay silent",
+    N.codexCheck("tank").includes("DEF 30") && N.codexCheck("unknown_future") === null,
+  );
+  check(
+    "spare / temmie / shop denial lines exist",
+    N.spareNarration("杰瑞").includes("EXP +0") && N.TEM_LINE.includes("Temmie") && N.shopDenyLine("maxed") === "* 它已经尽力了。",
+  );
+  check(
     "share roast: jerry execution outranks everything",
     N.pickShareRoast({ outcome: "death", deathKind: "tank", survived: 30 }).includes("公开处刑") &&
       typeof N.pickShareRoast({ outcome: "victory", clearTime: 400, hpPct: 0.5 }) === "string" &&

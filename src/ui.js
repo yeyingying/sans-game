@@ -935,13 +935,13 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
       ctx.font = "bold 22px monospace";
       ctx.fillText("?", x + box.w / 2, y + 32);
     }
-    ctx.fillStyle = seen ? "#f2ead8" : "#453f52";
+    ctx.fillStyle = m.ghost ? "#3a3346" : seen ? "#f2ead8" : "#453f52";
     ctx.font = "bold 12px monospace";
-    ctx.fillText(seen ? m.name : "？？？", x + box.w / 2, y + 55);
+    ctx.fillText(m.ghost ? m.name : seen ? m.name : "？？？", x + box.w / 2, y + 55);
     ctx.fillStyle = seen ? (m.elite ? m.color : "#9a93ab") : "#3c3548";
     ctx.font = "10px monospace";
     const rank = m.champion ? "首领 · " : m.elite ? "精英 · " : "";
-    ctx.fillText(seen ? `${rank}击杀 ${m.kills}` : m.champion ? "无尽首领" : m.elite ? "高难度精英" : "尚未遭遇", x + box.w / 2, y + 69);
+    ctx.fillText(m.ghost ? "……" : seen ? `${rank}击杀 ${m.kills}` : m.champion ? "无尽首领" : m.elite ? "高难度精英" : "尚未遭遇", x + box.w / 2, y + 69);
   });
 
   const chosen = monsters[Math.max(0, Math.min(selected, monsters.length - 1))];
@@ -986,6 +986,14 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
       );
     }
     ctx.textAlign = "center";
+  } else if (chosen?.ghost) {
+    // the seventeenth record: here, and then not
+    ctx.fillStyle = "#6b6578";
+    ctx.font = "13px monospace";
+    ctx.fillText(chosen.ghostLine, width / 2, detail.y + 68);
+    ctx.fillStyle = "#453f52";
+    ctx.font = "11px monospace";
+    ctx.fillText(chosen.ghostSub, width / 2, detail.y + 94);
   } else {
     ctx.fillStyle = "#453f52";
     ctx.font = "bold 30px monospace";
@@ -997,8 +1005,15 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.fillText("怪物的名字、来历与能力仍被黑暗遮住", width / 2, detail.y + 112);
   }
 
+  // ACT → 检查: the classic Check line, white text under the dossier
+  if (seen && chosen.check) {
+    ctx.fillStyle = "#f2ead8";
+    ctx.font = "12px monospace";
+    ctx.fillText(chosen.check, width / 2, detail.y + 162);
+  }
+
   // Boss and weapon collection stay visible as compact completion summaries.
-  const by = 420;
+  const by = 432;
   ctx.fillStyle = bossKills > 0 ? "#ffd166" : "#453f52";
   ctx.font = "bold 12px monospace";
   ctx.fillText(bossKills > 0 ? `☠ 天意侵蚀Sans · 击败 ${bossKills} 次` : "☠ ？？？（5:00 出现的存在）", width / 2, by);
