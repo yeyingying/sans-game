@@ -77,6 +77,10 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     state: "intro",
     t: 0,
     step: 0,
+    // 2026-07-12 user feedback「普通的boss还是太简单」: skill cadence now
+    // scales with difficulty, monotonic so normal never out-paces 狂暴
+    // (normal ÷1.15 → P1 every ~1.39s; 屠杀 ÷1.30)
+    aggro: 1.15 + 0.05 * diffId,
     attackTimer: 1.5,
     stillTimer: 0,
     lastPX: 0,
@@ -140,7 +144,9 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     update(dt, ctx) {
       const { player } = ctx;
       // boss hits scale to the player's bulk (1x fresh build → 3x tank build)
-      if (!this.dmgScale) this.dmgScale = Math.min(4, Math.max(1, player.maxHp / 350));
+      // floor raised 1 → 1.2 (2026-07-12): low-bulk (=normal/early) builds sat
+      // at the old floor and shrugged the boss off; tanky builds already >1.2
+      if (!this.dmgScale) this.dmgScale = Math.min(4, Math.max(1.2, player.maxHp / 350));
       this.t += dt;
       if (this.subtitleT > 0) this.subtitleT -= dt;
       if (boss.hitFlash > 0) boss.hitFlash -= dt;
@@ -346,7 +352,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       if (this.attackTimer > 0) return;
       const rate = this.phase === 2 ? 1.2 : 1; // phase 2 attacks 20% faster
       // 2026-07-11 user tuning: ~35% faster skill cadence across both phases
-      this.attackTimer = (this.phase === 1 ? 1.6 : 1.5) / rate;
+      this.attackTimer = (this.phase === 1 ? 1.6 : 1.5) / rate / (this.aggro || 1);
 
       const attack = () => (this.phase === 1 ? this.pickAttackP1(ctx) : this.pickAttackP2(ctx));
       // half the time, blink to a fresh flank before attacking
