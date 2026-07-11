@@ -155,6 +155,7 @@ import {
   TEM_LINE,
   shopDenyLine,
   BOSS_ANTHEM_LINE,
+  pickPapyrusLetter,
 } from "./narrative.js";
 import {
   drawHud,
@@ -450,7 +451,8 @@ let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
 let spareVisit = null; // {type, x, y, t, nearT, state} yellow-name SPARE monster
 let temVisit = null; // {x, y, t} hOI!!!
-let visitorRolls = { dog: false, flower: false, spare: false, tem: false }; // once each per run
+let letterVisit = null; // {x, y, t} 帕子的信 — walk over it to read
+let visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false }; // once each per run
 let shopMsg = null; // {text, t} UT-style denial line in the shop
 // FUN value, UT-style: rolled per run, silently decides ultra-rare events
 // (66 = glitched savepoint, 61-63 = ghost codex entry, 100 = flower warning)
@@ -737,7 +739,8 @@ function reset(weaponId) {
   flowerVisit = null;
   spareVisit = null;
   temVisit = null;
-  visitorRolls = { dog: false, flower: false, spare: false, tem: false };
+  letterVisit = null;
+  visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false };
   nextWarnBeep = bossWarnAt();
 }
 
@@ -3011,6 +3014,15 @@ function update(dt) {
         state: "wander",
       };
     }
+    // 帕子的信: the rarest visitor — a glowing envelope drifts onto the field
+    if (!visitorRolls.letter && elapsed > 90 && Math.random() < dt / 200) {
+      visitorRolls.letter = true;
+      letterVisit = {
+        x: clamp(player.x + (Math.random() - 0.5) * 460, camX + 40, camX + WIDTH - 40),
+        y: clamp(player.y + (Math.random() - 0.5) * 300, WALL_H + 50, HEIGHT - 40),
+        t: 0,
+      };
+    }
     if (!visitorRolls.tem && elapsed > 75 && Math.random() < dt / 160) {
       visitorRolls.tem = true;
       temVisit = {
@@ -3042,6 +3054,26 @@ function update(dt) {
     }
   }
   if (temVisit && (temVisit.t += dt) > 5) temVisit = null;
+  if (letterVisit) {
+    letterVisit.t += dt;
+    if (Math.hypot(player.x - letterVisit.x, player.y - letterVisit.y) < 38) {
+      // read it where you stand; spaghetti included (usually)
+      const letter = pickPapyrusLetter(player.character);
+      candyBanner = { text: letter.text, t: 4.5 };
+      if (letter.heal) {
+        const heal = Math.round(player.maxHp * 0.08 * healScale());
+        player.hp = Math.min(player.maxHp, player.hp + heal);
+        floatingTexts.push(new FloatingText(player.x, player.y - 34, "意大利面 HP++", "#7cf28a"));
+        healFlash = 0.45;
+        sfxCandy();
+      } else {
+        sfxType(); // the empty letter gets no fanfare
+      }
+      letterVisit = null;
+    } else if (letterVisit.t > 25) {
+      letterVisit = null; // unread mail returns to sender
+    }
+  }
   if (dogVisit) {
     dogVisit.x += dogVisit.vx * dt;
     if (!dogVisit.coined && dogVisit.x > player.x) {
@@ -4654,6 +4686,30 @@ function draw() {
     ctx.fillText(`✳ ${ENEMY_NAMES[sv.type] || "怪物"}`, 0, -28);
     ctx.restore();
     ctx.textAlign = "left";
+  }
+
+  // 访客: 帕子的信 — a white envelope, glowing with GREATNESS
+  if (letterVisit && (state === "playing" || state === "choice")) {
+    const lv = letterVisit;
+    const a = Math.min(1, lv.t / 0.5, Math.max(0, (25 - lv.t) / 0.8));
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(lv.x, lv.y + Math.sin(lv.t * 2.4) * 3);
+    ctx.shadowColor = "#ffd93d";
+    ctx.shadowBlur = 10 + 5 * Math.sin(lv.t * 4);
+    ctx.fillStyle = "#f4f0e2";
+    ctx.fillRect(-11, -8, 22, 16); // envelope
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#b8503c";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); // the flap
+    ctx.moveTo(-11, -8);
+    ctx.lineTo(0, 2);
+    ctx.lineTo(11, -8);
+    ctx.stroke();
+    ctx.fillStyle = "#b8503c";
+    ctx.fillRect(-2, 3, 4, 4); // wax seal
+    ctx.restore();
   }
 
   // 访客: Temmie, vibrating at a frequency science cannot explain

@@ -262,6 +262,12 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           const line = bossLineFor(this.character, "intro");
           if (line) this.subtitleShow(line, 3.5);
         }
+        // AU 互文: at half health he recognizes which timeline he's facing
+        if (!this._halfSaid && this._charIntroSaid && boss.hp < boss.maxHp * 0.5) {
+          this._halfSaid = true;
+          const line = bossLineFor(this.character, "half");
+          if (line) this.subtitleShow(line, 3.2);
+        }
         // adaptive phase 1 (user request 2026-07-10): a few seconds in, resize
         // the HP pool to the player's REAL dps so the phase lasts ~45s — the
         // boss must be beatable but a struggle. Weak debug bosses skip this.

@@ -180,6 +180,19 @@ function run(seconds, onFrame) {
       N.pickShareRoast({ outcome: "death", kills: 0, survived: 200 }).includes("云玩家") &&
       N.charAuTag("horror") === "「恐传」",
   );
+  check(
+    "B站锐评: 开幕雷击15秒内 / 深轮建议投稿",
+    N.pickShareRoast({ outcome: "death", kills: 3, survived: 10 }).includes("开幕雷击") &&
+      N.pickShareRoast({ outcome: "death", kills: 500, survived: 900, rounds: 8 }).includes("投稿"),
+  );
+  check(
+    "帕子的信: 恐传收空信不回血, 其余附赠意大利面",
+    N.pickPapyrusLetter("horror").heal === false &&
+      N.pickPapyrusLetter("horror").text.includes("他还好吗") &&
+      N.pickPapyrusLetter("sans").heal === true &&
+      N.pickPapyrusLetter("sans").text.includes("帕派瑞斯"),
+  );
+  check("AU互文: 四角色都有半血认亲台词", ["sans", "ukb", "horror", "hard"].every((c) => typeof N.bossLineFor(c, "half") === "string"));
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };

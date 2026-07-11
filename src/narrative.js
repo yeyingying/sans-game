@@ -71,6 +71,22 @@ export function charAuTag(charId) {
 // Megalovania 在B站的名字只有一个:国歌。Boss进场即奏国歌。
 export const BOSS_ANTHEM_LINE = "* 国歌响起。裂缝外,全体起立。";
 
+// ---- 帕子的信: 第五访客,全社区的白月光 --------------------------------------
+// 全大写热情文体是他的签名;恐传线只收到一封空信——B站玩家知道为什么
+
+const PAPYRUS_LETTERS = [
+  "* 「人类!!你挥骨头的姿势有进步!!——伟大的帕派瑞斯」",
+  "* 「哥哥说你很努力。虽然他自己在睡觉!!——帕派瑞斯」",
+  "* 「连我都做得到,你当然也可以!!——伟大的帕派瑞斯」",
+];
+const PAPYRUS_LETTER_HORROR = "* 信纸是空的。只有一行小字:『他还好吗?』";
+
+// -> {text, heal}: normal letters ship with spaghetti, the empty one doesn't
+export function pickPapyrusLetter(charId) {
+  if (charId === "horror") return { text: PAPYRUS_LETTER_HORROR, heal: false };
+  return { text: pickFrom(PAPYRUS_LETTERS), heal: true };
+}
+
 const SAVE_DIFFICULTY = [
   [
     "* 前方是废墟。废墟的阴影笼罩着你,你充满了决心。",
@@ -123,6 +139,8 @@ const SAVE_ECHO_RICH = [
 // B站UT社群网感池:弹幕/骨傲天/初见杀/热狗摊这一挂,低权重混入通用池,
 // 玩梗但不抢UT的庄重感
 const SAVE_MEME = [
+  "* 裂缝外,有人正在画你。一帧一帧,画得很慢,但很认真。你充满了决心。",
+  "* 裂缝外传来一段熟悉的旋律,是有人用你的故事重新填了词。你充满了决心。",
   "* 弹幕在很远的地方飘过:「爷的青春回来了」。你不知道那是什么,但你充满了决心。",
   "* 有个声音押了 10 金币赌你活不过五分钟。你充满了决心,顺便想赢下这一注。",
   "* 骨傲天的传说,今晚继续更新。你充满了决心。",
@@ -420,24 +438,28 @@ const BOSS_LINES = {
     mercy: "* 「别用那种眼神看我。它不让我停下来。」",
     p2: "* 「接下来,你会过得非常、非常糟糕。」",
     death: "* 「呵……原来被闪避打败,是这种感觉。」",
+    half: "* 「本家的我。……你过得比我幸福。」",
   },
   ukb: {
     intro: "* 「业报找上门了?不。这一次,我就是业报。」",
     mercy: "* 「天平不许我收下这份仁慈。」",
     p2: "* 「清算,翻到第二页。」",
     death: "* 「账……终于平了。」",
+    half: "* 「业报线的我。你我手上的账,一样厚。」",
   },
   horror: {
     intro: "* 「你也饿了很多年吧。我闻得出来。」",
     mercy: "* 「仁慈?那东西……不顶饱。」",
     p2: "* 「那就,谁都别想吃饱!」",
     death: "* 「今晚……你们能吃顿好的了……」",
+    half: "* 「恐传的我。……你也瘦了。」",
   },
   hard: {
     intro: "* 「规则加载完毕。初见杀,开始。」",
     mercy: "* 「读条完成。你的选项,已被禁用。」",
     p2: "* 「第二阶段。难度:地狱之上。」",
     death: "* 「挑战通过……存档,已为你保留。」",
+    half: "* 「隐藏难度的我。我们都是没被写完的章节。」",
   },
 };
 
@@ -577,10 +599,12 @@ export function pickShareRoast({ outcome, deathKind, survived = 0, clearTime = 0
   if (deathKind === "tank") return "* 裂缝外锐评:死于杰瑞。公开处刑。";
   if (outcome === "victory" && difficultyId >= 3) return "* 裂缝外锐评:打完这把,记得卸载保平安。";
   if ((outcome === "death" || outcome === "quit") && kills === 0) return "* 裂缝外锐评:云玩家,实锤了。";
+  if ((outcome === "death" || outcome === "quit") && survived < 15) return "* 裂缝外锐评:开幕雷击。";
   if (outcome === "victory" && clearTime <= 350) return "* 裂缝外锐评:这手速,建议直播。";
   if (outcome === "victory" && hpPct >= 0.99) return "* 裂缝外锐评:满血通关,手元警告。";
   if ((outcome === "death" || outcome === "quit") && survived < 60) return "* 裂缝外锐评:下饭,但下的是我。";
   if (maxStreak >= 50) return "* 裂缝外锐评:割草机成精了。";
+  if (rounds >= 8) return "* 裂缝外锐评:建议直接投稿,标题我都想好了。";
   if (rounds >= 5) return "* 裂缝外锐评:肝帝认证,泪目。";
   if (outcome === "retreat") return "* 裂缝外锐评:见好就收,高手。";
   if (outcome === "victory")
