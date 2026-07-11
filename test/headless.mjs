@@ -134,14 +134,16 @@ function run(seconds, onFrame) {
   const keys = C.CODEX_MONSTERS.map((m) => m.key);
   const names = C.CODEX_MONSTERS.map((m) => m.name);
   check(
-    "codex has 8 base + 4 named elites + 4 round champions",
-    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 4 && C.ROUND_CHAMPIONS.length === 4
+    "codex has 8 base + 6 named elites + 6 round champions",
+    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 6 && C.ROUND_CHAMPIONS.length === 6
   );
-  check("codex keys and names are unique", new Set(keys).size === 16 && new Set(names).size === 16);
+  check("codex keys and names are unique", new Set(keys).size === C.CODEX_MONSTERS.length && new Set(names).size === C.CODEX_MONSTERS.length);
   check("狂暴 named elite waits until 1:30", C.eliteTypePool(1, 89) === null && C.eliteTypePool(1, 90).join(",") === "slime");
   check("狂暴 second elite waits until 2:15", C.eliteTypePool(1, 134).length === 1 && C.eliteTypePool(1, 135).join(",") === "slime,bat");
   check("地狱 elites phase in at 3:00 / 3:45", !C.eliteTypePool(2, 179).includes("red") && C.eliteTypePool(2, 180).includes("red") && C.eliteTypePool(2, 225).includes("ghost"));
-  check("屠杀 schedule is 30s earlier but never before 1:00", C.eliteTypePool(3, 59) === null && C.eliteTypePool(3, 60).join(",") === "slime" && C.eliteTypePool(3, 195).length === 4);
+  check("困难模式余党在 3:00 / 3:45 加入狂暴", !C.eliteTypePool(1, 179).includes("tank") && C.eliteTypePool(1, 180).includes("tank") && C.eliteTypePool(1, 225).includes("orange"));
+  check("无尽第 5/6 轮接皇家守卫与镁塔顿", C.championForRound(5).championId === "royalGuards" && C.championForRound(6).championId === "mettatonEx");
+  check("屠杀 schedule is 30s earlier but never before 1:00", C.eliteTypePool(3, 59) === null && C.eliteTypePool(3, 60).join(",") === "slime" && C.eliteTypePool(3, 195).length === 6);
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };

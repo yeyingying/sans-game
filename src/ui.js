@@ -869,8 +869,12 @@ export function codexEntryRect(i, width) {
   return { x: width / 2 - total / 2 + (i % columns) * (w + gap), y: 78 + Math.floor(i / columns) * 84, w, h: 76 };
 }
 
-// Eight base encounters, four difficulty elites and four round champions fit
-// in a stable 8x2 index on phone landscape.
+export function codexPageRect(direction, width) {
+  return { x: width / 2 + (direction < 0 ? -176 : 144), y: 51, w: 32, h: 24 };
+}
+
+// Keep the index at a stable 8x2 on phone landscape. Later monster batches
+// paginate instead of adding rows that would collide with the detail panel.
 export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponRows, pct = 0, selected = 0) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
@@ -882,10 +886,29 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
   ctx.fillText("图 鉴", width / 2, 46);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 13px monospace";
-  ctx.fillText(`收集度 ${pct}%`, width / 2, 68);
+  const pageSize = 16;
+  const pageCount = Math.max(1, Math.ceil(monsters.length / pageSize));
+  const page = Math.min(pageCount - 1, Math.floor(selected / pageSize));
+  const pageStart = page * pageSize;
+  ctx.fillText(`收集度 ${pct}% · ${page + 1}/${pageCount}`, width / 2, 68);
 
-  monsters.forEach((m, i) => {
-    const box = codexEntryRect(i, width);
+  if (pageCount > 1) {
+    for (const direction of [-1, 1]) {
+      const b = codexPageRect(direction, width);
+      ctx.fillStyle = "#211a2c";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = "#7ea8ff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = "#f2ead8";
+      ctx.font = "bold 18px monospace";
+      ctx.fillText(direction < 0 ? "‹" : "›", b.x + b.w / 2, b.y + 19);
+    }
+  }
+
+  monsters.slice(pageStart, pageStart + pageSize).forEach((m, localIndex) => {
+    const i = pageStart + localIndex;
+    const box = codexEntryRect(localIndex, width);
     const x = box.x;
     const y = box.y;
     const seen = m.kills > 0;
@@ -949,7 +972,7 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
       ctx.fillStyle = "#ffd166";
       ctx.font = "11px monospace";
       ctx.fillText(
-        chosen.champion ? `${chosen.unlock} · 第 5 轮起循环并继续强化` : `${chosen.unlock} · 屠杀难度进入处决态`,
+        chosen.champion ? `${chosen.unlock} · 第 7 轮起循环并继续强化` : `${chosen.unlock} · 屠杀难度进入处决态`,
         detail.x + 130,
         detail.y + 132
       );

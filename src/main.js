@@ -163,6 +163,7 @@ import {
   drawShopScreen,
   codexButtonRect,
   codexEntryRect,
+  codexPageRect,
   drawCodexScreen,
   dailyButtonRect,
   bossClearLeaveRect,
@@ -1860,8 +1861,21 @@ function handleCanvasTap(pos) {
       sfxClick();
       return;
     }
-    for (let i = 0; i < CODEX_MONSTERS.length; i++) {
-      if (inRect(pos, codexEntryRect(i, WIDTH))) {
+    const pageSize = 16;
+    const pageCount = Math.ceil(CODEX_MONSTERS.length / pageSize);
+    const currentPage = Math.floor(codexSelected / pageSize);
+    for (const direction of [-1, 1]) {
+      if (pageCount > 1 && inRect(pos, codexPageRect(direction, WIDTH))) {
+        const page = (currentPage + direction + pageCount) % pageCount;
+        codexSelected = Math.min(page * pageSize, CODEX_MONSTERS.length - 1);
+        sfxClick();
+        return;
+      }
+    }
+    const pageStart = currentPage * pageSize;
+    const pageEnd = Math.min(pageStart + pageSize, CODEX_MONSTERS.length);
+    for (let i = pageStart; i < pageEnd; i++) {
+      if (inRect(pos, codexEntryRect(i - pageStart, WIDTH))) {
         codexSelected = i;
         sfxClick();
         return;
@@ -2285,6 +2299,10 @@ function startEliteCast(e) {
     dummyVolley: 1.1,
     moonfall: 1.2,
     webFeast: 1.1,
+    faceBurst: 1.05,
+    curtainRise: 1.1,
+    teamAttack: 1.15,
+    ratingStage: 1.25,
   }[skill];
   const cast = { skill, t: duration, maxT: duration, x: player.x, y: player.y, fromX: e.x, fromY: e.y, marks: [] };
   if (skill === "roots") {
@@ -2302,6 +2320,31 @@ function startEliteCast(e) {
   } else if (skill === "webFeast") {
     cast.lanes = [-72, 0, 72].map((dy) => clamp(player.y + dy, WALL_H + 30, HEIGHT - 30));
     cast.dangerY = cast.lanes[(e.id + (e.championCastCount || 0)) % cast.lanes.length];
+  } else if (skill === "faceBurst") {
+    const cy = clamp(player.y, WALL_H + 42, HEIGHT - 42);
+    cast.marks = [
+      { x: player.x, y: cy },
+      { x: player.x - 58, y: cy },
+      { x: player.x + 58, y: cy },
+      { x: player.x, y: clamp(cy - 52, WALL_H + 32, HEIGHT - 32) },
+      { x: player.x, y: clamp(cy + 52, WALL_H + 32, HEIGHT - 32) },
+    ];
+  } else if (skill === "curtainRise") {
+    cast.safeX = player.x;
+    cast.safeHalfWidth = 42;
+  } else if (skill === "teamAttack") {
+    cast.lanes = [-96, -32, 32, 96].map((dx) => player.x + dx);
+    const parity = (e.championCastCount || 0) % 2;
+    cast.dangerLanes = cast.lanes.filter((_, i) => i % 2 === parity);
+  } else if (skill === "ratingStage") {
+    const centerY = clamp(player.y, WALL_H + 72, HEIGHT - 72);
+    const phase = (e.championCastCount || 0) % 2;
+    cast.cells = [];
+    for (let row = -1; row <= 1; row++) {
+      for (let col = -1; col <= 1; col++) {
+        cast.cells.push({ x: player.x + col * 64, y: centerY + row * 48, w: 58, h: 42, danger: (row + col + phase + 4) % 2 === 0 });
+      }
+    }
   }
   e.championCastCount = (e.championCastCount || 0) + 1;
   e.eliteCast = cast;
@@ -2373,6 +2416,38 @@ function resolveEliteCast(e, cast) {
   } else if (cast.skill === "webFeast") {
     explosions.push(new Explosion(player.x, cast.dangerY, 54, e.eliteProfile.color, true));
     if (Math.abs(player.y - cast.dangerY) <= 25) eliteHitPlayer(e, e.dmg * 0.75 * tierPower, "蛛网宴席", e.eliteProfile.color);
+  } else if (cast.skill === "faceBurst") {
+    let hit = false;
+    for (const mark of cast.marks) {
+      explosions.push(new Explosion(mark.x, mark.y, 34, e.eliteProfile.color));
+      if (!hit && circleHit(mark.x, mark.y, 34, player.x, player.y, player.radius)) {
+        hit = true;
+        eliteHitPlayer(e, e.dmg * 0.72 * tierPower, "错位爆裂", e.eliteProfile.color);
+      }
+    }
+  } else if (cast.skill === "curtainRise") {
+    explosions.push(new Explosion(cast.safeX - cast.safeHalfWidth, player.y, 38, e.eliteProfile.color, true));
+    explosions.push(new Explosion(cast.safeX + cast.safeHalfWidth, player.y, 38, e.eliteProfile.color, true));
+    if (Math.abs(player.x - cast.safeX) > cast.safeHalfWidth) {
+      eliteHitPlayer(e, e.dmg * 0.7 * tierPower, "谢幕虫潮", e.eliteProfile.color);
+    }
+  } else if (cast.skill === "teamAttack") {
+    for (const lane of cast.dangerLanes) {
+      for (let y = WALL_H + 42; y < HEIGHT; y += 74) explosions.push(new Explosion(lane, y, 28, e.eliteProfile.color));
+    }
+    if (cast.dangerLanes.some((lane) => Math.abs(player.x - lane) <= 23)) {
+      eliteHitPlayer(e, e.dmg * 0.82 * tierPower, "双向夹击", e.eliteProfile.color);
+    }
+  } else if (cast.skill === "ratingStage") {
+    let hit = false;
+    for (const cell of cast.cells) {
+      if (!cell.danger) continue;
+      explosions.push(new Explosion(cell.x, cell.y, 31, e.eliteProfile.color));
+      if (!hit && Math.abs(player.x - cell.x) <= cell.w / 2 && Math.abs(player.y - cell.y) <= cell.h / 2) {
+        hit = true;
+        eliteHitPlayer(e, e.dmg * 0.88 * tierPower, "黄金舞台", e.eliteProfile.color);
+      }
+    }
   }
 }
 
@@ -2518,8 +2593,8 @@ function update(dt) {
   // ---- endless judgement rounds -------------------------------------------
   if (endlessRound > 0) {
     if (roundTimer > 0) roundTimer -= dt;
-    // T-15s: an Undertale round champion. R5+ rotates the same four with the
-    // existing endless stat pressure layered on top.
+    // T-15s: an Undertale round champion. R7+ rotates the six-character roster
+    // with the existing endless stat pressure layered on top.
     if (!roundBossSpawned && roundTimer <= 15) {
       roundBossSpawned = true;
       const profile = championForRound(endlessRound);
@@ -3312,6 +3387,53 @@ function draw() {
         ctx.lineTo(camX + WIDTH, lane);
         ctx.stroke();
       }
+    } else if (cast.skill === "faceBurst") {
+      for (const mark of cast.marks) {
+        ctx.beginPath();
+        ctx.arc(mark.x, mark.y, 34 - p * 14, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(mark.x - 10, mark.y - 7);
+        ctx.lineTo(mark.x + 9, mark.y + 8);
+        ctx.moveTo(mark.x + 10, mark.y - 7);
+        ctx.lineTo(mark.x - 9, mark.y + 8);
+        ctx.stroke();
+      }
+    } else if (cast.skill === "curtainRise") {
+      const leftEdge = cast.safeX - cast.safeHalfWidth;
+      const rightEdge = cast.safeX + cast.safeHalfWidth;
+      ctx.globalAlpha = 0.08 + p * 0.18;
+      ctx.fillRect(camX, WALL_H, Math.max(0, leftEdge - camX), HEIGHT - WALL_H);
+      ctx.fillRect(rightEdge, WALL_H, Math.max(0, camX + WIDTH - rightEdge), HEIGHT - WALL_H);
+      ctx.globalAlpha = 0.5 + p * 0.45;
+      ctx.setLineDash([8, 6]);
+      for (const x of [leftEdge, rightEdge]) {
+        ctx.beginPath();
+        ctx.moveTo(x, WALL_H);
+        ctx.lineTo(x, HEIGHT);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    } else if (cast.skill === "teamAttack") {
+      for (const lane of cast.lanes) {
+        const danger = cast.dangerLanes.includes(lane);
+        ctx.strokeStyle = danger ? (p > 0.58 ? "#ffffff" : e.eliteProfile.color) : "#5b4450";
+        ctx.globalAlpha = danger ? 0.45 + p * 0.5 : 0.22;
+        ctx.lineWidth = danger ? 5 : 2;
+        ctx.beginPath();
+        ctx.moveTo(lane, WALL_H);
+        ctx.lineTo(lane, HEIGHT);
+        ctx.stroke();
+      }
+    } else if (cast.skill === "ratingStage") {
+      for (const cell of cast.cells) {
+        ctx.globalAlpha = cell.danger ? 0.22 + p * 0.55 : 0.12;
+        ctx.fillStyle = cell.danger ? e.eliteProfile.color : "#72e0ff";
+        ctx.strokeStyle = cell.danger && p > 0.58 ? "#ffffff" : ctx.fillStyle;
+        ctx.lineWidth = cell.danger ? 3 : 1;
+        ctx.fillRect(cell.x - cell.w / 2, cell.y - cell.h / 2, cell.w, cell.h);
+        ctx.strokeRect(cell.x - cell.w / 2, cell.y - cell.h / 2, cell.w, cell.h);
+      }
     }
     ctx.restore();
   }
@@ -3404,7 +3526,8 @@ function draw() {
     const spriteScale = e.championProfile
       ? 3.8
       : { bat: 2.2, tank: 3.2, ghost: 2.9, blue: 2.8, red: 2.7, purple: 2.7, orange: 3.0 }[e.sprite] || 2.6;
-    const enemySprite = e.championProfile ? CHAMPION_SPRITES[e.championProfile.key] : ENEMY_SPRITES[e.sprite];
+    const profileSprite = CHAMPION_SPRITES[e.championProfile?.key || e.eliteProfile?.key];
+    const enemySprite = profileSprite || ENEMY_SPRITES[e.sprite];
     drawSprite(ctx, enemySprite, e.x, e.y, e.radius * spriteScale);
     if (flicker) ctx.restore();
     // root-immunity: small grey broken ring (diminishing returns active)
