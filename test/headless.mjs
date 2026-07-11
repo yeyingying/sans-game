@@ -164,7 +164,12 @@ function run(seconds, onFrame) {
   const M = await import(new URL(`../src/meta.js?unit=${MODE}`, import.meta.url));
   check("wallet starts empty", M.getCoins() === 0);
   const permanentShopTotal = M.UPGRADES.reduce((sum, u) => sum + u.base * ((u.max * (u.max + 1)) / 2), 0);
-  check("permanent shop price curve totals 8235 (~40 runs)", permanentShopTotal === 8235, `total=${permanentShopTotal}`);
+  const geoTotal = M.UPGRADES.reduce((sum, u) => {
+    let tt = 0;
+    for (let l = 0; l < u.max; l++) tt += u.base * Math.pow(2, l);
+    return sum + tt;
+  }, 0);
+  check("geometric shop curve totals 13855", geoTotal === 13855, `total=${geoTotal}`);
   M.addCoins(300);
   check("coins added", M.getCoins() === 300);
   check("upgrade cost scales", M.upgradeCost("atk") === 90);
@@ -500,7 +505,12 @@ if (MODE === "normal") {
       // chase the heart once it drops; otherwise hug the boss so weapons
       // target it instead of the summons
       if (d.heart) steer(d.heart.x, d.heart.y, d.px, d.py);
-      else if (d.bossX !== null) steer(d.bossX, d.bossY, d.px, d.py);
+      else if (d.bossX !== null) {
+        // hug the boss horizontally but stay off the walls vertically —
+        // getting pinned in a corner is what kills the runner in phase 2
+        const ty = Math.max(230, Math.min(470, d.bossY));
+        steer(d.bossX, ty, d.px, d.py);
+      }
       else releaseAll();
       if (d.state === "bossclear") { releaseAll(); return true; }
       if (d.state === "gameover") { releaseAll(); return false; }

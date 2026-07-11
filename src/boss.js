@@ -133,7 +133,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
     update(dt, ctx) {
       const { player } = ctx;
       // boss hits scale to the player's bulk (1x fresh build → 3x tank build)
-      if (!this.dmgScale) this.dmgScale = Math.min(3, Math.max(1, player.maxHp / 350));
+      if (!this.dmgScale) this.dmgScale = Math.min(4, Math.max(1, player.maxHp / 350));
       this.t += dt;
       if (this.subtitleT > 0) this.subtitleT -= dt;
       if (boss.hitFlash > 0) boss.hitFlash -= dt;
@@ -260,7 +260,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
           this._p1Scaled = true;
           const dealt = boss.maxHp - boss.hp;
           const dps = dealt / Math.max(this.p1Time, 1);
-          const target = Math.round(Math.min(500000, Math.max(BOSS_HP, dps * 45)));
+          const target = Math.round(Math.min(1500000, Math.max(BOSS_HP, dps * 45)));
           if (target > boss.maxHp) {
             boss.hp += target - boss.maxHp;
             boss.maxHp = target;
@@ -514,7 +514,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
           this.mercySmashed = false;
           const p1Time = Math.max(10, this.p1Time || 60);
           const dps = (this.p1MaxHp || BOSS_HP) / p1Time; // real phase-1 pool, post-scaling
-          const p2hp = Math.round(Math.min(600000, Math.max(40000, dps * P2_SECONDS)));
+          const p2hp = Math.round(Math.min(1500000, Math.max(40000, dps * P2_SECONDS)));
           boss.maxHp = p2hp;
           boss.hp = p2hp;
           this.homeX = ctx.camX + this.WIDTH * 0.72;

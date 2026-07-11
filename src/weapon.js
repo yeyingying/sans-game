@@ -704,6 +704,13 @@ export const WEAPON_LIST = WEAPON_LISTS.sans;
 
 export const MAX_TIER = 4;
 
+// 2026-07-11 user tuning: awakened forms hit ~35% harder across the board
+for (const w of Object.values(WEAPONS)) {
+  if (w.evolve && w.evolve.tier && w.evolve.tier.dmgMult) {
+    w.evolve.tier.dmgMult = Math.round(w.evolve.tier.dmgMult * 1.35 * 10) / 10;
+  }
+}
+
 // A weapon the player owns. bonus* fields grow on player level-up:
 // ranged weapons gain range, the orbit weapon gains bones and spin.
 export function createWeaponInstance(id) {
@@ -740,7 +747,8 @@ export function createWeaponInstance(id) {
 
 export function instTier(inst) {
   const w = WEAPONS[inst.id];
-  if (inst.evolved && w.evolve) return w.evolve.tier;
+  // awakened form inherits every Lv5 stat it doesn't explicitly override
+  if (inst.evolved && w.evolve) return { ...w.tiers[w.tiers.length - 1], ...w.evolve.tier };
   return w.tiers[inst.tier];
 }
 

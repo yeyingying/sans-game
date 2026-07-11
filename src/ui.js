@@ -499,8 +499,9 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
         ctx.fillText(fmtTierVal(k, t[k]), tx + 64 + c * colW, ty);
       });
       if (w.evolve) {
+        const evoVal = w.evolve.tier[k] !== undefined ? w.evolve.tier[k] : w.tiers[4][k];
         ctx.fillStyle = "#ffd166";
-        ctx.fillText(fmtTierVal(k, w.evolve.tier[k]), tx + 64 + 5 * colW, ty);
+        ctx.fillText(fmtTierVal(k, evoVal), tx + 64 + 5 * colW, ty);
       }
       ty += 17;
     }
@@ -523,6 +524,20 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
       ctx.fillStyle = "#9a93ab";
       ctx.font = "11px monospace";
       ctx.fillText("条件:品阶升满 Lv5 且专属强化叠满 3 层 → 选卡出现金色进化卡", tx, ty);
+      // concrete deltas: only the stats the awakening actually changes
+      const lv5 = w.tiers[4];
+      const deltas = [];
+      for (const dk of Object.keys(w.evolve.tier)) {
+        if (w.evolve.tier[dk] !== lv5[dk]) {
+          deltas.push(`${TIER_FIELD_LABELS[dk] || dk} ${fmtTierVal(dk, lv5[dk])}→${fmtTierVal(dk, w.evolve.tier[dk])}`);
+        }
+      }
+      if (deltas.length) {
+        ty += 17;
+        ctx.fillStyle = "#ffd93d";
+        ctx.font = "bold 11px monospace";
+        ctx.fillText(`觉醒增幅:${deltas.join(" · ")}`, tx, ty);
+      }
     }
   }
 

@@ -61,7 +61,9 @@ export function upgradeCost(id) {
   const u = UPGRADES.find((x) => x.id === id);
   const lvl = upgradeLevel(id);
   if (!u || lvl >= u.max) return null; // maxed out
-  return u.base * (lvl + 1);
+  // geometric: each level doubles — first buys stay reachable, the last
+  // levels are real long-term goals (endgame farming can't insta-max)
+  return u.base * Math.pow(2, lvl);
 }
 
 export function buyUpgrade(id) {
@@ -511,8 +513,8 @@ export function weaponUnlockInfo(charId, slot) {
 export const DIFFICULTIES = [
   { id: 0, name: "普通", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, hint: null },
   { id: 1, name: "狂暴", hpMult: 2.8, dmgMult: 2.2, coinMult: 2.0, scoreMult: 1.8, hint: "击败一次Boss解锁" },
-  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 3.2, scoreMult: 3.0, hint: "狂暴难度击败Boss解锁" },
-  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 4.5, scoreMult: 4.5, hint: "地狱通关且钱包曾达2000解锁" },
+  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 2.4, scoreMult: 3.0, hint: "狂暴难度击败Boss解锁" },
+  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 3.2, scoreMult: 4.5, hint: "地狱通关且钱包曾达2000解锁" },
 ];
 
 export function isDifficultyUnlocked(id) {

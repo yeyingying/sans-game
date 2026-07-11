@@ -120,6 +120,12 @@ export function sfxChestTick(progress = 0) {
   blip({ type: "square", from: 300 + progress * 500, dur: 0.03, gain: 0.08 });
 }
 
+// chest slams down: heavy thump
+export function sfxChestLand() {
+  blip({ type: "sine", from: 120, to: 45, dur: 0.18, gain: 0.3 });
+  noiseBurst({ dur: 0.12, gain: 0.14 });
+}
+
 // chest opens: bright unlatch
 export function sfxChestOpen(jackpot = 0) {
   blip({ from: 660, dur: 0.08, gain: 0.16 });

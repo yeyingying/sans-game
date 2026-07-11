@@ -117,6 +117,7 @@ import {
   sfxType,
   sfxChestTick,
   sfxChestOpen,
+  sfxChestLand,
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
@@ -137,6 +138,7 @@ import {
   weaponBoxRect,
   confirmButtonRect,
   backButtonRect,
+  drawBackButton,
   drawChoiceScreen,
   choiceBoxRect,
   rerollButtonRect,
@@ -260,6 +262,11 @@ let healFlash = 0; // hp-bar whitening after a heal
 let lastScore = 0;
 let lastBest = 0;
 let newRecord = false;
+// wall-clock seconds for ceremony/menu animations (game clock is paused there)
+function elapsedWall() {
+  return (typeof performance !== "undefined" ? performance.now() : Date.now()) / 1000;
+}
+
 function currentScore() {
   const contractScore = activeContract?.id === "silence" ? 1.35 : 1;
   return Math.floor((player.kills * 5 + Math.floor(elapsed) * 2.5) * getDifficulty().scoreMult * contractScore);
@@ -801,6 +808,39 @@ function settleGame(kind) {
   if (lvlAfter >= 1) unlockEchoToast(player.character + "1");
   if (lvlAfter >= 3) unlockEchoToast(player.character + "2");
 }
+// ---- 存档码: manual cross-device save transfer (no server needed) ----------
+function exportSaveCode() {
+  try {
+    const data = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      data[k] = localStorage.getItem(k);
+    }
+    const code = "SANS1." + btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    try {
+      navigator.clipboard && navigator.clipboard.writeText(code);
+    } catch (e) {}
+    window.prompt("存档码已生成(已尝试复制到剪贴板)——全选复制保存:", code);
+  } catch (e) {}
+}
+
+function importSaveCode() {
+  try {
+    const code = window.prompt("粘贴存档码(将覆盖本机全部进度):", "");
+    if (!code) return;
+    const raw = code.trim().replace(/^SANS1\./, "");
+    const data = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    if (!data || typeof data !== "object") throw new Error("bad");
+    for (const [k, v] of Object.entries(data)) localStorage.setItem(k, String(v));
+    window.alert("导入成功,即将刷新加载新存档");
+    location.reload();
+  } catch (e) {
+    try {
+      window.alert("存档码无效,请检查是否完整粘贴");
+    } catch (e2) {}
+  }
+}
+
 function goTitle() {
   exitDailyMode();
   reset(currentWeaponList()[0].id);
@@ -926,22 +966,62 @@ function rollChestRewards() {
   return rewards;
 }
 
-function openChest() {
+function openChest(forceCount = 0) {
+  let rewards = rollChestRewards();
+  if (forceCount > 0) {
+    while (rewards.length < forceCount) rewards = rewards.concat(rollChestRewards());
+    rewards = rewards.slice(0, forceCount);
+  }
   chestCeremony = {
     t: 0,
-    phase: "spin", // spin (1.5s, decelerating ticks) -> reveal
-    rewards: rollChestRewards(),
+    phase: "drop", // drop (0.35s slam) -> spin (1.5s ticks) -> reveal
+    rewards,
     lastTick: -1,
+    shake: 0, // screen shake amount, decays
+    flash: 0, // white burst at the moment of opening
+    sparks: [], // golden fountain particles
+    landed: false,
   };
   state = "chest";
 }
 
+function chestSpawnSparks(n, jackpot) {
+  const cx = WIDTH / 2;
+  const cy = HEIGHT / 2 - 110;
+  const palette = jackpot >= 2
+    ? ["#ffd93d", "#fff3b0", "#ff8fc7", "#7cf28a", "#8fd6ff"]
+    : ["#ffd166", "#fff3b0", "#f2ead8"];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.9;
+    const sp = 220 + Math.random() * 320;
+    chestCeremony.sparks.push({
+      x: cx + (Math.random() - 0.5) * 30,
+      y: cy,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp,
+      t: 0,
+      life: 0.7 + Math.random() * 0.5,
+      size: 2 + Math.random() * 3,
+      color: palette[Math.floor(Math.random() * palette.length)],
+      spin: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
 function chestAdvance() {
   if (!chestCeremony) return;
-  if (chestCeremony.phase === "spin") {
+  if (chestCeremony.phase === "drop") {
+    chestCeremony.phase = "spin"; // impatient tap: skip straight to the reel
+    chestCeremony.t = 0;
+    chestCeremony.landed = true;
+  } else if (chestCeremony.phase === "spin") {
     chestCeremony.phase = "reveal";
     chestCeremony.t = 0;
     const jackpot = chestCeremony.rewards.length >= 5 ? 2 : chestCeremony.rewards.length >= 3 ? 1 : 0;
+    // the burst: white flash, shake, and a golden fountain sized to the prize
+    chestCeremony.flash = 0.22;
+    chestCeremony.shake = jackpot === 2 ? 0.8 : jackpot === 1 ? 0.5 : 0.3;
+    chestSpawnSparks(jackpot === 2 ? 110 : jackpot === 1 ? 70 : 40, jackpot);
     sfxChestOpen(jackpot);
     if (jackpot) killFlash = 0.3;
     if (jackpot === 2) sfxFanfare();
@@ -1060,6 +1140,9 @@ const DEBUG_BOSS = new URLSearchParams(location.search).get("boss");
 // debug: ?evolve pre-maxes the starting weapon (tier 5 + 3 stacks) so the
 // golden evolution card shows up on the very first choice screen
 const DEBUG_EVOLVE = new URLSearchParams(location.search).get("evolve");
+// debug: ?chest opens the slot ceremony immediately (?chest=3 / ?chest=5
+// forces the jackpot sizes) — for tuning the show without farming elites
+const DEBUG_CHEST = new URLSearchParams(location.search).get("chest");
 
 // ---- boss-clear choices ----------------------------------------------------
 
@@ -1195,11 +1278,17 @@ function startGame() {
     elapsed = BOSS_APPEAR_TIME - 2;
     nextChoiceAt = 99999; // skip the backlog of choice screens
     // simulate a 5-minute build so the tester isn't one-shot
-    player.maxHp = 1200;
-    player.hp = 1200;
+    player.maxHp = 1600;
+    player.hp = 1600;
     player.atk += 40;
-    player.regen += 15;
+    player.regen += 20;
     player.dmgReduction = 0.6; // survivable enough to watch the whole show
+    if (DEBUG_BOSS === "weak") {
+      // the flow-test route: near-unkillable dummy so automated runs and
+      // manual flow checks never flake on phase-2 bullet luck
+      player.dmgReduction = 0.75;
+      player.revives = 3; // debug lives; consumeRevive() no-ops at 0 stock
+    }
   }
   // 审判契约: the pact takes hold before anything else enters the hall
   activeContract = DEBUG_BOSS === null && !dailyMode ? offeredContracts[selectedContract] || null : null;
@@ -1262,6 +1351,10 @@ function startGame() {
   if (DEBUG_EVOLVE !== null && player.weapons[0]) {
     player.weapons[0].tier = 4;
     player.weapons[0].enhance = 3;
+  }
+  if (DEBUG_CHEST !== null) {
+    introBlack = 0;
+    openChest(parseInt(DEBUG_CHEST, 10) || 0); // ?chest / ?chest=3 / ?chest=5
   }
   timeScale = 1;
   state = "playing";
@@ -1619,7 +1712,7 @@ function handleCanvasTap(pos) {
   }
   if (state === "title") {
     if (titleMenuOpen) {
-      const targets = ["shop", "codex", "echoes", "quests", "weaponbook"];
+      const targets = ["shop", "codex", "echoes", "quests", "weaponbook", "savecode"];
       for (let i = 0; i < targets.length; i++) {
         if (inRect(pos, titleMenuItemRect(i, WIDTH, HEIGHT))) {
           state = targets[i];
@@ -1654,6 +1747,19 @@ function handleCanvasTap(pos) {
     if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
       state = "title";
       sfxClick();
+    }
+    return;
+  }
+  if (state === "savecode") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "title";
+      sfxClick();
+    } else if (inRect(pos, bossClearLeaveRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      exportSaveCode();
+    } else if (inRect(pos, bossClearContinueRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      importSaveCode();
     }
     return;
   }
@@ -1979,7 +2085,7 @@ window.addEventListener("keydown", (e) => {
     }
     return;
   }
-  if (state === "quests" || state === "echoes") {
+  if (state === "quests" || state === "echoes" || state === "savecode") {
     if (k === "escape") state = "title";
     return;
   }
@@ -4004,6 +4110,38 @@ function draw() {
     drawChoiceScreen(ctx, WIDTH, HEIGHT, choiceOptions, choiceRerollsLeft);
   } else if (state === "quests") {
     drawQuestsScreen(ctx, WIDTH, HEIGHT, questView());
+  } else if (state === "savecode") {
+    drawCenterText(
+      ctx,
+      WIDTH,
+      HEIGHT,
+      [
+        { text: "☁ 存 档 码", font: "bold 30px monospace", color: "#8fd6ff" },
+        { text: "把进度带到另一台设备,或做个备份", font: "14px monospace", color: "#c8c2d4" },
+        { text: "导出:生成一串代码,复制保存", font: "12px monospace", color: "#9a93ab" },
+        { text: "导入:粘贴代码,覆盖本机进度并刷新", font: "12px monospace", color: "#9a93ab" },
+        { text: "※ 请勿修改代码内容,改动会导致导入失败", font: "11px monospace", color: "#d9c47a" },
+      ],
+      -110
+    );
+    for (const [rect, label, color] of [
+      [bossClearLeaveRect(WIDTH, HEIGHT), "📤 导出存档码", "#7cf28a"],
+      [bossClearContinueRect(WIDTH, HEIGHT), "📥 导入存档码", "#8fd6ff"],
+    ]) {
+      ctx.save();
+      ctx.fillStyle = "#1d1828";
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.fillStyle = color;
+      ctx.font = "bold 16px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(label, rect.x + rect.w / 2, rect.y + 36);
+      ctx.restore();
+    }
+    ctx.textAlign = "left";
+    drawBackButton(ctx, WIDTH, HEIGHT);
   } else if (state === "weaponbook") {
     drawWeaponBook(
       ctx,
@@ -4045,67 +4183,166 @@ function draw() {
       bossClearChoice
     );
   } else if (state === "chest" && chestCeremony) {
-    // ---- slot-machine chest ceremony ----
+    // ---- slot-machine chest ceremony (the show) ----
+    const cc = chestCeremony;
     ctx.save();
-    ctx.fillStyle = "rgba(6, 5, 12, 0.88)";
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    // screen shake rides the whole ceremony
+    if (cc.shake > 0) {
+      ctx.translate((Math.random() - 0.5) * cc.shake * 18, (Math.random() - 0.5) * cc.shake * 14);
+    }
+    ctx.fillStyle = "rgba(6, 5, 12, 0.9)";
+    ctx.fillRect(-24, -24, WIDTH + 48, HEIGHT + 48);
     ctx.textAlign = "center";
-    // the chest itself
     const cx = WIDTH / 2;
     const cy = HEIGHT / 2 - 110;
-    const open = chestCeremony.phase === "reveal";
+    const open = cc.phase === "reveal";
+    const n = cc.rewards.length;
+    const jackpot = n >= 5 ? 2 : n >= 3 ? 1 : 0;
+
+    // rotating god-rays build up behind the chest
+    const rayAlpha = cc.phase === "spin" ? 0.10 + Math.min(1, cc.t / 1.5) * 0.16 : open ? 0.3 : 0;
+    if (rayAlpha > 0) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(elapsedWall() * (open ? 0.9 : 0.5));
+      ctx.fillStyle = jackpot === 2 && open ? "rgba(255, 217, 61, ALPHA)".replace("ALPHA", rayAlpha) : `rgba(255, 209, 102, ${rayAlpha})`;
+      for (let i = 0; i < 8; i++) {
+        ctx.rotate(Math.PI / 4);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(430, -46);
+        ctx.lineTo(430, 46);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // the chest: falls in, squashes on landing, rattles during the spin
+    let chestY = cy;
+    let squash = 1;
+    if (cc.phase === "drop") {
+      const p = Math.min(1, cc.t / 0.35);
+      chestY = cy - (1 - p * p) * 260; // ease-in fall
+      if (cc.landed) squash = 1 + Math.max(0, 0.25 - (cc.t - 0.35) * 1.6);
+    }
+    let jitterX = 0;
+    if (cc.phase === "spin") {
+      const p = Math.min(1, cc.t / 1.5);
+      jitterX = Math.sin(cc.t * 46) * 2.6 * p; // rattling harder and harder
+    }
     ctx.save();
+    ctx.translate(cx + jitterX, chestY);
+    ctx.scale(1 * squash, 1 / squash);
     ctx.shadowColor = "#ffd166";
-    ctx.shadowBlur = open ? 30 : 14;
+    ctx.shadowBlur = open ? 34 : 14 + (cc.phase === "spin" ? Math.min(1, cc.t / 1.5) * 12 : 0);
     ctx.fillStyle = "#a97b1e";
-    ctx.fillRect(cx - 44, cy - 20, 88, 52);
-    ctx.fillStyle = "#ffd166";
-    ctx.fillRect(cx - 44, cy - (open ? 44 : 20), 88, 24);
+    ctx.fillRect(-44, -20, 88, 52);
+    if (open) {
+      // the lid flies up and spins away
+      const lt = Math.min(1, cc.t / 0.45);
+      ctx.save();
+      ctx.translate(0, -44 - lt * 150);
+      ctx.rotate(lt * 1.8);
+      ctx.globalAlpha = 1 - lt * 0.8;
+      ctx.fillStyle = "#ffd166";
+      ctx.fillRect(-44, 0, 88, 24);
+      ctx.restore();
+      // glowing mouth
+      ctx.fillStyle = "#fff3b0";
+      ctx.fillRect(-40, -22, 80, 10);
+    } else {
+      ctx.fillStyle = "#ffd166";
+      ctx.fillRect(-44, -20, 88, 24);
+    }
     ctx.fillStyle = "#241f2b";
-    ctx.fillRect(cx - 5, cy + 2, 10, 14);
+    ctx.fillRect(-5, 2, 10, 14);
     ctx.restore();
-    if (chestCeremony.phase === "spin") {
-      // spinning reel of possible prizes
+
+    // golden fountain
+    for (const sp of cc.sparks) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - sp.t / sp.life);
+      ctx.translate(sp.x, sp.y);
+      ctx.rotate(sp.spin);
+      ctx.fillStyle = sp.color;
+      ctx.fillRect(-sp.size / 2, -sp.size / 2, sp.size, sp.size);
+      ctx.restore();
+    }
+
+    if (cc.phase === "drop") {
+      ctx.fillStyle = "#9a93ab";
+      ctx.font = "13px monospace";
+      ctx.fillText("谜之宝箱……", cx, cy + 150);
+    } else if (cc.phase === "spin") {
       const icons = ["ⓖ", "◆", "♥", "▲", "★"];
       const colors = ["#ffd166", "#ff8fc7", "#7cf28a", "#7ea8ff", "#c59bff"];
-      const idx = chestCeremony.lastTick % icons.length;
-      ctx.font = "bold 56px monospace";
-      ctx.fillStyle = colors[(idx + icons.length) % icons.length];
-      ctx.fillText(icons[(idx + icons.length) % icons.length], cx, cy + 130);
+      const idx = ((cc.lastTick % icons.length) + icons.length) % icons.length;
+      const p = Math.min(1, cc.t / 1.5);
+      ctx.save();
+      ctx.font = `bold ${Math.round(48 + p * 18)}px monospace`;
+      ctx.fillStyle = colors[idx];
+      ctx.shadowColor = colors[idx];
+      ctx.shadowBlur = 10 + p * 14;
+      ctx.fillText(icons[idx], cx, cy + 132);
+      ctx.restore();
       ctx.fillStyle = "#9a93ab";
       ctx.font = "13px monospace";
       ctx.fillText("命运正在滚动…… (点击跳过)", cx, cy + 176);
     } else {
-      const n = chestCeremony.rewards.length;
-      ctx.fillStyle = n >= 5 ? "#ffd93d" : n >= 3 ? "#ffd166" : "#f2ead8";
-      ctx.font = `bold ${n >= 5 ? 34 : 26}px monospace`;
-      ctx.fillText(n >= 5 ? "★ 五 连 大 奖 ★" : n >= 3 ? "三 连 奖 !" : "战 利 品", cx, cy + 96);
+      // reveal: banner + staggered bouncing reward cards
+      ctx.save();
+      if (jackpot === 2) {
+        const pulse = 0.7 + 0.3 * Math.sin(elapsedWall() * 10);
+        ctx.shadowColor = "#ffd93d";
+        ctx.shadowBlur = 24 * pulse;
+      }
+      ctx.fillStyle = jackpot === 2 ? "#ffd93d" : jackpot === 1 ? "#ffd166" : "#f2ead8";
+      ctx.font = `bold ${jackpot === 2 ? 36 : jackpot === 1 ? 30 : 24}px monospace`;
+      ctx.fillText(jackpot === 2 ? "★ 五 连 大 奖 ★" : jackpot === 1 ? "✦ 三 连 奖 ! ✦" : "战 利 品", cx, cy + 96);
+      ctx.restore();
       const w = 150;
       const gap = 12;
       const total = n * w + (n - 1) * gap;
-      const pop = Math.min(1, chestCeremony.t / 0.25);
-      chestCeremony.rewards.forEach((rw, i) => {
+      cc.rewards.forEach((rw, i) => {
+        // staggered entrance with an overshoot bounce
+        const local = Math.max(0, cc.t - 0.1 - i * 0.12);
+        if (local <= 0) return;
+        const k = Math.min(1, local / 0.3);
+        const overshoot = 1 + Math.sin(Math.min(1, k) * Math.PI) * 0.18;
         const x = cx - total / 2 + i * (w + gap);
         const y = cy + 120;
         ctx.save();
-        ctx.globalAlpha = pop;
+        ctx.globalAlpha = k;
+        ctx.translate(x + w / 2, y + 42);
+        ctx.scale(k * overshoot, k * overshoot);
+        ctx.translate(-(w / 2), -42);
         ctx.fillStyle = "#1d1828";
-        ctx.fillRect(x, y, w, 84 * pop);
+        ctx.fillRect(0, 0, w, 84);
         ctx.strokeStyle = rw.color;
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, w, 84 * pop);
-        if (pop >= 1) {
-          ctx.fillStyle = rw.color;
-          ctx.font = "bold 30px monospace";
-          ctx.fillText(rw.icon, x + w / 2, y + 40);
-          ctx.font = "bold 12px monospace";
-          ctx.fillText(rw.label, x + w / 2, y + 68);
-        }
+        ctx.strokeRect(0, 0, w, 84);
+        ctx.shadowColor = rw.color;
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = rw.color;
+        ctx.font = "bold 30px monospace";
+        ctx.fillText(rw.icon, w / 2, 40);
+        ctx.shadowBlur = 0;
+        ctx.font = "bold 12px monospace";
+        ctx.fillText(rw.label, w / 2, 68);
         ctx.restore();
       });
-      ctx.fillStyle = "#9a93ab";
-      ctx.font = "13px monospace";
-      ctx.fillText("点击收下,继续战斗", cx, cy + 240);
+      if (cc.t > 0.1 + n * 0.12 + 0.3) {
+        ctx.fillStyle = "#9a93ab";
+        ctx.font = "13px monospace";
+        ctx.fillText("点击收下,继续战斗", cx, cy + 240);
+      }
+    }
+
+    // white burst at the instant of opening
+    if (cc.flash > 0) {
+      ctx.fillStyle = `rgba(255, 250, 230, ${(cc.flash / 0.22) * 0.5})`;
+      ctx.fillRect(-24, -24, WIDTH + 48, HEIGHT + 48);
     }
     ctx.restore();
     ctx.textAlign = "left";
@@ -4303,16 +4540,37 @@ function loop(now) {
 
   if (deathShatter && state === "gameover") deathShatter.t += dt;
   if (state === "chest" && chestCeremony) {
-    chestCeremony.t += dt;
-    if (chestCeremony.phase === "spin") {
+    const cc = chestCeremony;
+    cc.t += dt;
+    if (cc.shake > 0) cc.shake = Math.max(0, cc.shake - dt * 2.2);
+    if (cc.flash > 0) cc.flash -= dt;
+    for (const s of cc.sparks) {
+      s.t += dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.vy += 620 * dt; // gravity
+      s.spin += dt * 9;
+    }
+    cc.sparks = cc.sparks.filter((s) => s.t < s.life);
+    if (cc.phase === "drop") {
+      if (cc.t >= 0.35 && !cc.landed) {
+        cc.landed = true;
+        cc.shake = 0.5;
+        sfxChestLand();
+      }
+      if (cc.t >= 0.55) {
+        cc.phase = "spin";
+        cc.t = 0;
+      }
+    } else if (cc.phase === "spin") {
       // decelerating slot ticks: fast at first, sparse near the stop
-      const p = Math.min(1, chestCeremony.t / 1.5);
+      const p = Math.min(1, cc.t / 1.5);
       const step = Math.floor(16 * (1 - Math.pow(1 - p, 2)));
-      if (step !== chestCeremony.lastTick) {
-        chestCeremony.lastTick = step;
+      if (step !== cc.lastTick) {
+        cc.lastTick = step;
         sfxChestTick(p);
       }
-      if (chestCeremony.t >= 1.5) chestAdvance(); // auto-open at full spin
+      if (cc.t >= 1.5) chestAdvance(); // auto-open at full spin
     }
   }
   if (state === "echoread" && echoRead && !echoRead.done) {
