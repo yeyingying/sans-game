@@ -176,9 +176,9 @@ function run(seconds, onFrame) {
   check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 210);
   check("next level costs more", M.upgradeCost("atk") === 180);
   check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 210);
-  const p = { atk: 6, maxHp: 100, hp: 100, moveSpeed: 165, magnetRadius: 90 };
+  const p = { atk: 6, maxHp: 100, hp: 100, moveSpeed: 165, magnetRadius: 90, dmgAmp: 1 };
   M.applyMetaUpgrades(p);
-  check("upgrade applies to player", p.atk === 8, `atk=${p.atk}`);
+  check("power upgrade is multiplicative dmgAmp", Math.abs(p.dmgAmp - 1.06) < 1e-9, `amp=${p.dmgAmp}`);
   check("sans always unlocked", M.isCharUnlocked("sans"));
   check("ukb locked at zero kills", !M.isCharUnlocked("ukb"));
   check("grandfathered by best score", M.isCharUnlocked("ukb", 500));
