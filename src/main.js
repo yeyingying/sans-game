@@ -408,10 +408,10 @@ let lastDeathBy = null; // frozen at death for the gameover screen
 
 // boss warning: the last 30s before the boss the screen pulses red,
 // the music ducks and a siren beeps every 10s
-// normal gets a longer power-fantasy runway before the judge arrives:
-// builds (and first evolutions) mature before the fight, 狂暴+ stays tight
+// boss timing is uniform across difficulties (5:00) — user call 2026-07-12;
+// the per-difficulty hook stays here as a future tuning knob
 function bossAppearAt() {
-  return getDifficulty().id === 0 ? 420 : BOSS_APPEAR_TIME;
+  return BOSS_APPEAR_TIME;
 }
 function bossWarnAt() {
   return bossAppearAt() - 30;
