@@ -934,7 +934,8 @@ function rollContracts() {
 // 1 reward (70%) / 3 rewards (25%) / 5 rewards (5%) — the jackpot is the hook
 function rollChestRewards() {
   const r = Math.random();
-  const count = r < 0.05 ? 5 : r < 0.3 ? 3 : 1;
+  let count = r < 0.05 ? 5 : r < 0.3 ? 3 : 1;
+  if (endlessRound >= 4) count = 1; // deep judgement pays single rewards only
   const rewards = [];
   for (let i = 0; i < count; i++) {
     const pick = Math.random() * 100;
@@ -2797,8 +2798,15 @@ function update(dt) {
       explosions.push(new Explosion(e.x, e.y, e.radius * 3.4, "#ffd166", true));
       sfxEliteDown();
       if (e.eliteProfile) unlockEchoToast("names"); // a NAMED resident fell
-      // 谜之宝箱: champions always carry one, elites sometimes
-      if (e.roundBoss || e.championProfile || Math.random() < 0.22) {
+      // 谜之宝箱: champions always carry one, elites sometimes — but in
+      // endless the chests dry up round by round just like the coins do,
+      // otherwise the elite flood becomes an infinite power faucet
+      const chestFactor =
+        endlessRound === 0 ? 1 : endlessRound === 1 ? 1 : endlessRound === 2 ? 0.5 : endlessRound === 3 ? 0.25 : 0;
+      const chestChance = e.roundBoss || e.championProfile
+        ? endlessRound <= 3 ? 1 : 0.4 // deep-round champions: trophy, not salary
+        : 0.22 * chestFactor;
+      if (Math.random() < chestChance) {
         pickups.push(new Pickup(e.x, e.y, "chest", {}));
       }
     }
