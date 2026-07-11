@@ -151,6 +151,15 @@ function run(seconds, onFrame) {
   check("记忆头在地狱 3:45 / 屠杀 3:15 加入", !C.eliteProfilePool(2, 224).some((m) => m.key === "elite_memoryhead") && C.eliteProfilePool(2, 225).some((m) => m.key === "elite_memoryhead") && C.eliteProfilePool(3, 195).some((m) => m.key === "elite_memoryhead"));
   check("死神鸟在屠杀 4:00 加入", !C.eliteProfilePool(3, 239).some((m) => m.key === "elite_reaper_bird") && C.eliteProfilePool(3, 240).some((m) => m.key === "elite_reaper_bird"));
 
+  // narrative hooks for codex monsters: every champion announces itself, and
+  // even a future unknown named elite still gets a (fallback) death line
+  const N = await import(new URL("../src/narrative.js", import.meta.url));
+  check("all round champions have entrance quotes", C.ROUND_CHAMPIONS.every((m) => typeof N.championEntrance(m.championId) === "string"));
+  check(
+    "named killer death lines with future-proof fallback",
+    typeof N.pickDeathLine("elite_memoryhead", 2) === "string" && typeof N.pickDeathLine("elite_not_written_yet", 2) === "string",
+  );
+
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };
   const generic = new Enemy("slime", 0, 0, { ...scale, namedElite: false });
@@ -492,7 +501,7 @@ if (MODE === "normal") {
   {
     // character echoes: 8 entries, unique ids, mastery-gated unlock works
     const E = await import(new URL(`../src/echo.js?unit=${MODE}`, import.meta.url));
-    check("18 echoes total, ids unique", E.ALL_ECHOES.length === 18 && new Set(E.ALL_ECHOES.map((e) => e.id)).size === 18);
+    check("21 echoes total (10主线+8残响+3真实验室), ids unique", E.ALL_ECHOES.length === 21 && new Set(E.ALL_ECHOES.map((e) => e.id)).size === 21);
     check("char echo unlockable once", E.unlockEcho("horror1") === true && E.unlockEcho("horror1") === false);
     check("char echo joins quote pool", typeof E.randomEchoQuote() === "string");
   }

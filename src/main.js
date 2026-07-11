@@ -142,6 +142,7 @@ import {
   markChapterSeen,
   pickDogLine,
   pickFlowerLine,
+  championEntrance,
 } from "./narrative.js";
 import {
   drawHud,
@@ -431,10 +432,12 @@ let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
 let visitorRolls = { dog: false, flower: false }; // one visit of each per run
 
-// death lines fall back to the base monster's pool for plain elites; named
-// elites and champions get the generic elite pool instead
+// death lines: named elites/champions carry their codex key (own line pools,
+// falling back to the generic elite pool inside pickDeathLine); plain elites
+// fall back to the base monster's pool
 function killerKindOf(e) {
-  if (e.championProfile || e.eliteProfile) return "elite";
+  if (e.championProfile) return e.championProfile.key;
+  if (e.eliteProfile) return e.eliteProfile.key;
   return e.type || null;
 }
 
@@ -852,6 +855,11 @@ function settleGame(kind) {
   if (bossDefeated && getDifficulty().id === 3) unlockEchoToast("dust");
   if (Object.keys(getStats().evolved || {}).length >= 32) unlockEchoToast("gift");
   if (codexCompletion() >= 100) unlockEchoToast("end");
+  // 真实验室暗线: amalgamate kills and deep judgement rounds open the lab thread
+  const ktAll = getStats().killsByType || {};
+  if ((ktAll.elite_memoryhead || 0) > 0) unlockEchoToast("noise");
+  if ((ktAll.elite_reaper_bird || 0) > 0) unlockEchoToast("wishes");
+  if (roundsCleared >= 7 || bestEndlessRoundOf(player.character) >= 7) unlockEchoToast("whitedoor");
   deathQuote = runOutcome === "death" || runOutcome === "endlessDeath" ? randomEchoQuote() : null;
   // "差一点" (near-miss): losses that almost weren't — the strongest rerun hook
   nearMiss = null;
@@ -2862,6 +2870,9 @@ function update(dt) {
       b.eliteSkillTimer = 1.8;
       enemies.push(b);
       roundBanner = { text: `⚠ ${profile.name} 接近`, sub: `${profile.english} · 第 ${endlessRound} 轮审判`, t: 2.2 };
+      // champion entrance quote rides the UT narration box under the banner
+      const entrance = championEntrance(profile.championId);
+      if (entrance) candyBanner = { text: entrance, t: 3.6 };
       sfxAlarm();
     }
     // the round ends when the clock is out AND the champion is down
@@ -3416,7 +3427,8 @@ function drawBackground() {
   for (let wx = first; wx < off + WIDTH + 120; wx += spacing) {
     drawColumn(wx - off, WALL_H, wear, wx / spacing);
     // one flower slot between each pair of columns, filled as echoes unlock
-    const slot = (((wx / spacing) % 18) + 18) % 18;
+    const slots = ALL_ECHOES.length;
+    const slot = (((wx / spacing) % slots) + slots) % slots;
     if (slot < bloomCount) {
       const sway = Math.sin(elapsed * 1.6 + slot) * 0.05;
       ctx.save();

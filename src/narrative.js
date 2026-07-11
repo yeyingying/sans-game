@@ -257,6 +257,28 @@ const DEATH_BY_KILLER = {
     "* 金色的光环还在闪。像是在敬礼。",
     "* 初见杀。下次,你就知道背板了。",
   ],
+  // 命名精英专属(键=图鉴 profile key;没配到的回落 elite 泛用池)
+  elite_final_froggit: ["* 呱。(懂的都懂。你显然还没懂。)"],
+  elite_whimsalot: ["* 它终于不逃了。全体起立——除了你,你起不来了。"],
+  elite_astigmatism: ["* 服从性测试,不合格。"],
+  elite_parsnik: ["* 它给你画的饼,最后一口是真的。"],
+  elite_moldessa: ["* 它五官都没拼对,你走位倒先拼错了。"],
+  elite_migospel: ["* 小丑谢幕了。小丑,竟是你自己。"],
+  elite_aaron: ["* 死因:十二块腹肌,和一个眨眼。;)"],
+  elite_pyrope: ["* 它只是想蹭个热度。你,就是热度。"],
+  elite_memoryhead: ["* 「邀请你加入群聊。」你已被拉入,且无法退出。"],
+  elite_reaper_bird: ["* 死于缝合怪。但它缝住的,是三段没能实现的愿望。"],
+  // 无尽轮首领专属
+  champion_greater_dog: ["* 它只是想贴贴。你没能承受这份热情。"],
+  champion_mad_dummy: ["* 它骂了你整整一轮。结果是你先破防的。"],
+  champion_knight_knight: ["* 摇篮曲唱完了。你,晚安。"],
+  champion_muffet: ["* 一杯蜘蛛茶,9999金币。你的命,抵扣成功。"],
+  champion_royal_guards: ["* 它们当着你的面官宣了。你成了发糖现场的背景板。"],
+  champion_mettaton_ex: ["* 收视率新高!感谢你贡献的下饭操作。"],
+  champion_glyde: ["* 它拒绝透露伤害数值。反正,够用了。"],
+  champion_so_sorry: ["* 「对不起对不起对不起——」道歉了,但没完全道歉。"],
+  champion_endogeny: ["* 你想数清它有几只狗。数到一半,就并入了统计。"],
+  champion_lemon_bread: ["* 欢迎来到特殊地狱。柠檬味,微甜,回口发苦。"],
 };
 
 const DEATH_MILESTONES = {
@@ -270,7 +292,10 @@ const DEATH_MILESTONES = {
 
 export function pickDeathLine(kind, totalDeaths) {
   const milestone = DEATH_MILESTONES[totalDeaths] || null;
-  const pool = DEATH_BY_KILLER[kind] || null;
+  // named elites/champions carry their codex key; unknown ones borrow the
+  // generic elite pool so future codex batches never fall silent
+  const named = (kind || "").startsWith("elite_") || (kind || "").startsWith("champion_");
+  const pool = DEATH_BY_KILLER[kind] || (named ? DEATH_BY_KILLER.elite : null);
   // a milestone death always tells you the number; otherwise the killer speaks
   if (milestone && (!pool || Math.random() < 0.5)) return milestone;
   return pool ? pickFrom(pool) : milestone;
@@ -507,6 +532,25 @@ export function pickDogLine() {
   return pickFrom(DOG_LINES);
 }
 
+// 冠军出场宣言: shown in the UT narration box the moment a round champion
+// spawns (keyed by championId); B站网感 rides on the canon catchphrases
+const CHAMPION_ENTRANCES = {
+  greaterDog: "* 大犬汪蹦蹦跳跳进场。裂缝外一片「awsl」。",
+  madDummy: "* 「我!讨!厌!你!」愤怒假人气到原地起飞。",
+  knightKnight: "* 骑士骑士开始唱摇篮曲。这里不是助眠区,快跑。",
+  muffet: "* 「啊呼呼呼~」玛菲特提着茶壶登场。今日特惠:你的全部金币。",
+  royalGuards: "* 皇家守卫01&02并肩入场。裂缝外齐喊:锁死!",
+  endogeny: "* 无数条尾巴同时摇动。狗片浓度,严重超标。",
+  lemonBread: "* 「欢迎来到,我的特殊地狱。」",
+  mettatonEx: "* 「哦——耶耶耶!」黄金时段开播,礼物刷起来!",
+  glyde: "* 格莱德闪亮登场,并对没有掌声表示不满。",
+  soSorry: "* 「抱歉抱歉,借过——」抱歉怪撞进战场,画稿撒了一地。",
+};
+
+export function championEntrance(championId) {
+  return CHAMPION_ENTRANCES[championId] || null;
+}
+
 const FLOWER_LINES = [
   "……你充满了决心……你充满了决心……",
   "……三师傅,放过我……",
@@ -518,6 +562,8 @@ const FLOWER_LINES = [
   "……前方高能……前方高能……",
   "……存档点在你身后……骗你的……",
   "……谢谢你还在听……",
+  "……蜘蛛茶,9999金币……不还价……",
+  "……哦耶耶耶……(它学谁的,一目了然。)",
 ];
 
 export function pickFlowerLine() {

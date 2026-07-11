@@ -237,7 +237,54 @@ export const CHAR_ECHOES = [
   },
 ];
 
-export const ALL_ECHOES = [...ECHOES, ...CHAR_ECHOES];
+// 真实验室暗线「白色的门」: the amalgamate fights feed a hidden lore thread —
+// the player's 重燃决心 revive and the fused monsters share the same source
+export const LAB_ECHOES = [
+  {
+    id: "noise",
+    color: "#a8f0d0",
+    title: "杂音",
+    hint: "击败一次「记忆头」",
+    quote: "* 快来吧。",
+    lines: [
+      "* 电话线路早就断了。",
+      "* 但杂音还在,一遍一遍,拨向同一个号码。",
+      "* 来电显示:未知。接通后只有一句——",
+      "* 『我们玩得很开心。快来吧。』",
+      "* 你听懂的那一刻,决定假装没听懂。",
+    ],
+  },
+  {
+    id: "wishes",
+    color: "#e8d8ff",
+    title: "三个愿望",
+    hint: "击败一次「死神鸟」",
+    quote: "* 往光亮的地方飞。",
+    lines: [
+      "* 一个想变强。一个想道歉。一个只想被看见。",
+      "* 三个愿望熔在一起,长出了翅膀。",
+      "* 有人管这叫缝合。它们管这叫,互相搀扶。",
+      "* 翅膀记不清自己属于谁,",
+      "* 只记得要往光亮的地方飞。",
+    ],
+  },
+  {
+    id: "whitedoor",
+    color: "#f4f4f4",
+    title: "白色的门",
+    hint: "无尽审判通过第 7 轮",
+    quote: "* 门铃至今没响。",
+    lines: [
+      "* 地下最深处有一间白屋子。",
+      "* 进去的怪物都『回家』了——只是以另一种方式。",
+      "* 它们至今仍在等门铃响。",
+      "* 而你口袋里那颗重燃的决心,",
+      "* 和它们体内的,是同一种东西。",
+    ],
+  },
+];
+
+export const ALL_ECHOES = [...ECHOES, ...CHAR_ECHOES, ...LAB_ECHOES];
 
 let unlocked = (() => {
   try {
