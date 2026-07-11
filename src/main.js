@@ -764,7 +764,7 @@ function settleGame(kind) {
   lastNewTitles = [];
   for (const [id, ok] of [
     ["pacifist", bossDefeated && !runOffense],
-    ["judge", roundsCleared >= 5],
+    ["judge", roundsCleared >= 5 && getDifficulty().id >= 1], // 狂暴+才算数
     ["raven", bossDefeated && getDifficulty().id === 2],
     ["determined", codexCompletion() >= 100],
     ["genocide", bossDefeated && getDifficulty().id === 3],
@@ -2222,13 +2222,22 @@ function explodeBomb(b) {
 function spawnDrops(enemy) {
   pickups.push(new Pickup(enemy.x, enemy.y, "xp", { amount: enemy.xp }));
   const eliteTier = enemy.eliteProfile ? enemy.eliteTier : 0;
-  const equipmentDrops = enemy.championProfile
+  // endless: stat gems dry up round by round like everything else — the
+  // elite flood must never be an infinite permanent-stat pump
+  const gearFactor =
+    endlessRound <= 1 ? 1 : endlessRound === 2 ? 0.5 : endlessRound === 3 ? 0.25 : 0.1;
+  let equipmentDrops = enemy.championProfile
     ? 2
     : enemy.elite
       ? 1 + (eliteTier >= 3 ? 1 : eliteTier >= 2 && Math.random() < 0.35 ? 1 : 0)
       : Math.random() < 0.12
         ? 1
         : 0;
+  if (endlessRound > 0 && !enemy.championProfile) {
+    let kept = 0;
+    for (let i = 0; i < equipmentDrops; i++) if (Math.random() < gearFactor) kept += 1;
+    equipmentDrops = kept;
+  }
   for (let i = 0; i < equipmentDrops; i++) {
     const type = rollEquipmentDrop();
     pickups.push(
@@ -2536,8 +2545,8 @@ function update(dt) {
     // the round ends when the clock is out AND the champion is down
     if (roundTimer <= 0 && roundBossSpawned && roundBossDown) {
       roundsCleared = endlessRound;
-      if (roundsCleared >= 8 && unlockTitle("abysswalker")) lastNewTitles.push("深渊行者");
-      if (roundsCleared >= 12 && unlockTitle("unjudged")) lastNewTitles.push("不可审判者");
+      if (getDifficulty().id >= 1 && roundsCleared >= 8 && unlockTitle("abysswalker")) lastNewTitles.push("深渊行者");
+      if (getDifficulty().id >= 1 && roundsCleared >= 12 && unlockTitle("unjudged")) lastNewTitles.push("不可审判者");
       questToasts(questEvent("round", roundsCleared));
       bossClearChoice = 0;
       state = "roundclear";
@@ -3751,6 +3760,28 @@ function draw() {
       }
     }
     // 灵魂加护 cosmetic: fading heart trail + soul-colored glow
+    // 近敌警示环: whatever the effect soup looks like, a threat inside
+    // 170px always shows through as a red pulsing ring (readability first)
+    {
+      let ringsDrawn = 0;
+      for (const e of enemies) {
+        if (e.boss || ringsDrawn >= 20) continue;
+        const dxp = e.x - player.x;
+        const dyp = e.y - player.y;
+        const d2 = dxp * dxp + dyp * dyp;
+        if (d2 > 170 * 170) continue;
+        const near = 1 - Math.sqrt(d2) / 170;
+        ctx.save();
+        ctx.strokeStyle = "#ff4a4a";
+        ctx.globalAlpha = (0.35 + near * 0.55) * (0.75 + 0.25 * Math.sin(elapsed * 10));
+        ctx.lineWidth = 2 + near * 1.5;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius + 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        ringsDrawn += 1;
+      }
+    }
     const soulEq = equippedCosmetic();
     if (soulEq) {
       for (const s of soulTrail) {
