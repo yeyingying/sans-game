@@ -197,6 +197,87 @@ const METTATON_EX = pixelSprite(
   { P: "#ff78b8", D: "#27222e", W: "#f8f0f5" }
 );
 
+const AARON = pixelSprite(
+  [
+    "       TTTT          ",
+    "      TWWWWT         ",
+    "     TTWDDWTT        ",
+    "      TWWWWT         ",
+    "       TTTT          ",
+    "   TT TCCCCCT TT     ",
+    "  TCCCTCCCCCTCCCT    ",
+    " TCCCCCCCCCCCCCCCT   ",
+    " TCCTCCCCCCCTCCCT    ",
+    "  TT TCCCCCT TT      ",
+    "     TCCCCCCT        ",
+    "     TCCTCCCT        ",
+    "     TCCCCCCT        ",
+    "      TCCCCCT        ",
+    "      TT  TT         ",
+    "     TTT  TTT        ",
+  ],
+  { T: "#266d72", C: "#62d5d0", W: "#eefbf8", D: "#20272d" }
+);
+
+const PYROPE = pixelSprite(
+  [
+    "       YYYY          ",
+    "      YOOOY          ",
+    "     YORROY          ",
+    "    YORWWROY         ",
+    "    YORRRROY         ",
+    "     YOOOY           ",
+    "    YYOROYY          ",
+    "   YORRRRROY         ",
+    "  YOROYYOROY         ",
+    " YOROY  YOROY        ",
+    "YOROY    YOROY       ",
+    " YOOY    YOOY        ",
+    "  YY      YY         ",
+  ],
+  { Y: "#ffd166", O: "#ff8a3d", R: "#b83b28", W: "#fff4d8" }
+);
+
+const GLYDE = pixelSprite(
+  [
+    "        YYYY          ",
+    "      YYWWWWYY        ",
+    "    YYWWWWWWWWYY      ",
+    "   YWWDWWWWWWDWWY     ",
+    "  YWWWWWWWWWWWWWWY    ",
+    " YYWWWWDDDDWWWWWWYY   ",
+    "YFFWWWDWWWWDWWWFFFWY  ",
+    " YYWWWWDDDDWWWWWWYY   ",
+    "   YWWWWWWWWWWWWY     ",
+    "    YYWWWWWWWWYY      ",
+    "      YYY  YYY        ",
+    "       Y    Y         ",
+  ],
+  { Y: "#e2bd42", W: "#fff0a8", D: "#30283a", F: "#f7d85c" }
+);
+
+const SO_SORRY = pixelSprite(
+  [
+    "        BBBB          ",
+    "      BBPPPPBB        ",
+    "     BPWWWWWWPB       ",
+    "    BPWDBBBDWPB       ",
+    "    BPWWWWWWWPB       ",
+    "     BPPDDPPPB        ",
+    "      BPPPPPB         ",
+    "     BBBBBBBBB        ",
+    "    BPPPPPPPPPB       ",
+    "   BPBPPPPPPPBPB      ",
+    "   BBPPPPPPPPPBB  BBB ",
+    "    BPPPPPPPPPB BBPBB ",
+    "     BPPPPPPPB BBPBB  ",
+    "      BBPBPBB   BBB   ",
+    "      BB   BB         ",
+    "     BBB   BBB        ",
+  ],
+  { B: "#416ea8", P: "#9abfff", W: "#f7f1e5", D: "#30283a" }
+);
+
 export const CHAMPION_SPRITES = {
   champion_greater_dog: GREATER_DOG,
   champion_mad_dummy: MAD_DUMMY,
@@ -206,4 +287,8 @@ export const CHAMPION_SPRITES = {
   elite_migospel: MIGOSPEL,
   champion_royal_guards: ROYAL_GUARDS,
   champion_mettaton_ex: METTATON_EX,
+  elite_aaron: AARON,
+  elite_pyrope: PYROPE,
+  champion_glyde: GLYDE,
+  champion_so_sorry: SO_SORRY,
 };

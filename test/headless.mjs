@@ -134,16 +134,18 @@ function run(seconds, onFrame) {
   const keys = C.CODEX_MONSTERS.map((m) => m.key);
   const names = C.CODEX_MONSTERS.map((m) => m.name);
   check(
-    "codex has 8 base + 6 named elites + 6 round champions",
-    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 6 && C.ROUND_CHAMPIONS.length === 6
+    "codex has 8 base + 8 named elites + 8 round champions",
+    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 8 && C.ROUND_CHAMPIONS.length === 8
   );
   check("codex keys and names are unique", new Set(keys).size === C.CODEX_MONSTERS.length && new Set(names).size === C.CODEX_MONSTERS.length);
   check("狂暴 named elite waits until 1:30", C.eliteTypePool(1, 89) === null && C.eliteTypePool(1, 90).join(",") === "slime");
   check("狂暴 second elite waits until 2:15", C.eliteTypePool(1, 134).length === 1 && C.eliteTypePool(1, 135).join(",") === "slime,bat");
   check("地狱 elites phase in at 3:00 / 3:45", !C.eliteTypePool(2, 179).includes("red") && C.eliteTypePool(2, 180).includes("red") && C.eliteTypePool(2, 225).includes("ghost"));
   check("困难模式余党在 3:00 / 3:45 加入狂暴", !C.eliteTypePool(1, 179).includes("tank") && C.eliteTypePool(1, 180).includes("tank") && C.eliteTypePool(1, 225).includes("orange"));
+  check("瀑布与热域精英在地狱 2:30 / 3:30 加入", !C.eliteTypePool(2, 149).includes("blue") && C.eliteTypePool(2, 150).includes("blue") && !C.eliteTypePool(2, 209).includes("purple") && C.eliteTypePool(2, 210).includes("purple"));
   check("无尽第 5/6 轮接皇家守卫与镁塔顿", C.championForRound(5).championId === "royalGuards" && C.championForRound(6).championId === "mettatonEx");
-  check("屠杀 schedule is 30s earlier but never before 1:00", C.eliteTypePool(3, 59) === null && C.eliteTypePool(3, 60).join(",") === "slime" && C.eliteTypePool(3, 195).length === 6);
+  check("无尽第 7/8 轮接格莱德与抱歉怪", C.championForRound(7).championId === "glyde" && C.championForRound(8).championId === "soSorry" && C.championForRound(9).championId === "greaterDog");
+  check("屠杀 schedule is 30s earlier but never before 1:00", C.eliteTypePool(3, 59) === null && C.eliteTypePool(3, 60).join(",") === "slime" && C.eliteTypePool(3, 195).length === 8);
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };

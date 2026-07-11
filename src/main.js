@@ -2372,6 +2372,10 @@ function startEliteCast(e) {
     curtainRise: 1.1,
     teamAttack: 1.15,
     ratingStage: 1.25,
+    flexPressure: 1.1,
+    orangeRush: 1.0,
+    starBurst: 1.2,
+    tailSketch: 1.15,
   }[skill];
   const cast = { skill, t: duration, maxT: duration, x: player.x, y: player.y, fromX: e.x, fromY: e.y, marks: [] };
   if (skill === "roots") {
@@ -2413,6 +2417,28 @@ function startEliteCast(e) {
       for (let col = -1; col <= 1; col++) {
         cast.cells.push({ x: player.x + col * 64, y: centerY + row * 48, w: 58, h: 42, danger: (row + col + phase + 4) % 2 === 0 });
       }
+    }
+  } else if (skill === "flexPressure") {
+    cast.safeX = player.x;
+    cast.safeHalfWidth = 58;
+    cast.marks = [-1, 1].map((side, i) => ({
+      x: cast.safeX + side * 34,
+      y: clamp(player.y + (i === 0 ? -54 : 54), WALL_H + 30, HEIGHT - 30),
+    }));
+  } else if (skill === "orangeRush") {
+    cast.dangerY = clamp(player.y, WALL_H + 32, HEIGHT - 32);
+    cast.bandHalfHeight = 27;
+  } else if (skill === "starBurst") {
+    cast.rings = [54, 104, 154];
+    cast.dangerRing = (e.championCastCount || 0) % cast.rings.length;
+    cast.centerDanger = (e.championCastCount || 0) % 2 === 1;
+  } else if (skill === "tailSketch") {
+    cast.mode = (e.championCastCount || 0) % 2 === 0 ? "blue" : "orange";
+    cast.dangerY = clamp(player.y, WALL_H + 34, HEIGHT - 34);
+    cast.bandHalfHeight = 25;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.28;
+      cast.marks.push({ x: player.x + Math.cos(a) * 82, y: clamp(player.y + Math.sin(a) * 66, WALL_H + 28, HEIGHT - 28) });
     }
   }
   e.championCastCount = (e.championCastCount || 0) + 1;
@@ -2518,6 +2544,36 @@ function resolveEliteCast(e, cast) {
         eliteHitPlayer(e, e.dmg * 0.88 * tierPower, "黄金舞台", e.eliteProfile.color);
       }
     }
+  } else if (cast.skill === "flexPressure") {
+    let hit = Math.abs(player.x - cast.safeX) > cast.safeHalfWidth;
+    for (const mark of cast.marks) {
+      explosions.push(new Explosion(mark.x, mark.y, 28, e.eliteProfile.color));
+      hit ||= circleHit(mark.x, mark.y, 28, player.x, player.y, player.radius);
+    }
+    if (hit) eliteHitPlayer(e, e.dmg * 0.78 * tierPower, "肌肉压场", e.eliteProfile.color);
+  } else if (cast.skill === "orangeRush") {
+    for (let x = camX + 24; x < camX + WIDTH; x += 54) explosions.push(new Explosion(x, cast.dangerY, 24, e.eliteProfile.color));
+    if (Math.abs(player.y - cast.dangerY) <= cast.bandHalfHeight && !player.moving) {
+      eliteHitPlayer(e, e.dmg * 0.76 * tierPower, "橙焰横扫", e.eliteProfile.color);
+    }
+  } else if (cast.skill === "starBurst") {
+    const distance = Math.hypot(player.x - cast.x, player.y - cast.y);
+    const ring = cast.rings[cast.dangerRing];
+    const hit = Math.abs(distance - ring) <= 22 || (cast.centerDanger && distance <= 36);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      explosions.push(new Explosion(cast.x + Math.cos(a) * ring, cast.y + Math.sin(a) * ring, 22, e.eliteProfile.color));
+    }
+    if (cast.centerDanger) explosions.push(new Explosion(cast.x, cast.y, 36, e.eliteProfile.color, true));
+    if (hit) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, "巨星爆场", e.eliteProfile.color);
+  } else if (cast.skill === "tailSketch") {
+    let hit = Math.abs(player.y - cast.dangerY) <= cast.bandHalfHeight &&
+      (cast.mode === "blue" ? player.moving : !player.moving);
+    for (const mark of cast.marks) {
+      explosions.push(new Explosion(mark.x, mark.y, 25, cast.mode === "blue" ? "#68bfff" : "#ff9f43"));
+      hit ||= circleHit(mark.x, mark.y, 25, player.x, player.y, player.radius);
+    }
+    if (hit) eliteHitPlayer(e, e.dmg * 0.84 * tierPower, "蓝橙速写", cast.mode === "blue" ? "#68bfff" : "#ff9f43");
   }
 }
 
@@ -2664,7 +2720,7 @@ function update(dt) {
   // ---- endless judgement rounds -------------------------------------------
   if (endlessRound > 0) {
     if (roundTimer > 0) roundTimer -= dt;
-    // T-15s: an Undertale round champion. R7+ rotates the six-character roster
+    // T-15s: an Undertale round champion. R9+ rotates the eight-character roster
     // with the existing endless stat pressure layered on top.
     if (!roundBossSpawned && roundTimer <= 15) {
       roundBossSpawned = true;
@@ -3523,6 +3579,89 @@ function draw() {
         ctx.lineWidth = cell.danger ? 3 : 1;
         ctx.fillRect(cell.x - cell.w / 2, cell.y - cell.h / 2, cell.w, cell.h);
         ctx.strokeRect(cell.x - cell.w / 2, cell.y - cell.h / 2, cell.w, cell.h);
+      }
+    } else if (cast.skill === "flexPressure") {
+      const leftEdge = cast.safeX - cast.safeHalfWidth;
+      const rightEdge = cast.safeX + cast.safeHalfWidth;
+      ctx.globalAlpha = 0.1 + p * 0.2;
+      ctx.fillRect(camX, WALL_H, Math.max(0, leftEdge - camX), HEIGHT - WALL_H);
+      ctx.fillRect(rightEdge, WALL_H, Math.max(0, camX + WIDTH - rightEdge), HEIGHT - WALL_H);
+      ctx.globalAlpha = 0.5 + p * 0.45;
+      ctx.lineWidth = 4;
+      for (const x of [leftEdge, rightEdge]) {
+        ctx.beginPath();
+        ctx.moveTo(x, WALL_H);
+        ctx.lineTo(x, HEIGHT);
+        ctx.stroke();
+      }
+      for (const mark of cast.marks) {
+        ctx.beginPath();
+        ctx.arc(mark.x, mark.y, 28 - p * 12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(mark.x, mark.y - 48);
+        ctx.lineTo(mark.x, mark.y - 18);
+        ctx.stroke();
+      }
+    } else if (cast.skill === "orangeRush") {
+      ctx.strokeStyle = p > 0.62 ? "#fff0c2" : "#ff8a3d";
+      ctx.fillStyle = "#ff8a3d";
+      ctx.globalAlpha = 0.1 + p * 0.18;
+      ctx.fillRect(camX, cast.dangerY - cast.bandHalfHeight, WIDTH, cast.bandHalfHeight * 2);
+      ctx.globalAlpha = 0.55 + p * 0.4;
+      ctx.lineWidth = 4;
+      ctx.setLineDash([14, 8]);
+      ctx.beginPath();
+      ctx.moveTo(camX, cast.dangerY);
+      ctx.lineTo(camX + WIDTH, cast.dangerY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (cast.skill === "starBurst") {
+      for (let i = 0; i < cast.rings.length; i++) {
+        const danger = i === cast.dangerRing;
+        ctx.strokeStyle = danger && p > 0.58 ? "#ffffff" : danger ? e.eliteProfile.color : "#786f42";
+        ctx.globalAlpha = danger ? 0.48 + p * 0.5 : 0.2;
+        ctx.lineWidth = danger ? 5 : 2;
+        ctx.beginPath();
+        ctx.arc(cast.x, cast.y, cast.rings[i], 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (cast.centerDanger) {
+        ctx.globalAlpha = 0.22 + p * 0.5;
+        ctx.fillStyle = e.eliteProfile.color;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const a = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+          const r = i % 2 === 0 ? 36 : 15;
+          const x = cast.x + Math.cos(a) * r;
+          const y = cast.y + Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (cast.skill === "tailSketch") {
+      const attackColor = cast.mode === "blue" ? "#68bfff" : "#ff9f43";
+      ctx.strokeStyle = p > 0.6 ? "#ffffff" : attackColor;
+      ctx.fillStyle = attackColor;
+      ctx.globalAlpha = 0.1 + p * 0.16;
+      ctx.fillRect(camX, cast.dangerY - cast.bandHalfHeight, WIDTH, cast.bandHalfHeight * 2);
+      ctx.globalAlpha = 0.5 + p * 0.45;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(camX, cast.dangerY);
+      ctx.lineTo(camX + WIDTH, cast.dangerY);
+      ctx.stroke();
+      ctx.lineWidth = 2;
+      for (const mark of cast.marks) {
+        ctx.beginPath();
+        ctx.arc(mark.x, mark.y, 25 - p * 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(mark.x - 8, mark.y - 5);
+        ctx.quadraticCurveTo(mark.x, mark.y + 9, mark.x + 8, mark.y - 5);
+        ctx.stroke();
       }
     }
     ctx.restore();
