@@ -326,7 +326,8 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
       this.attackTimer -= dt;
       if (this.attackTimer > 0) return;
       const rate = this.phase === 2 ? 1.2 : 1; // phase 2 attacks 20% faster
-      this.attackTimer = (this.phase === 1 ? 2.2 : 2.0) / rate;
+      // 2026-07-11 user tuning: ~35% faster skill cadence across both phases
+      this.attackTimer = (this.phase === 1 ? 1.6 : 1.5) / rate;
 
       const attack = () => (this.phase === 1 ? this.pickAttackP1(ctx) : this.pickAttackP2(ctx));
       // half the time, blink to a fresh flank before attacking

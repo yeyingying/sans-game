@@ -23,6 +23,7 @@ export class Spawner {
     this.top = top; // wall band at the top: no spawns, players can't enter
     this.diffHp = diff ? diff.hpMult : 1; // difficulty tier multipliers
     this.diffDmg = diff ? diff.dmgMult : 1;
+    this.diffId = diff ? diff.id : 0;
     this.difficultyId = diff ? diff.id : 0;
     // per-run monster personality: debut times jitter ±20% (earlier on higher
     // difficulties) and every type gets a run-long flavor multiplier, so no
@@ -78,8 +79,11 @@ export class Spawner {
     const t = this.elapsed;
     // linear early; from 3:00 on it compounds so strong builds stay pressured
     let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.22, (t - 180) / 30) : 1 + t / 22;
-    // warm-up minute: lots of frail enemies so the opening feels like mowing
-    if (t < 60) hpMult *= 0.6 + 0.4 * (t / 60);
+    // warm-up minute: lots of frail enemies so the opening feels like mowing.
+    // Normal difficulty starts even softer — a total novice one-shots the
+    // opening wave with any starting weapon (power fantasy first, then teeth)
+    const warmFloor = this.diffId === 0 ? 0.35 : 0.6;
+    if (t < 60) hpMult *= warmFloor + (1 - warmFloor) * (t / 60);
     // endless judgement rounds: each round adds a pressure the player can
     // feel, never just a bigger hp sponge (see main.js for round rules)
     const r = this.endless ? this.round : 0;
