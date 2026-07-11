@@ -214,6 +214,36 @@ export const ELITE_MONSTERS = [
     unlock: "地狱难度 3:30 后出现",
     skillId: "orangeRush",
   },
+  {
+    key: "elite_memoryhead",
+    type: "ghost",
+    name: "记忆头",
+    english: "Memoryhead",
+    region: "真实验室",
+    title: "六张笑脸共享一段故障记忆",
+    lore: "由六张面孔、骨头与脑状雾团组成的融合怪。它通过电话杂音说话，并邀请听见的人加入它们。",
+    skill: "故障增殖：细小噪点在玩家周围生成，随后膨胀成五张扭曲笑脸并同时爆裂。",
+    color: "#a8f0d0",
+    minDifficulty: 3,
+    debutTime: 270,
+    unlock: "屠杀难度 4:00 后出现",
+    skillId: "memoryFaces",
+  },
+  {
+    key: "elite_reaper_bird",
+    type: "bat",
+    name: "死神鸟",
+    english: "Reaper Bird",
+    region: "真实验室",
+    title: "三种怪物愿望重叠出的飞鸟",
+    lore: "终极蛙吉特、忧伤虫爵士与散光眼的融合体。重叠话语里仍残留着勇气、祈祷与理解。",
+    skill: "Everyman 蝶群：无头人影横穿战场，追踪头颅在预定位置聚拢，右侧留有撤离通道。",
+    color: "#e8d8ff",
+    minDifficulty: 3,
+    debutTime: 300,
+    unlock: "屠杀难度 4:30 后出现",
+    skillId: "everymanFlock",
+  },
 ];
 
 export const ROUND_CHAMPIONS = [
@@ -353,24 +383,69 @@ export const ROUND_CHAMPIONS = [
     hpFactor: 2.8,
     dmgFactor: 1.2,
   },
+  {
+    key: "champion_endogeny",
+    championId: "endogeny",
+    baseType: "tank",
+    type: "champion",
+    name: "犬神融合体",
+    english: "Endogeny",
+    region: "真实验室",
+    title: "已经分不清由多少只狗组成的影子",
+    lore: "数只雪镇犬类怪物融合后的形态。它仍渴望呼唤、玩耍和抚摸，只是兴奋时会沿墙疯狂冲刺。",
+    skill: "火箭犬群：三条平行冲锋线轮流点亮，融合犬沿危险线高速贯穿并留下反向箭雨。",
+    color: "#d8f3ff",
+    unlock: "无尽审判第 9 轮首领",
+    skillId: "rocketPack",
+    hpFactor: 3.05,
+    dmgFactor: 1.24,
+  },
+  {
+    key: "champion_lemon_bread",
+    championId: "lemonBread",
+    baseType: "red",
+    type: "champion",
+    name: "柠檬面包",
+    english: "Lemon Bread",
+    region: "真实验室",
+    title: "把整片战场变成特殊地狱的巨口",
+    lore: "由害羞塞壬的姐姐、亚伦与模具怪等怪物融合而成。巨口闭合前，整片战场都会变成它的牙床。",
+    skill: "巨齿牢笼：上下牙列同时咬合，只留下提前标出的单一横向安全带。",
+    color: "#fff1a8",
+    unlock: "无尽审判第 10 轮首领",
+    skillId: "toothCage",
+    hpFactor: 3.3,
+    dmgFactor: 1.28,
+  },
 ];
 
 export const CODEX_MONSTERS = [...BASE_MONSTERS, ...ELITE_MONSTERS, ...ROUND_CHAMPIONS];
 export const MONSTER_BY_TYPE = Object.fromEntries(BASE_MONSTERS.map((m) => [m.type, m]));
 
-const ELITE_BY_TYPE = Object.fromEntries(ELITE_MONSTERS.map((m) => [m.type, m]));
+const ELITE_BY_KEY = Object.fromEntries(ELITE_MONSTERS.map((m) => [m.key, m]));
+const ELITES_BY_TYPE = ELITE_MONSTERS.reduce((groups, monster) => {
+  (groups[monster.type] ||= []).push(monster);
+  return groups;
+}, {});
 
-export function eliteProfileFor(type, difficultyId) {
-  const profile = ELITE_BY_TYPE[type];
-  return profile && difficultyId >= profile.minDifficulty ? profile : null;
+export function eliteProfileFor(type, difficultyId, profileKey = null) {
+  if (profileKey) {
+    const selected = ELITE_BY_KEY[profileKey];
+    return selected && selected.type === type && difficultyId >= selected.minDifficulty ? selected : null;
+  }
+  return (ELITES_BY_TYPE[type] || []).find((profile) => difficultyId >= profile.minDifficulty) || null;
 }
 
-export function eliteTypePool(difficultyId, elapsed = Infinity) {
+export function eliteProfilePool(difficultyId, elapsed = Infinity) {
   const genocideLead = difficultyId >= 3 ? 30 : 0;
   const pool = ELITE_MONSTERS.filter(
     (m) => difficultyId >= m.minDifficulty && elapsed >= Math.max(60, m.debutTime - genocideLead)
-  ).map((m) => m.type);
+  );
   return pool.length ? pool : null;
+}
+
+export function eliteTypePool(difficultyId, elapsed = Infinity) {
+  return eliteProfilePool(difficultyId, elapsed)?.map((profile) => profile.type) || null;
 }
 
 export function codexKeyForEnemy(enemy) {
