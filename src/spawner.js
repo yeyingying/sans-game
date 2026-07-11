@@ -87,12 +87,14 @@ export class Spawner {
     // endless judgement rounds: each round adds a pressure the player can
     // feel, never just a bigger hp sponge (see main.js for round rules)
     const r = this.endless ? this.round : 0;
-    // R2+: +15% move speed (then +3%/round past R4), capped for readability
+    // R2+: +15% move speed (then +3%/round past R4); speed alone stays
+    // capped for readability — the kill pressure comes from dmg/hp below
     const rSpeed = r >= 2 ? Math.min(1.15 * (1 + 0.03 * Math.max(0, r - 4)), 1.5) : 1;
-    // R3+: +20% damage, R5+: +8%/round on top, capped
-    const rDmg = r >= 3 ? Math.min(1.2 * (1 + 0.08 * Math.max(0, r - 4)), 2.5) : 1;
-    // R5+: hp finally starts climbing too, gently capped
-    const rHp = r >= 5 ? Math.min(1 + 0.1 * (r - 4), 3) : 1;
+    // R3+: +20% damage, R5+: compounding +12%/round, UNCAPPED — endless must
+    // eventually kill every build, however farmed (2026-07-11 user report)
+    const rDmg = r >= 3 ? 1.2 * Math.pow(1.12, Math.max(0, r - 4)) : 1;
+    // R5+: hp compounds too, uncapped
+    const rHp = r >= 5 ? 1 + 0.15 * (r - 4) : 1;
     return {
       hpMult: hpMult * this.diffHp * rHp,
       dmgMult: (1 + t / 40) * this.diffDmg * rDmg,

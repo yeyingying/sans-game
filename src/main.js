@@ -938,8 +938,8 @@ function rollChestRewards() {
   const rewards = [];
   for (let i = 0; i < count; i++) {
     const pick = Math.random() * 100;
-    if (pick < 40) {
-      const v = Math.round((30 + Math.random() * 50) * coinGainMult() * getDifficulty().coinMult * currentCoinFactor() || 20);
+    if (pick < 40 && currentCoinFactor() > 0) {
+      const v = Math.max(1, Math.round((30 + Math.random() * 50) * coinGainMult() * getDifficulty().coinMult * currentCoinFactor()));
       rewards.push({ label: `金币 ×${v}`, color: "#ffd166", icon: "ⓖ", apply: () => {
         if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
       }});
@@ -1215,7 +1215,8 @@ function currentCoinFactor() {
 
 // round 3+ (and the silence pact): healing and regeneration are halved
 function healScale() {
-  return (endlessRound >= 3 ? 0.5 : 1) * (activeContract?.id === "silence" ? 0.5 : 1);
+  const endlessCut = endlessRound >= 6 ? 0.25 : endlessRound >= 3 ? 0.5 : 1;
+  return endlessCut * (activeContract?.id === "silence" ? 0.5 : 1);
 }
 
 // ---- daily challenge -------------------------------------------------------
