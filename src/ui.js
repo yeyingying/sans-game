@@ -972,7 +972,7 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
       ctx.fillStyle = "#ffd166";
       ctx.font = "11px monospace";
       ctx.fillText(
-        chosen.champion ? `${chosen.unlock} · 第 7 轮起循环并继续强化` : `${chosen.unlock} · 屠杀难度进入处决态`,
+        chosen.champion ? `${chosen.unlock} · 第 9 轮起循环并继续强化` : `${chosen.unlock} · 屠杀难度进入处决态`,
         detail.x + 130,
         detail.y + 132
       );
