@@ -1120,9 +1120,9 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
     ctx.fillStyle = it.cost === null ? "#7cf28a" : affordable ? "#ffd166" : "#6b6578";
     ctx.fillText(it.cost === null ? "已满级" : `ⓖ ${it.cost}`, box.x + box.w - 16, box.y + 24);
     if (it.cost !== null) {
-      ctx.fillStyle = affordable ? "#7d7690" : "#5a5468";
+      ctx.fillStyle = it.gate ? "#d9c47a" : affordable ? "#7d7690" : "#5a5468";
       ctx.font = "11px monospace";
-      ctx.fillText(affordable ? "点击购买" : "金币不足", box.x + box.w - 16, box.y + 44);
+      ctx.fillText(it.gate ? `🔒 ${it.gate}` : affordable ? "点击购买" : "金币不足", box.x + box.w - 16, box.y + 44);
     }
   }
 

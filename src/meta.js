@@ -57,6 +57,20 @@ export function upgradeLevel(id) {
   return upgrades[id] || 0;
 }
 
+// 力量类升级的难度门槛: money can never buy power beyond your skill.
+// Lv3 needs a 狂暴 clear, Lv4 地狱, Lv5 屠杀 (QoL upgrades are never gated).
+const POWER_GATED = new Set(["atk", "hp"]);
+
+export function upgradeGate(id) {
+  if (!POWER_GATED.has(id)) return null;
+  const lvl = upgradeLevel(id);
+  const needClear = lvl - 1; // buying Lv3 (lvl=2 now) needs diffCleared>=1 …
+  if (needClear >= 1 && stats.diffCleared < needClear) {
+    return ["狂暴", "地狱", "屠杀"][needClear - 1] + "难度通关后解锁";
+  }
+  return null;
+}
+
 export function upgradeCost(id) {
   const u = UPGRADES.find((x) => x.id === id);
   const lvl = upgradeLevel(id);
@@ -68,7 +82,7 @@ export function upgradeCost(id) {
 
 export function buyUpgrade(id) {
   const cost = upgradeCost(id);
-  if (cost === null || !spendCoins(cost)) return false;
+  if (cost === null || upgradeGate(id) || !spendCoins(cost)) return false;
   upgrades[id] = upgradeLevel(id) + 1;
   store.setItem("metaUpgrades", JSON.stringify(upgrades));
   return true;
@@ -212,6 +226,8 @@ export const TITLES = [
   { id: "determined", name: "决心的化身", hint: "图鉴收集度 100%" },
   { id: "listener", name: "聆听者", hint: "聆听全部 10 段主线回响" },
   { id: "watcher", name: "守望者", hint: "聆听全部 18 段回响(含四条时间线残响)" },
+  { id: "abysswalker", name: "深渊行者", hint: "无尽审判首达第 8 轮" },
+  { id: "unjudged", name: "不可审判者", hint: "无尽审判首达第 12 轮" },
   { id: "genocide", name: "尘归尘", hint: "屠杀难度击败Boss" },
 ];
 
@@ -260,16 +276,16 @@ function questRng(dateStr) {
 
 // kinds: additive progress unless noted; streak/survive/round track the max
 const QUEST_POOL = [
-  { kind: "kills", target: 500, reward: 120 },
-  { kind: "charKills", target: 300, reward: 150 },
-  { kind: "coins", target: 120, reward: 100 },
-  { kind: "candy", target: 2, reward: 100 },
-  { kind: "elites", target: 8, reward: 130 },
-  { kind: "boss", target: 1, reward: 200 },
-  { kind: "round", target: 1, reward: 180 },
-  { kind: "streak", target: 40, reward: 120 },
-  { kind: "evolve", target: 1, reward: 150 },
-  { kind: "survive", target: 240, reward: 120 },
+  { kind: "kills", target: 500, reward: 50 },
+  { kind: "charKills", target: 300, reward: 60 },
+  { kind: "coins", target: 120, reward: 40 },
+  { kind: "candy", target: 2, reward: 40 },
+  { kind: "elites", target: 8, reward: 55 },
+  { kind: "boss", target: 1, reward: 80 },
+  { kind: "round", target: 1, reward: 70 },
+  { kind: "streak", target: 40, reward: 50 },
+  { kind: "evolve", target: 1, reward: 60 },
+  { kind: "survive", target: 240, reward: 50 },
 ];
 const QUEST_MAX_KINDS = new Set(["streak", "survive", "round"]);
 
@@ -334,7 +350,7 @@ export function claimDailyFlower(todayStr, yesterdayStr) {
   const st = readJson("loginFlower", { last: null, days: 0 });
   if (st.last === todayStr) return { days: st.days, coins: 0, already: true };
   const days = st.last === yesterdayStr ? st.days + 1 : 1;
-  const coins = Math.min(20 + days * 10, 100);
+  const coins = Math.min(15 + days * 5, 60);
   addCoins(coins);
   store.setItem("loginFlower", JSON.stringify({ last: todayStr, days }));
   return { days, coins, already: false };
@@ -512,9 +528,9 @@ export function weaponUnlockInfo(charId, slot) {
 
 export const DIFFICULTIES = [
   { id: 0, name: "普通", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, hint: null },
-  { id: 1, name: "狂暴", hpMult: 2.8, dmgMult: 2.2, coinMult: 2.0, scoreMult: 1.8, hint: "击败一次Boss解锁" },
-  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 2.4, scoreMult: 3.0, hint: "狂暴难度击败Boss解锁" },
-  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 3.2, scoreMult: 4.5, hint: "地狱通关且钱包曾达2000解锁" },
+  { id: 1, name: "狂暴", hpMult: 2.8, dmgMult: 2.2, coinMult: 1.6, scoreMult: 1.8, hint: "击败一次Boss解锁" },
+  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 2.0, scoreMult: 3.0, hint: "狂暴难度击败Boss解锁" },
+  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 2.6, scoreMult: 4.5, hint: "地狱通关且钱包曾达2000解锁" },
 ];
 
 export function isDifficultyUnlocked(id) {

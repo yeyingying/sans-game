@@ -200,9 +200,18 @@ function run(seconds, onFrame) {
   check("狂暴 unlocked after first boss", M.isDifficultyUnlocked(1));
   check("地狱 locked until 狂暴 cleared", !M.isDifficultyUnlocked(2));
   check("set difficulty works", M.setDifficulty(1) && M.getDifficulty().id === 1);
-  check("difficulty multipliers wired", M.getDifficulty().hpMult === 2.8 && M.getDifficulty().coinMult === 2.0);
+  check("difficulty multipliers wired", M.getDifficulty().hpMult === 2.8 && M.getDifficulty().coinMult === 1.6);
   check("cannot set locked difficulty", !M.setDifficulty(2));
   M.setDifficulty(0); // restore for the game-flow run below
+  // 力量门槛: Lv3+ power upgrades demand difficulty clears, money alone fails
+  M.addCoins(2000);
+  M.buyUpgrade("atk"); // -> Lv2 (Lv1 bought earlier)
+  check("power Lv3 gated behind 狂暴 clear", M.upgradeGate("atk") !== null && !M.buyUpgrade("atk"));
+  check("QoL upgrades never gated", M.upgradeGate("magnet") === null);
+  M.recordRun({ bossKilled: true, difficulty: 1 }); // 狂暴 cleared
+  check("gate lifts after the clear", M.upgradeGate("atk") === null && M.buyUpgrade("atk") && M.upgradeLevel("atk") === 3);
+  check("next gate is 地狱", M.upgradeGate("atk") !== null);
+  M.spendCoins(1460); // burn the test funds: the 屠杀 wallet-threshold checks below assume poverty
   // new shop items: 行前整备 (start gear) and 重燃决心 (revive)
   M.addCoins(1400); // gear 320 + revives 3×300
   check("gear upgrade buyable", M.buyUpgrade("gear") && M.upgradeLevel("gear") === 1);
@@ -250,8 +259,8 @@ function run(seconds, onFrame) {
   const f1 = M.claimDailyFlower("2099-01-01", "2098-12-31");
   const f2 = M.claimDailyFlower("2099-01-01", "2098-12-31");
   const f3 = M.claimDailyFlower("2099-01-02", "2099-01-01");
-  check("flower gift once per day", f1.coins === 30 && f2.already === true && f2.coins === 0);
-  check("flower streak grows next day", f3.days === 2 && f3.coins === 40);
+  check("flower gift once per day", f1.coins === 20 && f2.already === true && f2.coins === 0);
+  check("flower streak grows next day", f3.days === 2 && f3.coins === 25);
   // codex collection tracking
   M.recordRun({ killsByType: { slime: 10, bat: 3 }, weaponsUsed: ["bone", "orbit"], evolvedIds: ["bone"] });
   const st = M.getStats();
@@ -350,7 +359,7 @@ console.log(`--- mode: ${MODE} ---`);
 frame(); // first frame after module load
 
 check("boots to title", dbg().state === "title");
-check("game-flow storage isolated (only day-1 flower gift banked)", dbg().wallet === 30, `wallet=${dbg().wallet}`);
+check("game-flow storage isolated (only day-1 flower gift banked)", dbg().wallet === 20, `wallet=${dbg().wallet}`);
 
 // UI smoke: tap into the codex and the shop, render a frame in each, tap back
 function tap(x, y) {

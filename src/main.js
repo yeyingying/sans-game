@@ -59,6 +59,7 @@ import {
   UPGRADES,
   upgradeLevel,
   upgradeCost,
+  upgradeGate,
   buyUpgrade,
   applyMetaUpgrades,
   coinGainMult,
@@ -566,6 +567,7 @@ function shopItems() {
     lvl: upgradeLevel(u.id),
     max: u.max,
     cost: upgradeCost(u.id),
+    gate: upgradeGate(u.id),
     color: u.color,
   }));
   // consumable revive rides in the same list with its stock as "pips"
@@ -800,7 +802,7 @@ function settleGame(kind) {
   const lvlBefore = masteryOf(killsAfter - player.kills);
   const lvlAfter = masteryOf(killsAfter);
   if (lvlAfter > lvlBefore) {
-    const bonus = 80 * (lvlAfter - lvlBefore) * lvlAfter;
+    const bonus = 30 * (lvlAfter - lvlBefore) * lvlAfter;
     addCoins(bonus);
     lastMasteryUp = `⚔ ${currentCharacter().name} 专精升至 Lv${lvlAfter}(+${bonus}金币)`;
   }
@@ -940,7 +942,7 @@ function rollChestRewards() {
   for (let i = 0; i < count; i++) {
     const pick = Math.random() * 100;
     if (pick < 40 && currentCoinFactor() > 0) {
-      const v = Math.max(1, Math.round((30 + Math.random() * 50) * coinGainMult() * getDifficulty().coinMult * currentCoinFactor()));
+      const v = Math.max(1, Math.round((12 + Math.random() * 23) * coinGainMult() * getDifficulty().coinMult * currentCoinFactor()));
       rewards.push({ label: `金币 ×${v}`, color: "#ffd166", icon: "ⓖ", apply: () => {
         if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
       }});
@@ -2238,7 +2240,7 @@ function spawnDrops(enemy) {
   // can't be defeated by Math.max(1) rounding on tiny values.
   const coinFactor = currentCoinFactor();
   if (coinFactor > 0 && (enemy.elite || Math.random() < 0.13) && Math.random() < coinFactor) {
-    const base = (enemy.championProfile ? 12 + (enemy.championRound || 1) * 2 : enemy.elite ? 6 + eliteTier * 2 : 1) *
+    const base = (enemy.championProfile ? 6 + (enemy.championRound || 1) : enemy.elite ? 3 + eliteTier : 1) *
       (1 + Math.floor(elapsed / 150));
     const contractCoin = (activeContract?.id === "greed" ? 1.5 : 1) * (enemy.elite && activeContract?.id === "hunt" ? 3 : 1);
     const value = Math.max(1, Math.round(base * coinGainMult() * getDifficulty().coinMult * contractCoin));
@@ -2532,6 +2534,8 @@ function update(dt) {
     // the round ends when the clock is out AND the champion is down
     if (roundTimer <= 0 && roundBossSpawned && roundBossDown) {
       roundsCleared = endlessRound;
+      if (roundsCleared >= 8 && unlockTitle("abysswalker")) lastNewTitles.push("深渊行者");
+      if (roundsCleared >= 12 && unlockTitle("unjudged")) lastNewTitles.push("不可审判者");
       questToasts(questEvent("round", roundsCleared));
       bossClearChoice = 0;
       state = "roundclear";
@@ -2851,7 +2855,7 @@ function update(dt) {
         // the judgement is over: freeze the stage result and let the player
         // choose — leave with the loot, or opt into endless
         player.kills += 50; // the boss counts as 50 kills
-        runCoins += Math.round(80 * coinGainMult() * getDifficulty().coinMult); // boss bounty
+        runCoins += Math.round(50 * coinGainMult() * getDifficulty().coinMult); // boss bounty
         bossDefeated = true;
         bossFight = null; // hand the field back to the spawner
         stageClearScore = currentScore();
