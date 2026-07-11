@@ -431,7 +431,7 @@ const BGM_TRACKS = {
 };
 // per-character loudness tweak (horror's track is a touch quiet)
 const CHAR_VOL = { horror: 1.4 };
-const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop", "codex"]);
+const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop", "codex", "quests", "echoes", "echoread", "weaponbook", "savecode", "dailyintro"]);
 let bgmVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem("bgmVolume") ?? "0.5") || 0.5));
 
 // menu theme plays on the title / select screens with a gentle fade
