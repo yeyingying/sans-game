@@ -423,6 +423,7 @@ if (MODE === "normal") {
   let checkedScreens = 0;
   let firstDeath = null;
   let bestKills = 0;
+  let sawSavepoint = false; // 开局存档点箴言 should type out in the opening seconds
   for (let runNo = 1; runNo <= 6 && checkedScreens < 3; runNo++) {
     if (runNo > 1) {
       // gameover -> charselect -> select -> playing
@@ -436,6 +437,7 @@ if (MODE === "normal") {
     for (let i = 0; i < 30 * 180; i++) {
       frame();
       const d = dbg();
+      if (d.savepoint) sawSavepoint = true;
       // once the guarantee screens are checked, stop kiting so the AFK
       // player actually dies (meta upgrades made the kiter near-immortal)
       if (kiting && (runScreens >= 3 || i > 30 * 50)) {
@@ -463,6 +465,17 @@ if (MODE === "normal") {
   check("checked 3+ early choice screens", checkedScreens >= 3, `got ${checkedScreens}`);
   check("death recap present", firstDeath && typeof firstDeath.deathBy === "string" && firstDeath.deathBy.length > 0, `deathBy=${firstDeath && firstDeath.deathBy}`);
   if (firstDeath) console.log(`      死于:${firstDeath.deathBy}, kills=${firstDeath.kills}, elapsed=${firstDeath.elapsed}s`);
+  check("savepoint aphorism shown at run start", sawSavepoint);
+  check(
+    "killer death line present",
+    firstDeath && typeof firstDeath.deathLine === "string" && firstDeath.deathLine.startsWith("* "),
+    `deathLine=${firstDeath && firstDeath.deathLine}`,
+  );
+  check(
+    "LOVE verdict present at settlement",
+    firstDeath && Array.isArray(firstDeath.loveVerdict) && firstDeath.loveVerdict.length >= 1,
+    `loveVerdict=${firstDeath && JSON.stringify(firstDeath.loveVerdict)}`,
+  );
   check("kills accumulated (mowing works)", bestKills > 15, `bestKills=${bestKills}`);
   check("first-death echo unlocked", (JSON.parse(storage.metaEchoes || "{}").stay || false) === true, storage.metaEchoes);
   // share button: tapping it must not leave the gameover card nor crash

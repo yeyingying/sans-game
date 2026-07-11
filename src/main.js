@@ -131,6 +131,15 @@ import {
 } from "./codex.js";
 import { CHAMPION_SPRITES } from "./champion_sprites.js";
 import {
+  pickSavepointQuote,
+  barkFor,
+  pickDeathLine,
+  pickLoveJudgment,
+  narrativeDeathStreak,
+  recordNarrativeDeath,
+  resetNarrativeDeathStreak,
+} from "./narrative.js";
+import {
   drawHud,
   drawCenterText,
   drawCharSelect,
@@ -405,7 +414,27 @@ function enemyDisplayName(e) {
   return (e.elite ? "精英·" : "") + (ENEMY_NAMES[e.type] || "怪物");
 }
 let lastHitBy = null; // most recent damage source
+let lastHitKind = null; // pool key for the killer's death line (type/elite/boss/hazard)
 let lastDeathBy = null; // frozen at death for the gameover screen
+let deathKillerLine = null; // killer-flavored narration under 死于:XXX
+let loveVerdict = null; // {lines} LOVE judgment for the settlement card
+let savepointNote = null; // {text, t} savepoint aphorism typed out at run start
+let bark = null; // {text, t} one-liner bubble above the player's head
+let barkFired = {}; // per-run: each bark event speaks at most once
+
+// death lines fall back to the base monster's pool for plain elites; named
+// elites and champions get the generic elite pool instead
+function killerKindOf(e) {
+  if (e.championProfile || e.eliteProfile) return "elite";
+  return e.type || null;
+}
+
+function fireBark(event) {
+  if (barkFired[event]) return;
+  barkFired[event] = true;
+  const line = barkFor(player.character, event);
+  if (line) bark = { text: line, t: 2.6 };
+}
 
 // boss warning: the last 30s before the boss the screen pulses red,
 // the music ducks and a siren beeps every 10s
@@ -658,7 +687,13 @@ function reset(weaponId) {
   chestCeremony = null;
   nearMiss = null;
   lastHitBy = null;
+  lastHitKind = null;
   lastDeathBy = null;
+  deathKillerLine = null;
+  loveVerdict = null;
+  savepointNote = null;
+  bark = null;
+  barkFired = {};
   nextWarnBeep = bossWarnAt();
 }
 
@@ -705,6 +740,21 @@ function settleGame(kind) {
           ? "retreat" // quit from pause during endless: voluntary extraction
           : "quit"; // quit from pause before the boss (classic GAME OVER card)
   lastDeathBy = player.hp <= 0 ? lastHitBy : null; // only real deaths get a recap
+  // narrative: killer-flavored death line + the LOVE judgment for the card;
+  // the death streak feeds the savepoint aphorisms of the NEXT run
+  if (player.hp <= 0) {
+    const deathCounts = recordNarrativeDeath();
+    deathKillerLine = pickDeathLine(lastHitKind, deathCounts.total);
+  } else {
+    deathKillerLine = null;
+    if (runOutcome === "victory" || runOutcome === "retreat") resetNarrativeDeathStreak();
+  }
+  loveVerdict = pickLoveJudgment({
+    kills: player.kills,
+    difficultyId: getDifficulty().id,
+    outcome: runOutcome,
+    rounds: roundsCleared,
+  });
   // UT-style death: the soul appears, cracks, shatters (equipped soul color)
   deathShatter = player.hp <= 0 ? { t: 0, color: equippedCosmetic()?.color || "#ff3d5a" } : null;
   if (deathShatter) sfxShatter();
@@ -1042,6 +1092,7 @@ function chestAdvance() {
     floatingTexts.push(new FloatingText(player.x, player.y - 30, `宝箱 ×${chestCeremony.rewards.length}`, "#ffd166"));
     chestCeremony = null;
     state = "playing";
+    fireBark("chest");
     bgmPlay();
   }
 }
@@ -1096,14 +1147,17 @@ function buildShareCard() {
   if (nearMiss) lines.push([nearMiss, "#ff8a5d", "20px monospace"]);
   if (activeContract) lines.push([`契约「${activeContract.name}」`, "#d9c47a", "22px monospace"]);
   if (bestTitle()) lines.push([`称号「${bestTitle().name}」`, "#c59bff", "22px monospace"]);
-  if (deathQuote) lines.push([deathQuote, "#8fa8c9", "20px monospace"]);
-  else if (lastDeathBy && runOutcome !== "retreat") lines.push([`死于:${lastDeathBy}`, "#c95d5d", "20px monospace"]);
+  if (lastDeathBy && runOutcome !== "retreat") lines.push([`死于:${lastDeathBy}`, "#c95d5d", "20px monospace"]);
+  // narrative lines are capped so a busy endless card never spills past the deco
+  if (deathKillerLine && lines.length < 9) lines.push([deathKillerLine, "#8fa8c9", "15px monospace"]);
+  if (loveVerdict?.lines?.length && lines.length < 9) lines.push([loveVerdict.lines[0], "#c59bff", "15px monospace"]);
+  else if (deathQuote && lines.length < 9) lines.push([deathQuote, "#8fa8c9", "20px monospace"]);
   let ly = 210 + spr.height * scale + 62; // always clear of the portrait
   for (const [text, color, font] of lines) {
     g.fillStyle = color;
     g.font = font;
     g.fillText(text, 360, ly);
-    ly += font.startsWith("bold 40") ? 58 : 40;
+    ly += font.startsWith("bold 40") ? 58 : font.startsWith("15") ? 30 : 40;
   }
   // echo flowers deco + link
   g.imageSmoothingEnabled = false;
@@ -1165,6 +1219,7 @@ function bossClearLeave() {
 
 function startRound(n) {
   endlessRound = n;
+  if (n === 1) fireBark("endless");
   roundTimer = ROUND_LENGTH;
   roundPendingCoins = 0;
   roundBossSpawned = false;
@@ -1381,6 +1436,19 @@ function startGame() {
   bgm.src = track; // reload also resets playback to the start
   bgm.volume = 0; // fades up during the intro
   bgmPlay();
+  // savepoint aphorism: typed out as the black intro lifts (UT save-star vibe)
+  savepointNote = {
+    text: pickSavepointQuote({
+      charId: player.character,
+      difficultyId: getDifficulty().id,
+      isDaily: dailyMode,
+      firstRun: getStats().runs === 0,
+      deathStreak: narrativeDeathStreak(),
+      bossCleared: getStats().bossKills > 0,
+      echoCount: unlockedAllEchoCount(),
+    }),
+    t: 0,
+  };
 }
 
 // ---- 15s buff choices -----------------------------------------------------
@@ -1614,6 +1682,7 @@ function buildChoicePool() {
           fanfare: true,
           apply: () => {
             inst.evolved = true;
+            fireBark("evolve");
           },
         };
       },
@@ -2366,6 +2435,7 @@ function eliteHitPlayer(e, amount, label, color) {
   const hit = player.takeDamage(Math.max(1, Math.round(amount)));
   if (hit) {
     lastHitBy = `${enemyDisplayName(e)}的${label}`;
+    lastHitKind = killerKindOf(e);
     floatingTexts.push(new FloatingText(player.x, player.y - 24, `-${Math.max(1, Math.round(amount))}`, color));
   } else if (player.dodged) {
     floatingTexts.push(new FloatingText(player.x, player.y - 20, "MISS!", "#7cf28a"));
@@ -2536,6 +2606,7 @@ function update(dt) {
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
   if (!bossFight && !bossDefeated && elapsed >= bossAppearAt()) {
     bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H, getDifficulty().id);
+    fireBark("boss");
     enemies.length = 0;
     pickups.length = 0;
     enemies.push(bossFight.boss);
@@ -2651,7 +2722,10 @@ function update(dt) {
       if (hz.t <= 0) {
         explosions.push(new Explosion(hz.x, hz.y, 75, "#ff5d5d"));
         if (circleHit(hz.x, hz.y, 75, player.x, player.y, player.radius)) {
-          if (player.takeDamage(12 + 4 * endlessRound)) lastHitBy = "审判领域";
+          if (player.takeDamage(12 + 4 * endlessRound)) {
+            lastHitBy = "审判领域";
+            lastHitKind = "hazard";
+          }
         }
       }
     }
@@ -2660,6 +2734,11 @@ function update(dt) {
   if (roundBanner && (roundBanner.t -= dt) <= 0) roundBanner = null;
 
   if (candyBanner && (candyBanner.t -= dt) <= 0) candyBanner = null;
+  if (bark && (bark.t -= dt) <= 0) bark = null;
+  if (savepointNote && introBlack <= 0) {
+    savepointNote.t += dt; // typewriter reveal + hold, then let the run breathe
+    if (savepointNote.t > savepointNote.text.length / 24 + 4.2) savepointNote = null;
+  }
 
   // onboarding tips: one at a time, each lingers ~9s
   if (!activeTip && tipQueue.length) activeTip = tipQueue.shift();
@@ -2711,6 +2790,7 @@ function update(dt) {
       if (!shieldUp && circleHit(e.strike.x, e.strike.y, 30, player.x, player.y, player.radius)) {
         if (player.takeDamage(STRIKE_DMG)) {
           lastHitBy = enemyDisplayName(e) + "的突袭";
+          lastHitKind = killerKindOf(e);
           floatingTexts.push(new FloatingText(player.x, player.y - 20, `-${STRIKE_DMG}`, "#c95df0"));
         } else if (player.dodged) {
           floatingTexts.push(new FloatingText(player.x, player.y - 20, "MISS!", "#7cf28a"));
@@ -2741,6 +2821,7 @@ function update(dt) {
         const hit = player.takeDamage(e.dmg);
         if (hit) {
           lastHitBy = enemyDisplayName(e);
+          lastHitKind = killerKindOf(e);
           floatingTexts.push(new FloatingText(player.x, player.y - 20, `-${e.dmg}`, "#ff5d73"));
         } else if (player.dodged) {
           floatingTexts.push(new FloatingText(player.x, player.y - 20, "MISS!", "#7cf28a"));
@@ -2871,7 +2952,10 @@ function update(dt) {
     });
     if (bossFight.done) enemies = enemies.filter((e) => !e.boss);
     // boss attacks apply damage inside bossFight.update — tag them here
-    if (player.hp < hpBeforeBoss - 0.001) lastHitBy = "天意侵蚀Sans";
+    if (player.hp < hpBeforeBoss - 0.001) {
+      lastHitBy = "天意侵蚀Sans";
+      lastHitKind = "boss";
+    }
     // debug-only: ?boss=weak keeps phase 2 frail as well (the adaptive
     // formula reads BOSS_HP/p1Time, which explodes when phase 1 is weak)
     if (DEBUG_BOSS === "weak" && bossFight && bossFight.boss.maxHp > 600) {
@@ -2913,7 +2997,10 @@ function update(dt) {
     questToasts(questEvent("kills", dead.length));
     questToasts(questEvent("charKills", dead.length, { charId: player.character }));
     const eliteDead = dead.filter((e) => e.elite).length;
-    if (eliteDead) questToasts(questEvent("elites", eliteDead));
+    if (eliteDead) {
+      questToasts(questEvent("elites", eliteDead));
+      fireBark("elite");
+    }
     sfxKill(dead.length);
     // chained kills build the streak; milestones pop the screen
     streak += dead.length;
@@ -2927,6 +3014,7 @@ function update(dt) {
       streakTier += 1;
       nextStreakAt = Math.max(nextStreakAt + 5, Math.round((nextStreakAt * 1.5) / 5) * 5);
     }
+    if (streak >= 25) fireBark("streak25");
   } else if (streakTimer > 0) {
     streakTimer -= dt;
     if (streakTimer <= 0) {
@@ -2966,6 +3054,7 @@ function update(dt) {
         player.hp = Math.min(player.maxHp, player.hp + heal);
         floatingTexts.push(new FloatingText(player.x, player.y - 34, "HP++", "#7cf28a"));
         candyBanner = { text: `* 你吃下了怪物糖。HP 回复了 ${heal} 点！`, t: 1.8 };
+        fireBark("candy");
         questToasts(questEvent("candy", 1));
         explosions.push(new Explosion(player.x, player.y, 46, "#7cf28a", true));
         healFlash = 0.45;
@@ -3000,6 +3089,7 @@ function update(dt) {
   // low-hp heartbeat: thumps while below a quarter health
   if (player.hp > 0 && player.hp / player.maxHp < 0.25) {
     lowHpPulse += dt;
+    fireBark("lowhp");
     if (lowHpPulse >= 0.9) {
       lowHpPulse = 0;
       sfxHeartbeat();
@@ -3964,6 +4054,27 @@ function draw() {
   }
   ctx.textAlign = "left";
 
+  // character bark: a one-liner speech bubble hovering over the player
+  if (bark && (state === "playing" || state === "choice")) {
+    const a = Math.min(1, bark.t / 0.4);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.textAlign = "center";
+    ctx.font = "bold 13px monospace";
+    const bw = ctx.measureText(bark.text).width + 18;
+    const bx = clamp(player.x, bw / 2 + 8, WIDTH - bw / 2 - 8);
+    const by = Math.max(player.y - 64, WALL_H + 30);
+    ctx.fillStyle = "rgba(10, 8, 16, 0.82)";
+    ctx.fillRect(bx - bw / 2, by - 15, bw, 22);
+    ctx.strokeStyle = currentCharacter().color;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(bx - bw / 2, by - 15, bw, 22);
+    ctx.fillStyle = "#f2ead8";
+    ctx.fillText(bark.text, bx, by + 1);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
   if (bossFight) bossFight.draw(ctx);
 
   ctx.restore(); // back to screen space for the HUD and overlays
@@ -4032,6 +4143,29 @@ function draw() {
     ctx.fillStyle = "#7cf28a";
     ctx.font = "bold 14px monospace";
     ctx.fillText(candyBanner.text, WIDTH / 2, HEIGHT - 70);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
+  // savepoint aphorism: UT-style typed narration in the opening seconds
+  if (savepointNote && state === "playing" && introBlack <= 0 && !candyBanner) {
+    const total = savepointNote.text.length;
+    const shown = Math.min(total, Math.floor(savepointNote.t * 24));
+    const end = total / 24 + 4.2;
+    const a = Math.min(1, Math.max(0, (end - savepointNote.t) / 0.6));
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = "bold 14px monospace";
+    const tw = ctx.measureText(savepointNote.text).width;
+    const bw = Math.max(480, tw + 44);
+    ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
+    ctx.fillRect(WIDTH / 2 - bw / 2, HEIGHT - 92, bw, 34);
+    ctx.strokeStyle = "#ffd93d";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(WIDTH / 2 - bw / 2, HEIGHT - 92, bw, 34);
+    ctx.textAlign = "left"; // typewriter must not re-center on every new char
+    ctx.fillStyle = "#f2ead8";
+    ctx.fillText(savepointNote.text.slice(0, shown), WIDTH / 2 - bw / 2 + 22, HEIGHT - 70);
     ctx.restore();
     ctx.textAlign = "left";
   }
@@ -4540,6 +4674,7 @@ function draw() {
       ...(lastDeathBy && runOutcome !== "retreat"
         ? [{ text: `死于:${lastDeathBy}`, font: "14px monospace", color: "#c95d5d" }]
         : []),
+      ...(deathKillerLine ? [{ text: deathKillerLine, font: "13px monospace", color: "#8fa8c9" }] : []),
       { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore}`, font: "bold 24px monospace", color: "#ffd166" },
       {
         text: newRecord ? "★ 新纪录！" : `历史最高 ${lastBest}`,
@@ -4582,6 +4717,7 @@ function draw() {
       ...(lastGoldenFlower ? [{ text: "❀ 花田满开——「金色之花」已绽放", font: "bold 13px monospace", color: "#ffd93d" }] : []),
       ...lastNewQuests.map((n) => ({ text: `📜 悬赏完成:${n}`, font: "13px monospace", color: "#ffd166" })),
       ...(lastMasteryUp ? [{ text: lastMasteryUp, font: "13px monospace", color: "#7cf28a" }] : []),
+      ...(loveVerdict?.lines || []).map((t) => ({ text: t, font: "13px monospace", color: "#c59bff" })),
       ...(deathQuote ? [{ text: deathQuote, font: "13px monospace", color: "#8fa8c9" }] : []),
       ...(wasDaily
         ? [
@@ -4657,6 +4793,10 @@ window.__dbg = () => ({
   kills: player ? player.kills : 0,
   streak,
   deathBy: lastDeathBy,
+  deathLine: deathKillerLine,
+  loveVerdict: loveVerdict ? loveVerdict.lines : null,
+  savepoint: savepointNote ? savepointNote.text : null,
+  bark: bark ? bark.text : null,
   warn: bossWarnActive(),
   choices: choiceOptions.map((o) => o.title),
   runCoins,
