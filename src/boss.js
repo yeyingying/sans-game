@@ -58,8 +58,14 @@ export function makeBossEnemy(x, y) {
   };
 }
 
-export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
+export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId = 0) {
   const boss = makeBossEnemy(x, y);
+  // normal difficulty: lower HP floors so a novice's modest DPS still means
+  // a ~2 minute fight, not a 4 minute endurance wall (caps unchanged)
+  const p1Floor = diffId === 0 ? 30000 : BOSS_HP;
+  const p2Floor = diffId === 0 ? 25000 : 40000;
+  boss.maxHp = p1Floor;
+  boss.hp = p1Floor;
   return {
     boss,
     character,
@@ -260,7 +266,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
           this._p1Scaled = true;
           const dealt = boss.maxHp - boss.hp;
           const dps = dealt / Math.max(this.p1Time, 1);
-          const target = Math.round(Math.min(1500000, Math.max(BOSS_HP, dps * 45)));
+          const target = Math.round(Math.min(1500000, Math.max(p1Floor, dps * 45)));
           if (target > boss.maxHp) {
             boss.hp += target - boss.maxHp;
             boss.maxHp = target;
@@ -514,7 +520,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H) {
           this.mercySmashed = false;
           const p1Time = Math.max(10, this.p1Time || 60);
           const dps = (this.p1MaxHp || BOSS_HP) / p1Time; // real phase-1 pool, post-scaling
-          const p2hp = Math.round(Math.min(1500000, Math.max(40000, dps * P2_SECONDS)));
+          const p2hp = Math.round(Math.min(1500000, Math.max(p2Floor, dps * P2_SECONDS)));
           boss.maxHp = p2hp;
           boss.hp = p2hp;
           this.homeX = ctx.camX + this.WIDTH * 0.72;

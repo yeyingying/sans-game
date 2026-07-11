@@ -2407,9 +2407,11 @@ function update(dt) {
 
   // elite waves: two crashes before the boss — 3:20 (6 elites) and 4:00 (8),
   // each warned 8 seconds ahead. eliteWave counts phases: 0..4
+  // elite waves scale with difficulty: normal keeps them survivable
+  const gentle = getDifficulty().id === 0;
   const ELITE_WAVES = [
-    { warnAt: 192, at: 200, count: 6 },
-    { warnAt: 232, at: 240, count: 8 },
+    { warnAt: 192, at: 200, count: gentle ? 4 : 6 },
+    { warnAt: 232, at: 240, count: gentle ? 6 : 8 },
   ];
   const waveIdx = Math.floor(eliteWave / 2);
   const wave = ELITE_WAVES[waveIdx];
@@ -2442,7 +2444,7 @@ function update(dt) {
 
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
   if (!bossFight && !bossDefeated && elapsed >= BOSS_APPEAR_TIME) {
-    bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H);
+    bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H, getDifficulty().id);
     enemies.length = 0;
     pickups.length = 0;
     enemies.push(bossFight.boss);

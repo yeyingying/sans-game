@@ -78,7 +78,8 @@ export class Spawner {
   scale(elite, namedElite = false) {
     const t = this.elapsed;
     // linear early; from 3:00 on it compounds so strong builds stay pressured
-    let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(1.22, (t - 180) / 30) : 1 + t / 22;
+    const expBase = this.diffId === 0 ? 1.16 : 1.22; // normal compounds gently
+    let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(expBase, (t - 180) / 30) : 1 + t / 22;
     // warm-up minute: lots of frail enemies so the opening feels like mowing.
     // Normal difficulty starts even softer — a total novice one-shots the
     // opening wave with any starting weapon (power fantasy first, then teeth)
@@ -100,8 +101,8 @@ export class Spawner {
     const rHp = r >= 5 ? 1 + 0.15 * (r - 4) : 1;
     return {
       hpMult: hpMult * this.diffHp * rHp,
-      dmgMult: (1 + t / 40) * this.diffDmg * rDmg,
-      speedMult: (1 + Math.min(t / 90, 0.5)) * rSpeed,
+      dmgMult: (1 + t / (this.diffId === 0 ? 55 : 40)) * this.diffDmg * rDmg,
+      speedMult: (1 + Math.min(t / 90, this.diffId === 0 ? 0.35 : 0.5)) * rSpeed,
       xpMult: 1 + t / 60,
       difficultyId: this.difficultyId,
       namedElite,
