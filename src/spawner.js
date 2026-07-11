@@ -1,6 +1,6 @@
 import { Enemy } from "./entities.js";
 import { pickWeighted, randRange } from "./utils.js";
-import { eliteTypePool } from "./codex.js";
+import { eliteProfilePool } from "./codex.js";
 
 // endless-judgement coin decay by round (1-based).
 // Applied to the DROP CHANCE (not the value) so a 10% round really pays ~10%.
@@ -76,7 +76,7 @@ export class Spawner {
     ];
   }
 
-  scale(elite, namedElite = false) {
+  scale(elite, namedElite = false, eliteProfileKey = null) {
     const t = this.elapsed;
     // linear early; from 3:00 on it compounds so strong builds stay pressured
     const expBase = this.diffId === 0 ? 1.16 : 1.22; // normal compounds gently
@@ -107,6 +107,7 @@ export class Spawner {
       xpMult: (1 + t / 60) * this.diffXp,
       difficultyId: this.difficultyId,
       namedElite,
+      eliteProfileKey,
       elite,
     };
   }
@@ -146,11 +147,12 @@ export class Spawner {
       const r = this.endless ? this.round : 0;
       this.eliteTimer = (this.endless ? Math.max(6, 15 - (r - 1) * 1.5) : 30) * this.eliteMult;
       const eliteCount = this.endless ? Math.min(2 + Math.floor((r - 1) / 2), 5) : 1;
-      const namedPool = eliteTypePool(this.difficultyId, this.elapsed);
+      const namedPool = eliteProfilePool(this.difficultyId, this.elapsed);
       for (let i = 0; i < eliteCount; i++) {
-        const type = namedPool ? namedPool[Math.floor(Math.random() * namedPool.length)] : pickWeighted(this.typeWeights());
+        const profile = namedPool?.[Math.floor(Math.random() * namedPool.length)] || null;
+        const type = profile?.type || pickWeighted(this.typeWeights());
         const pos = this.edgePosition(camX);
-        spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true, !!namedPool)));
+        spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true, !!profile, profile?.key)));
       }
     }
 

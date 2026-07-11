@@ -127,7 +127,7 @@ import {
   CODEX_MONSTERS,
   codexKeyForEnemy,
   championForRound,
-  eliteTypePool,
+  eliteProfilePool,
 } from "./codex.js";
 import { CHAMPION_SPRITES } from "./champion_sprites.js";
 import {
@@ -2431,6 +2431,10 @@ function startEliteCast(e) {
     orangeRush: 1.0,
     starBurst: 1.2,
     tailSketch: 1.15,
+    memoryFaces: 1.2,
+    everymanFlock: 1.25,
+    rocketPack: 1.15,
+    toothCage: 1.3,
   }[skill];
   const cast = { skill, t: duration, maxT: duration, x: player.x, y: player.y, fromX: e.x, fromY: e.y, marks: [] };
   if (skill === "roots") {
@@ -2495,6 +2499,32 @@ function startEliteCast(e) {
       const a = (i / 6) * Math.PI * 2 + 0.28;
       cast.marks.push({ x: player.x + Math.cos(a) * 82, y: clamp(player.y + Math.sin(a) * 66, WALL_H + 28, HEIGHT - 28) });
     }
+  } else if (skill === "memoryFaces") {
+    const phase = (e.id * 0.73 + (e.championCastCount || 0) * 1.17) % (Math.PI * 2);
+    for (let i = 0; i < 5; i++) {
+      const a = phase + (i / 5) * Math.PI * 2;
+      const r = i % 2 === 0 ? 62 : 102;
+      cast.marks.push({
+        x: player.x + Math.cos(a) * r,
+        y: clamp(player.y + Math.sin(a) * r * 0.72, WALL_H + 30, HEIGHT - 30),
+      });
+    }
+  } else if (skill === "everymanFlock") {
+    cast.safeEdge = clamp(player.x + 78, camX + 70, camX + WIDTH - 55);
+    for (let i = 0; i < 5; i++) {
+      cast.marks.push({
+        x: player.x - 104 + i * 38,
+        y: clamp(player.y + ((i % 2) * 2 - 1) * (34 + i * 6), WALL_H + 28, HEIGHT - 28),
+      });
+    }
+  } else if (skill === "rocketPack") {
+    cast.lanes = [-70, 0, 70].map((dy) => clamp(player.y + dy, WALL_H + 30, HEIGHT - 30));
+    cast.dangerY = cast.lanes[(e.championCastCount || 0) % cast.lanes.length];
+    cast.bandHalfHeight = 25;
+  } else if (skill === "toothCage") {
+    const offset = (e.championCastCount || 0) % 2 === 0 ? -58 : 58;
+    cast.safeY = clamp(player.y + offset, WALL_H + 62, HEIGHT - 62);
+    cast.safeHalfHeight = 36;
   }
   e.championCastCount = (e.championCastCount || 0) + 1;
   e.eliteCast = cast;
@@ -2629,6 +2659,33 @@ function resolveEliteCast(e, cast) {
       hit ||= circleHit(mark.x, mark.y, 25, player.x, player.y, player.radius);
     }
     if (hit) eliteHitPlayer(e, e.dmg * 0.84 * tierPower, "蓝橙速写", cast.mode === "blue" ? "#68bfff" : "#ff9f43");
+  } else if (cast.skill === "memoryFaces") {
+    let hit = false;
+    for (const mark of cast.marks) {
+      explosions.push(new Explosion(mark.x, mark.y, 31, e.eliteProfile.color));
+      hit ||= circleHit(mark.x, mark.y, 31, player.x, player.y, player.radius);
+    }
+    if (hit) eliteHitPlayer(e, e.dmg * 0.82 * tierPower, "故障增殖", e.eliteProfile.color);
+  } else if (cast.skill === "everymanFlock") {
+    for (const mark of cast.marks) explosions.push(new Explosion(mark.x, mark.y, 24, e.eliteProfile.color));
+    if (player.x < cast.safeEdge) eliteHitPlayer(e, e.dmg * 0.86 * tierPower, "Everyman 蝶群", e.eliteProfile.color);
+  } else if (cast.skill === "rocketPack") {
+    for (let x = camX + 20; x < camX + WIDTH; x += 46) {
+      explosions.push(new Explosion(x, cast.dangerY, 23, e.eliteProfile.color));
+    }
+    if (Math.abs(player.y - cast.dangerY) <= cast.bandHalfHeight) {
+      eliteHitPlayer(e, e.dmg * 0.9 * tierPower, "火箭犬群", e.eliteProfile.color);
+    }
+  } else if (cast.skill === "toothCage") {
+    const top = cast.safeY - cast.safeHalfHeight;
+    const bottom = cast.safeY + cast.safeHalfHeight;
+    for (let x = camX + 22; x < camX + WIDTH; x += 44) {
+      explosions.push(new Explosion(x, top, 22, e.eliteProfile.color));
+      explosions.push(new Explosion(x, bottom, 22, e.eliteProfile.color));
+    }
+    if (player.y < top || player.y > bottom) {
+      eliteHitPlayer(e, e.dmg * 0.96 * tierPower, "巨齿牢笼", e.eliteProfile.color);
+    }
   }
 }
 
@@ -2693,15 +2750,16 @@ function update(dt) {
       floatingTexts.push(new FloatingText(player.x, player.y - 60, "※ 精英潮来袭！", "#ffd166"));
     } else if (eliteWave % 2 === 1 && elapsed >= wave.at) {
       eliteWave += 1;
-      const namedTypes = eliteTypePool(getDifficulty().id, elapsed);
-      const types = namedTypes || ["tank", "red", "orange", "blue", "purple", "ghost"];
+      const namedProfiles = eliteProfilePool(getDifficulty().id, elapsed);
+      const types = ["tank", "red", "orange", "blue", "purple", "ghost"];
       for (let i = 0; i < wave.count; i++) {
         const side = i % 2 === 0 ? -1 : 1;
+        const profile = namedProfiles?.[Math.floor(Math.random() * namedProfiles.length)] || null;
         const e = new Enemy(
-          types[Math.floor(Math.random() * types.length)],
+          profile?.type || types[Math.floor(Math.random() * types.length)],
           camX + WIDTH / 2 + side * (WIDTH / 2 + 50),
           WALL_H + 30 + Math.random() * (HEIGHT - WALL_H - 60),
-          spawner.scale(true, !!namedTypes)
+          spawner.scale(true, !!profile, profile?.key)
         );
         enemies.push(e);
       }
@@ -2775,7 +2833,7 @@ function update(dt) {
   // ---- endless judgement rounds -------------------------------------------
   if (endlessRound > 0) {
     if (roundTimer > 0) roundTimer -= dt;
-    // T-15s: an Undertale round champion. R9+ rotates the eight-character roster
+    // T-15s: an Undertale round champion. R11+ rotates the ten-character roster
     // with the existing endless stat pressure layered on top.
     if (!roundBossSpawned && roundTimer <= 15) {
       roundBossSpawned = true;
@@ -3802,6 +3860,88 @@ function draw() {
         ctx.beginPath();
         ctx.moveTo(mark.x - 8, mark.y - 5);
         ctx.quadraticCurveTo(mark.x, mark.y + 9, mark.x + 8, mark.y - 5);
+        ctx.stroke();
+      }
+    } else if (cast.skill === "memoryFaces") {
+      for (const mark of cast.marks) {
+        const radius = 5 + p * 26;
+        ctx.globalAlpha = 0.35 + p * 0.58;
+        ctx.beginPath();
+        ctx.arc(mark.x, mark.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        if (radius > 13) {
+          ctx.fillRect(mark.x - 9, mark.y - 6, 4, 4);
+          ctx.fillRect(mark.x + 5, mark.y - 6, 4, 4);
+          ctx.beginPath();
+          ctx.arc(mark.x, mark.y + 2, 10, 0.15, Math.PI - 0.15);
+          ctx.stroke();
+        }
+      }
+    } else if (cast.skill === "everymanFlock") {
+      ctx.globalAlpha = 0.1 + p * 0.2;
+      ctx.fillRect(camX, WALL_H, Math.max(0, cast.safeEdge - camX), HEIGHT - WALL_H);
+      ctx.globalAlpha = 0.55 + p * 0.4;
+      ctx.strokeStyle = p > 0.62 ? "#ffffff" : e.eliteProfile.color;
+      ctx.lineWidth = 4;
+      ctx.setLineDash([10, 7]);
+      ctx.beginPath();
+      ctx.moveTo(cast.safeEdge, WALL_H);
+      ctx.lineTo(cast.safeEdge, HEIGHT);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 2;
+      for (const mark of cast.marks) {
+        ctx.beginPath();
+        ctx.arc(mark.x, mark.y, 24 - p * 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(mark.x - 13, mark.y);
+        ctx.quadraticCurveTo(mark.x - 5, mark.y - 11, mark.x, mark.y);
+        ctx.quadraticCurveTo(mark.x + 5, mark.y - 11, mark.x + 13, mark.y);
+        ctx.stroke();
+      }
+    } else if (cast.skill === "rocketPack") {
+      for (const lane of cast.lanes) {
+        const danger = lane === cast.dangerY;
+        if (danger) {
+          ctx.fillStyle = e.eliteProfile.color;
+          ctx.globalAlpha = 0.08 + p * 0.16;
+          ctx.fillRect(camX, lane - cast.bandHalfHeight, WIDTH, cast.bandHalfHeight * 2);
+        }
+        ctx.strokeStyle = danger ? (p > 0.58 ? "#ffffff" : e.eliteProfile.color) : "#52606a";
+        ctx.globalAlpha = danger ? 0.5 + p * 0.45 : 0.22;
+        ctx.lineWidth = danger ? 5 : 2;
+        ctx.beginPath();
+        ctx.moveTo(camX, lane);
+        ctx.lineTo(camX + WIDTH, lane);
+        ctx.stroke();
+        if (danger) {
+          for (let x = camX + 34; x < camX + WIDTH; x += 70) {
+            ctx.beginPath();
+            ctx.moveTo(x - 9, lane - 7);
+            ctx.lineTo(x, lane);
+            ctx.lineTo(x - 9, lane + 7);
+            ctx.stroke();
+          }
+        }
+      }
+    } else if (cast.skill === "toothCage") {
+      const top = cast.safeY - cast.safeHalfHeight;
+      const bottom = cast.safeY + cast.safeHalfHeight;
+      ctx.globalAlpha = 0.09 + p * 0.2;
+      ctx.fillRect(camX, WALL_H, WIDTH, Math.max(0, top - WALL_H));
+      ctx.fillRect(camX, bottom, WIDTH, Math.max(0, HEIGHT - bottom));
+      ctx.globalAlpha = 0.5 + p * 0.45;
+      ctx.strokeStyle = p > 0.62 ? "#ffffff" : e.eliteProfile.color;
+      ctx.lineWidth = 3;
+      for (let x = camX; x < camX + WIDTH; x += 42) {
+        ctx.beginPath();
+        ctx.moveTo(x, top - 24);
+        ctx.lineTo(x + 16, top);
+        ctx.lineTo(x + 32, top - 24);
+        ctx.moveTo(x, bottom + 24);
+        ctx.lineTo(x + 16, bottom);
+        ctx.lineTo(x + 32, bottom + 24);
         ctx.stroke();
       }
     }

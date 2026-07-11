@@ -1,4 +1,4 @@
-// Original-inspired redraws for the endless round champions. These live in a
+// Original-inspired redraws for endless champions and named elites. These live in a
 // separate module so the hand-tuned legacy pixel data in sprites.js stays
 // untouched. Each character is built from a tiny palette and hard pixel rows.
 
@@ -278,6 +278,84 @@ const SO_SORRY = pixelSprite(
   { B: "#416ea8", P: "#9abfff", W: "#f7f1e5", D: "#30283a" }
 );
 
+const MEMORYHEAD = pixelSprite(
+  [
+    "      GGGGGGGG       ",
+    "    GGWWWWWWWWGG     ",
+    "   GWWDWWDDWWDWWG    ",
+    "  GWWWWWWWWWWWWWWG   ",
+    " GWWDWWDDWWDWWDDWWG  ",
+    " GWWWWWWWWWWWWWWWWG  ",
+    " GWWDDWWDWWDDWWDWWG  ",
+    "  GWWWWWWWWWWWWWWG   ",
+    "   GWWDDWWDDWWWWG    ",
+    "    GGWWWWWWWWGG     ",
+    "      GGGGGGGG       ",
+    "        GGG          ",
+    "       G   GG        ",
+  ],
+  { G: "#789b92", W: "#dff8ed", D: "#252a2d" }
+);
+
+const REAPER_BIRD = pixelSprite(
+  [
+    "        WWW          ",
+    "      WWWDWW         ",
+    "   WWWWWWWWWWWW      ",
+    "  WWGWWWWWWWGWWW     ",
+    " WWWWWDWWWDWWWWWW    ",
+    "WPPWWWWWWWWWWWPPW    ",
+    " WPPWWWWWWWWWPPW     ",
+    "  WWWWWWWWWWWWW      ",
+    "    WWWWWWWWW        ",
+    "      WWWWW          ",
+    "      WW WW          ",
+    "     WW   WW         ",
+    "    WW     WW        ",
+    "   W         W       ",
+  ],
+  { W: "#eee8f5", D: "#29232f", G: "#a8f0d0", P: "#c9a8ee" }
+);
+
+const ENDOGENY = pixelSprite(
+  [
+    "   WW      WW        ",
+    "  WDDW WW WDDW       ",
+    " WWWWWWWWWWWWWW      ",
+    "WWDWWWWDDWWWWDWW     ",
+    "WWWWWWWWWWWWWWWW     ",
+    " WWWWDDDDDDWWWW      ",
+    "  WWWWWWWWWWWW       ",
+    " WWWWWWWWWWWWWW      ",
+    "WWWWWWWWWWWWWWWW     ",
+    "WDDWWWWWWWWWWDDW     ",
+    " WWWWWWWWWWWWWW      ",
+    "   WW      WW        ",
+    "  WWWW    WWWW       ",
+  ],
+  { W: "#e9f5f7", D: "#282b31" }
+);
+
+const LEMON_BREAD = pixelSprite(
+  [
+    "    YYY      YYY     ",
+    "   YYDYY    YYDYY    ",
+    "  YYYYYYYYYYYYYYYY   ",
+    " YYWYWYWYWYWYWYWYY  ",
+    " YYYDDDDDDDDDDYYYY  ",
+    "  YYYWYWYWYWYWYYY   ",
+    "    YYYYYYYYYY      ",
+    "   YYYDDDDDDYYY     ",
+    "  YYWYWYWYWYWYY     ",
+    "  YYYDDDDDDYYYY     ",
+    "   YYWYWYWYWYY      ",
+    "    YYYYYYYY        ",
+    "     YY  YY         ",
+    "    YY    YY        ",
+  ],
+  { Y: "#fff1a8", W: "#fffdf0", D: "#332d31" }
+);
+
 export const CHAMPION_SPRITES = {
   champion_greater_dog: GREATER_DOG,
   champion_mad_dummy: MAD_DUMMY,
@@ -291,4 +369,8 @@ export const CHAMPION_SPRITES = {
   elite_pyrope: PYROPE,
   champion_glyde: GLYDE,
   champion_so_sorry: SO_SORRY,
+  elite_memoryhead: MEMORYHEAD,
+  elite_reaper_bird: REAPER_BIRD,
+  champion_endogeny: ENDOGENY,
+  champion_lemon_bread: LEMON_BREAD,
 };

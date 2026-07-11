@@ -135,8 +135,8 @@ function run(seconds, onFrame) {
   const keys = C.CODEX_MONSTERS.map((m) => m.key);
   const names = C.CODEX_MONSTERS.map((m) => m.name);
   check(
-    "codex has 8 base + 8 named elites + 8 round champions",
-    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 8 && C.ROUND_CHAMPIONS.length === 8
+    "codex has 8 base + 10 named elites + 10 round champions",
+    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 10 && C.ROUND_CHAMPIONS.length === 10
   );
   check("codex keys and names are unique", new Set(keys).size === C.CODEX_MONSTERS.length && new Set(names).size === C.CODEX_MONSTERS.length);
   check("狂暴 named elite waits until 1:30", C.eliteTypePool(1, 89) === null && C.eliteTypePool(1, 90).join(",") === "slime");
@@ -144,9 +144,12 @@ function run(seconds, onFrame) {
   check("地狱 elites phase in at 3:00 / 3:45", !C.eliteTypePool(2, 179).includes("red") && C.eliteTypePool(2, 180).includes("red") && C.eliteTypePool(2, 225).includes("ghost"));
   check("困难模式余党在 3:00 / 3:45 加入狂暴", !C.eliteTypePool(1, 179).includes("tank") && C.eliteTypePool(1, 180).includes("tank") && C.eliteTypePool(1, 225).includes("orange"));
   check("瀑布与热域精英在地狱 2:30 / 3:30 加入", !C.eliteTypePool(2, 149).includes("blue") && C.eliteTypePool(2, 150).includes("blue") && !C.eliteTypePool(2, 209).includes("purple") && C.eliteTypePool(2, 210).includes("purple"));
-  check("无尽第 5/6 轮接皇家守卫与镁塔顿", C.championForRound(5).championId === "royalGuards" && C.championForRound(6).championId === "mettatonEx");
-  check("无尽第 7/8 轮接格莱德与抱歉怪", C.championForRound(7).championId === "glyde" && C.championForRound(8).championId === "soSorry" && C.championForRound(9).championId === "greaterDog");
-  check("屠杀 schedule is 30s earlier but never before 1:00", C.eliteTypePool(3, 59) === null && C.eliteTypePool(3, 60).join(",") === "slime" && C.eliteTypePool(3, 195).length === 8);
+  check("无尽第 5 轮仍是皇家守卫", C.championForRound(5).championId === "royalGuards");
+  check("无尽第 6/7 轮接犬神融合体与柠檬面包", C.championForRound(6).championId === "endogeny" && C.championForRound(6).hpFactor === 2.3 && C.championForRound(7).championId === "lemonBread" && C.championForRound(7).hpFactor === 2.5);
+  check("无尽第 8/9/10 轮顺延旧首领", C.championForRound(8).championId === "mettatonEx" && C.championForRound(9).championId === "glyde" && C.championForRound(10).championId === "soSorry" && C.championForRound(11).championId === "greaterDog");
+  check("屠杀 schedule is 30s earlier but never before 1:00", C.eliteTypePool(3, 59) === null && C.eliteTypePool(3, 60).join(",") === "slime" && C.eliteTypePool(3, 195).length === 9);
+  check("记忆头在地狱 3:45 / 屠杀 3:15 加入", !C.eliteProfilePool(2, 224).some((m) => m.key === "elite_memoryhead") && C.eliteProfilePool(2, 225).some((m) => m.key === "elite_memoryhead") && C.eliteProfilePool(3, 195).some((m) => m.key === "elite_memoryhead"));
+  check("死神鸟在屠杀 4:00 加入", !C.eliteProfilePool(3, 239).some((m) => m.key === "elite_reaper_bird") && C.eliteProfilePool(3, 240).some((m) => m.key === "elite_reaper_bird"));
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };
@@ -154,6 +157,8 @@ function run(seconds, onFrame) {
   const named = new Enemy("slime", 0, 0, { ...scale, namedElite: true });
   check("pre-debut gold elite has no named skill", generic.eliteProfile === null && generic.eliteSkillTimer === 0);
   check("named elite gains identity, skill and extra bulk", named.eliteProfile?.key === "elite_final_froggit" && named.eliteSkillTimer > 0 && named.maxHp > generic.maxHp);
+  const trueLab = new Enemy("ghost", 0, 0, { ...scale, difficultyId: 3, namedElite: true, eliteProfileKey: "elite_memoryhead" });
+  check("duplicate archetype selects explicit elite profile", trueLab.eliteProfile?.key === "elite_memoryhead" && C.eliteProfileFor("ghost", 3).key === "elite_parsnik");
 }
 
 // meta-progression unit checks (coins / upgrades / unlocks)

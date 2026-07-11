@@ -122,7 +122,9 @@ export class Enemy {
     this.x = x;
     this.y = y;
     this.eliteTier = scale.elite ? Math.max(0, scale.difficultyId || 0) : 0;
-    this.eliteProfile = scale.elite && scale.namedElite ? eliteProfileFor(type, this.eliteTier) : null;
+    this.eliteProfile = scale.elite && scale.namedElite
+      ? eliteProfileFor(type, this.eliteTier, scale.eliteProfileKey)
+      : null;
     const namedEliteHp = this.eliteProfile ? 1 + this.eliteTier * 0.3 : 1;
     this.radius = t.radius * (scale.elite ? 1.6 : 1);
     this.maxHp = Math.round(t.hp * scale.hpMult * (scale.elite ? 5 * namedEliteHp : 1));
