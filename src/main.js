@@ -154,6 +154,7 @@ import {
   spareNarration,
   TEM_LINE,
   shopDenyLine,
+  BOSS_ANTHEM_LINE,
 } from "./narrative.js";
 import {
   drawHud,
@@ -806,6 +807,8 @@ function settleGame(kind) {
     maxStreak: runMaxStreak,
     rounds: roundsCleared,
     hpPct: player.maxHp > 0 ? player.hp / player.maxHp : 0,
+    kills: player.kills,
+    difficultyId: getDifficulty().id,
   });
   // UT-style death: the soul appears, cracks, shatters (equipped soul color)
   deathShatter = player.hp <= 0 ? { t: 0, color: equippedCosmetic()?.color || "#ff3d5a" } : null;
@@ -2835,6 +2838,7 @@ function update(dt) {
   if (!bossFight && !bossDefeated && elapsed >= bossAppearAt()) {
     bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H, getDifficulty().id);
     fireBark("boss");
+    candyBanner = { text: BOSS_ANTHEM_LINE, t: 3.2 }; // Megalovania = 国歌,B站条件反射
     enemies.length = 0;
     pickups.length = 0;
     enemies.push(bossFight.boss);

@@ -34,23 +34,42 @@ const SAVE_CHAR = {
     "* 你打了个哈欠。今晚大概又没法偷懒了。你充满了决心。",
     "* 你想到一个绝妙的骨头笑话,决定活着讲给别人听。你充满了决心。",
     "* 老哥的围巾在风里飘的样子浮现在眼前。你充满了决心。",
+    "* 裂缝外有人管这里叫『本家』。听起来,像个家。你充满了决心。",
   ],
   ukb: [
     "* 天平在你身后轻轻晃动。今晚有很多账要算。你充满了决心。",
     "* 业报不会迟到,只是排队。你负责叫号。你充满了决心。",
     "* 你不恨它们。你只是递送结果。你充满了决心。",
+    "* 裂缝外的人叫你『业报』。你掂了掂骨头,没有反驳。你充满了决心。",
   ],
   horror: [
     "* 头骨里的洞今晚不太疼。是个好兆头。你充满了决心。",
     "* 好饿。但先来的是它们。你充满了决心。",
     "* 你想起还有人在等你带食物回去。你充满了决心。",
+    "* 裂缝外有人喊了声『恐传』。你不认识这个词,但听起来像你的名字。你充满了决心。",
   ],
   hard: [
     "* 规则从今晚起变得更难。正合你意。你充满了决心。",
     "* 这个世界调高了难度,却忘了问你的意见。你充满了决心。",
     "* 蓝色的火花在指间跳动。够快,才够格。你充满了决心。",
+    "* 裂缝外的人叫你『隐藏难度』。被记得的感觉,不坏。你充满了决心。",
   ],
 };
+
+// B站UT社区对四条时间线的圈内称呼,挂在选人页角色名上方
+const AU_TAGS = {
+  sans: "「本家」",
+  ukb: "「业报线」",
+  horror: "「恐传」",
+  hard: "「官方隐藏难度」",
+};
+
+export function charAuTag(charId) {
+  return AU_TAGS[charId] || null;
+}
+
+// Megalovania 在B站的名字只有一个:国歌。Boss进场即奏国歌。
+export const BOSS_ANTHEM_LINE = "* 国歌响起。裂缝外,全体起立。";
 
 const SAVE_DIFFICULTY = [
   [
@@ -554,8 +573,10 @@ export function championEntrance(championId) {
 // ---- 分享卡「裂缝外锐评」: one gray line of community judgement -------------
 // priority chain: the juiciest angle wins; generic pools keep repeats fresh
 
-export function pickShareRoast({ outcome, deathKind, survived = 0, clearTime = 0, maxStreak = 0, rounds = 0, hpPct = 0 } = {}) {
+export function pickShareRoast({ outcome, deathKind, survived = 0, clearTime = 0, maxStreak = 0, rounds = 0, hpPct = 0, kills = 0, difficultyId = 0 } = {}) {
   if (deathKind === "tank") return "* 裂缝外锐评:死于杰瑞。公开处刑。";
+  if (outcome === "victory" && difficultyId >= 3) return "* 裂缝外锐评:打完这把,记得卸载保平安。";
+  if ((outcome === "death" || outcome === "quit") && kills === 0) return "* 裂缝外锐评:云玩家,实锤了。";
   if (outcome === "victory" && clearTime <= 350) return "* 裂缝外锐评:这手速,建议直播。";
   if (outcome === "victory" && hpPct >= 0.99) return "* 裂缝外锐评:满血通关,手元警告。";
   if ((outcome === "death" || outcome === "quit") && survived < 60) return "* 裂缝外锐评:下饭,但下的是我。";
@@ -679,6 +700,8 @@ const PAUSE_TIPS = [
   "跑图口诀:贴墙走,看红圈,别贪糖。",
   "打不过就换难度,没人笑你。笑你的,都卡在同一关。",
   "今天也要,充满决心。",
+  "云玩家看不到这条提示。",
+  "右上角的倍速键不是鬼畜按钮。……但你可以试试。",
 ];
 
 export function pickPauseTip() {
@@ -698,6 +721,9 @@ const FLOWER_LINES = [
   "……谢谢你还在听……",
   "……蜘蛛茶,9999金币……不还价……",
   "……哦耶耶耶……(它学谁的,一目了然。)",
+  "……羊妈的派……还是热的……",
+  "……呐————!!……(它学得很像。)",
+  "……本家的,恐传的……都是好骨头……",
 ];
 
 export function pickFlowerLine() {

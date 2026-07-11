@@ -174,6 +174,12 @@ function run(seconds, onFrame) {
       typeof N.pickShareRoast({ outcome: "victory", clearTime: 400, hpPct: 0.5 }) === "string" &&
       typeof N.pickPauseTip() === "string",
   );
+  check(
+    "B站锐评: 屠杀通关卸载保平安 / 零击杀云玩家实锤",
+    N.pickShareRoast({ outcome: "victory", difficultyId: 3, clearTime: 400 }).includes("卸载保平安") &&
+      N.pickShareRoast({ outcome: "death", kills: 0, survived: 200 }).includes("云玩家") &&
+      N.charAuTag("horror") === "「恐传」",
+  );
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };
