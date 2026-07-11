@@ -531,10 +531,10 @@ export function weaponUnlockInfo(charId, slot) {
 // ---- difficulty tiers ------------------------------------------------------
 
 export const DIFFICULTIES = [
-  { id: 0, name: "普通", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, hint: null },
-  { id: 1, name: "狂暴", hpMult: 2.8, dmgMult: 2.2, coinMult: 1.6, scoreMult: 1.8, hint: "击败一次Boss解锁" },
-  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 2.0, scoreMult: 3.0, hint: "狂暴难度击败Boss解锁" },
-  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 2.6, scoreMult: 4.5, hint: "地狱通关且钱包曾达2000解锁" },
+  { id: 0, name: "普通", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, xpMult: 1, hint: null },
+  { id: 1, name: "狂暴", hpMult: 2.8, dmgMult: 2.2, coinMult: 1.6, scoreMult: 1.8, xpMult: 1.5, hint: "击败一次Boss解锁" },
+  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 2.0, scoreMult: 3.0, xpMult: 1.9, hint: "狂暴难度击败Boss解锁" },
+  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 2.6, scoreMult: 4.5, xpMult: 2.4, hint: "地狱通关且钱包曾达2000解锁" },
 ];
 
 export function isDifficultyUnlocked(id) {

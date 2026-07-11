@@ -200,7 +200,7 @@ function run(seconds, onFrame) {
   check("狂暴 unlocked after first boss", M.isDifficultyUnlocked(1));
   check("地狱 locked until 狂暴 cleared", !M.isDifficultyUnlocked(2));
   check("set difficulty works", M.setDifficulty(1) && M.getDifficulty().id === 1);
-  check("difficulty multipliers wired", M.getDifficulty().hpMult === 2.8 && M.getDifficulty().coinMult === 1.6);
+  check("difficulty multipliers wired", M.getDifficulty().hpMult === 2.8 && M.getDifficulty().coinMult === 1.6 && M.getDifficulty().xpMult === 1.5);
   check("cannot set locked difficulty", !M.setDifficulty(2));
   M.setDifficulty(0); // restore for the game-flow run below
   // 力量门槛滞后一级: the tier that beats your current wall is always

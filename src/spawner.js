@@ -23,6 +23,7 @@ export class Spawner {
     this.top = top; // wall band at the top: no spawns, players can't enter
     this.diffHp = diff ? diff.hpMult : 1; // difficulty tier multipliers
     this.diffDmg = diff ? diff.dmgMult : 1;
+    this.diffXp = diff && diff.xpMult ? diff.xpMult : 1; // fatter kills on higher tiers
     this.diffId = diff ? diff.id : 0;
     this.difficultyId = diff ? diff.id : 0;
     // per-run monster personality: debut times jitter ±20% (earlier on higher
@@ -103,7 +104,7 @@ export class Spawner {
       hpMult: hpMult * this.diffHp * rHp,
       dmgMult: (1 + t / (this.diffId === 0 ? 55 : 40)) * this.diffDmg * rDmg,
       speedMult: (1 + Math.min(t / 90, this.diffId === 0 ? 0.35 : 0.5)) * rSpeed,
-      xpMult: 1 + t / 60,
+      xpMult: (1 + t / 60) * this.diffXp,
       difficultyId: this.difficultyId,
       namedElite,
       elite,
