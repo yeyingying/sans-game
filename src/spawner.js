@@ -83,7 +83,10 @@ export class Spawner {
     // Normal difficulty starts even softer — a total novice one-shots the
     // opening wave with any starting weapon (power fantasy first, then teeth)
     const warmFloor = this.diffId === 0 ? 0.35 : 0.6;
-    if (t < 60) hpMult *= warmFloor + (1 - warmFloor) * (t / 60);
+    // normal eases in over 90s (others 60s): probe data showed a hard wall
+    // right at the 60s ramp-end that killed even maxed-shop bots
+    const warmT = this.diffId === 0 ? 90 : 60;
+    if (t < warmT) hpMult *= warmFloor + (1 - warmFloor) * (t / warmT);
     // endless judgement rounds: each round adds a pressure the player can
     // feel, never just a bigger hp sponge (see main.js for round rules)
     const r = this.endless ? this.round : 0;
