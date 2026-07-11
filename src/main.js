@@ -408,10 +408,17 @@ let lastDeathBy = null; // frozen at death for the gameover screen
 
 // boss warning: the last 30s before the boss the screen pulses red,
 // the music ducks and a siren beeps every 10s
-const BOSS_WARN_TIME = BOSS_APPEAR_TIME - 30;
-let nextWarnBeep = BOSS_WARN_TIME;
+// normal gets a longer power-fantasy runway before the judge arrives:
+// builds (and first evolutions) mature before the fight, 狂暴+ stays tight
+function bossAppearAt() {
+  return getDifficulty().id === 0 ? 420 : BOSS_APPEAR_TIME;
+}
+function bossWarnAt() {
+  return bossAppearAt() - 30;
+}
+let nextWarnBeep = Infinity; // re-armed in reset()
 function bossWarnActive() {
-  return !bossFight && elapsed >= BOSS_WARN_TIME && elapsed < BOSS_APPEAR_TIME;
+  return !bossFight && elapsed >= bossWarnAt() && elapsed < bossAppearAt();
 }
 
 // battle BGM: per-character track, starts with the fight, pauses with Z,
@@ -651,7 +658,7 @@ function reset(weaponId) {
   nearMiss = null;
   lastHitBy = null;
   lastDeathBy = null;
-  nextWarnBeep = BOSS_WARN_TIME;
+  nextWarnBeep = bossWarnAt();
 }
 
 reset(currentWeaponList()[0].id);
@@ -788,8 +795,8 @@ function settleGame(kind) {
       nearMiss = `差一点!再撑 ${Math.ceil(roundTimer)} 秒就能完成第 ${endlessRound} 轮审判`;
     } else if (runOutcome === "endlessDeath" && roundTimer <= 0 && roundBossSpawned && !roundBossDown) {
       nearMiss = `差一点!击倒首领就能结算第 ${endlessRound} 轮`;
-    } else if (runOutcome === "death" && !bossDefeated && elapsed < BOSS_APPEAR_TIME && BOSS_APPEAR_TIME - elapsed <= 45) {
-      nearMiss = `差一点!再活 ${Math.ceil(BOSS_APPEAR_TIME - elapsed)} 秒就能见到天意侵蚀Sans`;
+    } else if (runOutcome === "death" && !bossDefeated && elapsed < bossAppearAt() && bossAppearAt() - elapsed <= 45) {
+      nearMiss = `差一点!再活 ${Math.ceil(bossAppearAt() - elapsed)} 秒就能见到天意侵蚀Sans`;
     } else if (!newRecord && lastBest > 0 && lastScore >= lastBest * 0.8) {
       nearMiss = `差一点!距离新纪录只有 ${lastBest - lastScore + 1} 分`;
     }
@@ -1279,7 +1286,7 @@ function exitDailyMode() {
 function startGame() {
   reset(currentWeaponList()[selectedWeapon].id);
   if (DEBUG_BOSS !== null) {
-    elapsed = BOSS_APPEAR_TIME - 2;
+    elapsed = bossAppearAt() - 2;
     nextChoiceAt = 99999; // skip the backlog of choice screens
     // simulate a 5-minute build so the tester isn't one-shot
     player.maxHp = 1600;
@@ -2452,7 +2459,7 @@ function update(dt) {
   }
 
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
-  if (!bossFight && !bossDefeated && elapsed >= BOSS_APPEAR_TIME) {
+  if (!bossFight && !bossDefeated && elapsed >= bossAppearAt()) {
     bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H, getDifficulty().id);
     enemies.length = 0;
     pickups.length = 0;
@@ -3950,7 +3957,7 @@ function draw() {
     ctx.font = "bold 20px monospace";
     ctx.fillText("※ 一股可怕的气息正在逼近……", WIDTH / 2, WALL_H + 46);
     ctx.font = "bold 15px monospace";
-    ctx.fillText(`${Math.max(1, Math.ceil(BOSS_APPEAR_TIME - elapsed))} 秒`, WIDTH / 2, WALL_H + 70);
+    ctx.fillText(`${Math.max(1, Math.ceil(bossAppearAt() - elapsed))} 秒`, WIDTH / 2, WALL_H + 70);
     ctx.restore();
     ctx.textAlign = "left";
   }
