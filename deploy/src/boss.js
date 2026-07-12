@@ -298,6 +298,22 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           }
           this._p1LastHp = boss.hp;
         }
+      } else if (this.phase === 2 && boss.maxHp > 1000) {
+        // phase 2 gets the same continuous treatment: the entry pool is an
+        // estimate from phase 1 — if the build spikes (late evolutions), the
+        // pool keeps itself sized to ~P2_SECONDS of the real phase-2 dps
+        this.p2Time = (this.p2Time || 0) + dt;
+        this._p2Dealt = (this._p2Dealt || 0) + Math.max(0, (this._p2LastHp ?? boss.maxHp) - boss.hp);
+        if (this.p2Time >= 1) {
+          const dps = this._p2Dealt / this.p2Time;
+          const target = Math.round(Math.min(1500000, Math.max(p2Floor, dps * P2_SECONDS)));
+          const remainingWanted = target - this._p2Dealt;
+          if (remainingWanted > boss.hp) {
+            boss.maxHp = Math.max(boss.maxHp, target);
+            boss.hp = Math.min(boss.maxHp, remainingWanted);
+          }
+        }
+        this._p2LastHp = boss.hp;
       }
       const prevX = boss.x;
       const prevY = boss.y;
