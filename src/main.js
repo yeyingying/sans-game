@@ -829,7 +829,7 @@ function settleGame(kind) {
   // the normal best NEVER absorbs endless-inflated scores: once the boss is
   // down, the stage score is frozen at the moment the heart was taken
   lastScore = bossDefeated ? stageClearScore : currentScore();
-  if (bossDefeated) finishRankedRun({ mode: runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
+  if (bossDefeated) finishRankedRun({ mode: dailyMode ? "daily" : runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: dailyMode || runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
   lastBest = bestScoreOf(player.character);
   newRecord = lastScore > lastBest;
   if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
@@ -1870,7 +1870,7 @@ function applyChoice(i) {
   floatingTexts.push(new FloatingText(player.x, player.y - 26, opt.title, opt.color));
   choiceOptions = [];
   state = "playing";
-  beginRankedRun({ character: player.character, difficulty: getDifficulty().id, silence: activeContract?.id === "silence", debug: DEBUG_BOSS !== null || dailyMode }, () => ({ elapsed, kills: player.kills, rounds: roundsCleared }));
+  beginRankedRun({ character: player.character, difficulty: getDifficulty().id, silence: activeContract?.id === "silence", daily: dailyMode, debug: DEBUG_BOSS !== null }, () => ({ elapsed, kills: player.kills, rounds: dailyMode ? 0 : roundsCleared }));
 }
 
 // ---- input ---------------------------------------------------------------

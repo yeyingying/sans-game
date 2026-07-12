@@ -1,0 +1,42 @@
+import http from "node:http";
+import crypto from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
+import { dailyKey, expectedScore, randomNickname, signToken, validateNickname } from "./core.mjs";
+
+const PORT=Number(process.env.PORT||3000), DB_PATH=process.env.DB_PATH||new URL("./leaderboard.sqlite",import.meta.url).pathname;
+const SECRET=process.env.SESSION_SECRET||crypto.randomBytes(32).toString("hex");
+const ORIGINS=new Set((process.env.ALLOWED_ORIGINS||"https://www.sansgecao.com,https://sansgecao.com").split(","));
+const db=new DatabaseSync(DB_PATH);
+db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS players(id TEXT PRIMARY KEY,nickname TEXT UNIQUE NOT NULL,renamed_at INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,player_id TEXT NOT NULL,token_hash TEXT NOT NULL,character TEXT NOT NULL,difficulty INTEGER NOT NULL,silence INTEGER NOT NULL,started_at INTEGER NOT NULL,last_at INTEGER NOT NULL,last_elapsed REAL NOT NULL DEFAULT 0,last_kills INTEGER NOT NULL DEFAULT 0,last_rounds INTEGER NOT NULL DEFAULT 0,checkpoints INTEGER NOT NULL DEFAULT 0,settled INTEGER NOT NULL DEFAULT 0,daily_key TEXT NOT NULL DEFAULT ''); CREATE TABLE IF NOT EXISTS scores(id INTEGER PRIMARY KEY,player_id TEXT NOT NULL,run_id TEXT UNIQUE NOT NULL,mode TEXT NOT NULL,character TEXT NOT NULL,difficulty INTEGER NOT NULL,score INTEGER NOT NULL,rounds INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,daily_key TEXT NOT NULL DEFAULT ''); CREATE INDEX IF NOT EXISTS score_board ON scores(mode,daily_key,rounds DESC,score DESC,created_at);`);
+for(const [t,c] of [["runs","daily_key"],["scores","daily_key"]])try{db.exec(`ALTER TABLE ${t} ADD COLUMN ${c} TEXT NOT NULL DEFAULT ''`)}catch{}
+const stmt={
+ player:db.prepare("SELECT * FROM players WHERE id=?"), nick:db.prepare("SELECT 1 FROM players WHERE nickname=?"),
+ rename:db.prepare("UPDATE players SET nickname=?,renamed_at=? WHERE id=?"),
+ run:db.prepare("SELECT * FROM runs WHERE id=? AND player_id=?"),
+ addRun:db.prepare("INSERT INTO runs(id,player_id,token_hash,character,difficulty,silence,started_at,last_at,daily_key) VALUES(?,?,?,?,?,?,?,?,?)"),
+ checkpoint:db.prepare("UPDATE runs SET last_at=?,last_elapsed=?,last_kills=?,last_rounds=?,checkpoints=checkpoints+1 WHERE id=?"),
+ settled:db.prepare("UPDATE runs SET settled=1 WHERE id=?"),
+ score:db.prepare("INSERT INTO scores(player_id,run_id,mode,character,difficulty,score,rounds,created_at,daily_key) VALUES(?,?,?,?,?,?,?,?,?)")
+};
+const cookies=req=>Object.fromEntries((req.headers.cookie||"").split(";").map(x=>x.trim().split("=")).filter(x=>x[0]));
+function session(req){const raw=cookies(req).sg_session;if(!raw)return null;const [id,sig]=raw.split("."),want=id&&signToken(SECRET,id);return sig&&want&&sig.length===want.length&&crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(want))?stmt.player.get(id):null}
+function send(res,status,data,origin,headers={}){res.writeHead(status,{"content-type":"application/json; charset=utf-8","access-control-allow-origin":origin,"access-control-allow-credentials":"true",...headers});res.end(JSON.stringify(data))}
+async function read(req){let s="";for await(const c of req){s+=c;if(s.length>16384)throw err("请求过大",413)}return s?JSON.parse(s):{}}
+function err(message,status=400){return Object.assign(new Error(message),{status})}
+function nickname(){for(let i=0;i<500;i++){const n=randomNickname();if(!stmt.nick.get(n))return n}throw err("昵称池暂时繁忙",503)}
+function guest(res,origin){const id=crypto.randomUUID(),name=nickname(),now=Date.now();db.prepare("INSERT INTO players(id,nickname,renamed_at,created_at) VALUES(?,?,0,?)").run(id,name,now);send(res,201,{player:{nickname:name,canRenameAt:0}},origin,{"set-cookie":`sg_session=${id}.${signToken(SECRET,id)}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=31536000`})}
+function rank(mode,rounds,score,day){return db.prepare(`SELECT 1+COUNT(*) rank FROM scores WHERE mode=? ${mode==="daily"?"AND daily_key=?":""} AND (rounds>? OR (rounds=? AND score>?))`).get(...[mode,...(mode==="daily"?[day]:[]),rounds,rounds,score]).rank}
+
+const server=http.createServer(async(req,res)=>{const origin=ORIGINS.has(req.headers.origin)?req.headers.origin:[...ORIGINS][0];try{
+ if(req.method==="OPTIONS"){res.writeHead(204,{"access-control-allow-origin":origin,"access-control-allow-credentials":"true","access-control-allow-methods":"GET,POST","access-control-allow-headers":"content-type"});return res.end()}
+ const u=new URL(req.url,"http://local"); if(u.pathname==="/health")return send(res,200,{ok:true},origin);
+ const p=session(req); if(u.pathname==="/v1/me"&&req.method==="GET")return p?send(res,200,{player:{nickname:p.nickname,canRenameAt:p.renamed_at+604800000}},origin):guest(res,origin);
+ if(!p)return send(res,401,{error:"请先初始化游客身份"},origin);
+ if(u.pathname==="/v1/me/name"&&req.method==="POST"){const name=validateNickname((await read(req)).nickname),now=Date.now();if(p.renamed_at&&now<p.renamed_at+604800000)throw err("每 7 天只能改名一次",429);try{stmt.rename.run(name,now,p.id)}catch{throw err("昵称已被使用",409)}return send(res,200,{player:{nickname:name,canRenameAt:now+604800000}},origin)}
+ if(u.pathname==="/v1/runs"&&req.method==="POST"){const b=await read(req);if(!/^(sans|ukb|horror|hard)$/.test(b.character)||![0,1,2,3].includes(b.difficulty)||b.debug)throw err("无效开局");const id=crypto.randomUUID(),token=crypto.randomBytes(24).toString("base64url"),now=Date.now();stmt.addRun.run(id,p.id,signToken(SECRET,token),b.character,b.difficulty,b.silence?1:0,now,now,b.daily?dailyKey(now):"");return send(res,201,{runId:id,token},origin)}
+ const m=u.pathname.match(/^\/v1\/runs\/([^/]+)\/(checkpoint|settle)$/); if(m&&req.method==="POST"){const b=await read(req),r=stmt.run.get(m[1],p.id);if(!r||r.settled||signToken(SECRET,String(b.token||""))!==r.token_hash)throw err("无效或已结算的 run",409);const now=Date.now(),elapsed=Number(b.elapsed),kills=Number(b.kills),rounds=Number(b.rounds||0);if(!Number.isFinite(elapsed)||elapsed<r.last_elapsed||kills<r.last_kills||rounds<r.last_rounds||kills>elapsed*12+50||rounds>Math.floor(Math.max(0,elapsed-300)/70)+1||elapsed>(now-r.started_at)/1000*3+15)throw err("成绩校验失败",422);if(m[2]==="checkpoint"){if(r.checkpoints&&now-r.last_at<10000)throw err("提交过于频繁",429);stmt.checkpoint.run(now,elapsed,kills,rounds,r.id);return send(res,200,{ok:true},origin)}
+ const stageKills=Number(b.stageKills),stageElapsed=Number(b.stageElapsed);if(!Number.isInteger(stageKills)||stageKills<0||stageKills>kills||!Number.isFinite(stageElapsed)||stageElapsed<0||stageElapsed>elapsed)throw err("结算组成无效",422);const mode=r.daily_key?"daily":b.mode==="endless"?"endless":"normal";if(mode!=="endless"&&rounds!==0)throw err("结算组成无效",422);const total=expectedScore({kills,elapsed,difficulty:r.difficulty,silence:!!r.silence}),stage=expectedScore({kills:stageKills,elapsed:stageElapsed,difficulty:r.difficulty,silence:!!r.silence}),score=mode==="endless"?Math.max(0,total-stage):stage,boardRounds=mode==="endless"?rounds:0;db.exec("BEGIN IMMEDIATE");try{stmt.settled.run(r.id);stmt.score.run(p.id,r.id,mode,r.character,r.difficulty,score,boardRounds,now,r.daily_key);db.exec("COMMIT")}catch(e){db.exec("ROLLBACK");throw e}return send(res,200,{score,rank:rank(mode,boardRounds,score,r.daily_key),date:r.daily_key||null},origin)}
+ if(u.pathname==="/v1/leaderboard"&&req.method==="GET"){const asked=u.searchParams.get("mode"),mode=asked==="endless"?"endless":asked==="daily"?"daily":"normal",ch=u.searchParams.get("character"),day=mode==="daily"?dailyKey():"";const rows=db.prepare(`SELECT p.nickname,s.character,s.difficulty,s.score,s.rounds,s.created_at,s.daily_key FROM scores s JOIN players p ON p.id=s.player_id WHERE s.mode=? ${mode==="daily"?"AND s.daily_key=?":""} ${ch?"AND s.character=?":""} ORDER BY s.rounds DESC,s.score DESC,s.created_at ASC LIMIT 100`).all(...[mode,...(day?[day]:[]),...(ch?[ch]:[])]);return send(res,200,{mode,date:day||null,rows},origin)}
+ return send(res,404,{error:"not found"},origin)
+}catch(e){send(res,e.status||500,{error:e.status?e.message:"服务器错误"},origin)}});
+server.listen(PORT,"127.0.0.1",()=>console.log(`sansgecao api :${PORT}`));

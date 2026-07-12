@@ -24,3 +24,6 @@ export function expectedScore({ kills, elapsed, difficulty, silence }) {
 export function signToken(secret, value) {
   return crypto.createHmac("sha256", secret).update(value).digest("base64url");
 }
+export function dailyKey(now = Date.now()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
