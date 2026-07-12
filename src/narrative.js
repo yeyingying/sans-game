@@ -712,13 +712,23 @@ export function shopDenyLine(reason) {
 // ---- 裂缝外攻略组: one actionable line after a pre-boss death ---------------
 // the death screen already has feelings; this is the "now do THIS" coach
 
-export function coachLine({ kind = null, survived = 0 } = {}) {
-  if (kind === "boss") return "* 裂缝外攻略组:把「决心之心」买满再来,血厚才看得清 Boss 的出招。";
-  if (kind === "hazard") return "* 裂缝外攻略组:审判领域只烧站着不动的人,红圈亮就走。";
-  if ((kind || "").startsWith("elite_") || (kind || "").startsWith("champion_"))
-    return "* 裂缝外攻略组:精英的红圈亮起后必爆,先跑位,再输出。";
-  if (survived < 90) return "* 裂缝外攻略组:开局贴边走,别扎怪堆;90 秒后才是真正的考试。";
-  return "* 裂缝外攻略组:选卡优先攻速和移速——活着,才有输出。";
+export function coachLine({ kind = null, survived = 0, kills = 0, moveSpeed = 0, shopGapName = null, shopGap = 0 } = {}) {
+  // 死因分流(提交A): 操作死因给操作建议,数值死因才推属性——
+  // 绝不让所有死亡都变成「继续刷攻击」
+  let line;
+  if (kind === "boss") line = "* 裂缝外攻略组:把「决心之心」买满再来,血厚才看得清 Boss 的出招。";
+  else if (kind === "hazard") line = "* 裂缝外攻略组:审判领域只烧站着不动的人,红圈亮就走。";
+  else if ((kind || "").startsWith("elite_") || (kind || "").startsWith("champion_"))
+    line = "* 裂缝外攻略组:精英的红圈亮起后必爆,先跑位,再输出。";
+  else if (survived < 90) line = "* 裂缝外攻略组:开局贴边走,别扎怪堆;90 秒后才是真正的考试。";
+  else if (survived >= 180 && kills < survived * 1.1)
+    line = "* 裂缝外攻略组:输出跟不上刷怪节奏——卡优先攻击攻速,武器满阶记得凑觉醒。";
+  else if (moveSpeed > 0 && moveSpeed < 210)
+    line = "* 裂缝外攻略组:是被贴脸磨死的——「疾行之靴」或选卡加移速,先跑得掉。";
+  else line = "* 裂缝外攻略组:选卡优先攻速和移速——活着,才有输出。";
+  // 商店目标并入此处(评审裁决: 不在永久成长块单列,同屏只留一条指引)
+  if (shopGapName && shopGap > 0 && shopGap <= 90) line += `(还差 ${shopGap} 金币就能拿下「${shopGapName}」)`;
+  return line;
 }
 
 // ---- 暂停小贴士: half real mechanics, half memes grown on the mechanics -----

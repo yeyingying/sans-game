@@ -74,8 +74,6 @@ import {
   claimDailyFlower,
   rerollBonus,
   recordRun,
-  isCharUnlocked,
-  charUnlockInfo,
   isWeaponUnlocked,
   weaponUnlockInfo,
   getStats,
@@ -532,6 +530,19 @@ let reviveArmed = 0; // revives carried into this run (telemetry baseline)
 let tapFlash = null; // {x,y,w,h,t} white pop on the button a tap landed on
 let gameoverDetail = false; // settlement page 2: unlock feed & build details
 
+// 本局装备累计 → one compact line (提交A: 捡了什么要看得见)
+function runEquipSummary() {
+  const per = { atk: ["攻击", 2], range: ["射程", 12], rapid: ["攻速", 0.1], boots: ["移速", 10], heart: ["生命", 12], core: ["品阶", 1] };
+  const parts = [];
+  for (const [id, n] of Object.entries(runEquip)) {
+    const def = per[id];
+    if (!def) continue;
+    const total = def[1] * n;
+    parts.push(`${def[0]} +${Number.isInteger(total) ? total : total.toFixed(1)}`);
+  }
+  return parts.join(" · ");
+}
+
 // toggle sits above the share/home/upgrade button row
 function gameoverDetailRect(w, h) {
   return { x: w / 2 - 120, y: h - 104, w: 240, h: 30 };
@@ -553,6 +564,9 @@ let hotdogStock = 0; // 🌭 chest hot dogs: auto-eaten at low HP, run-scoped
 let hotdogCd = 0; // one dog per second, not a chug
 let relics = {}; // 六魂遗物: run-scoped mechanic passives, chest-exclusive
 let runChestsOpened = 0; // telemetry: 宝箱对平衡的真实影响用数据说话
+let runEquip = {}; // 本局装备累计(提交A: 玩家要看见自己捡了什么)
+let permaGrowth = null; // 结算「永久成长」块的数据快照
+let gameoverCta = null; // 动态主按钮 {label, act:"shop"|"char"}
 // FUN value, UT-style: rolled per run, silently decides ultra-rare events
 // (66 = glitched savepoint, 61-63 = ghost codex entry, 100 = flower warning)
 let funValue = 1 + Math.floor(Math.random() * 100);
@@ -731,15 +745,36 @@ function codexCompletion() {
 
 // 2026-07-10 user decision: all four characters are freely selectable from
 // the start — no character locks (weapon unlocks per character remain).
-function charLocks() {
-  return {};
+// 购买前后真实数值(提交A): 商店不许只说「等级提高」
+function shopCompareLine(id, lvl, max) {
+  const maxed = lvl >= max;
+  switch (id) {
+    case "atk": {
+      const a = Math.pow(1.06, lvl).toFixed(2);
+      return maxed ? `已满级 · 伤害倍率 ×${a}(独立乘区)` : `伤害倍率 ×${a} → ×${Math.pow(1.06, lvl + 1).toFixed(2)}(独立乘区)`;
+    }
+    case "hp":
+      return maxed ? `已满级 · 生命加成 +${7 * lvl}%` : `生命加成 +${7 * lvl}% → +${7 * (lvl + 1)}%(升级成长同享)`;
+    case "speed":
+      return maxed ? `已满级 · 初始移速 +${8 * lvl}` : `初始移速 +${8 * lvl} → +${8 * (lvl + 1)}`;
+    case "magnet":
+      return maxed ? `已满级 · 磁吸 +${25 * lvl}` : `磁吸范围 +${25 * lvl} → +${25 * (lvl + 1)}`;
+    case "greed":
+      return maxed ? `已满级 · 金币 +${20 * lvl}%` : `金币获取 +${20 * lvl}% → +${20 * (lvl + 1)}%`;
+    case "reroll":
+      return maxed ? `已满级 · 每次选卡可刷新 ${1 + lvl} 次` : `选卡刷新 ${1 + lvl} 次 → ${2 + lvl} 次`;
+    case "gear":
+      return maxed ? `已满级 · 开局装备 ${lvl} 件` : `开局装备 ${lvl} 件 → ${lvl + 1} 件`;
+    default:
+      return null;
+  }
 }
 
 function shopItems() {
   const items = UPGRADES.map((u) => ({
     id: u.id,
     name: u.name,
-    desc: u.desc,
+    desc: shopCompareLine(u.id, upgradeLevel(u.id), u.max) || u.desc,
     lvl: upgradeLevel(u.id),
     max: u.max,
     cost: upgradeCost(u.id),
@@ -848,6 +883,7 @@ function reset(weaponId) {
   relics = {};
   Enemy.eliteAmp = 1;
   runChestsOpened = 0;
+  runEquip = {};
   visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false };
   nextWarnBeep = bossWarnAt();
 }
@@ -912,14 +948,16 @@ function settleGame(kind) {
     rounds: roundsCleared,
   });
   // coach only pre-boss deaths — endless deaths already beat the exam
-  coachAdvice = runOutcome === "death" ? coachLine({ kind: lastHitKind, survived: Math.floor(elapsed) }) : null;
-  if (coachAdvice) {
-    // if the wallet already covers the cheapest upgrade, say so — one clear
-    // next action beats ten stats
-    const buyable = UPGRADES.filter((u) => !upgradeGate(u.id) && upgradeLevel(u.id) < u.max && upgradeCost(u.id) <= getCoins() + runCoins)
-      .sort((a, b) => upgradeCost(a.id) - upgradeCost(b.id))[0];
-    if (buyable) coachAdvice += `(你已经买得起「${buyable.name}」了!)`;
-  }
+  if (runOutcome === "death") {
+    coachAdvice = coachLine({
+      kind: lastHitKind,
+      survived: Math.floor(elapsed),
+      kills: player.kills,
+      moveSpeed: player.moveSpeed,
+      // 商店差额尾巴在最终钱包定型后(CTA处)再追加——此处钱包还没含
+      // 悬赏/专精奖励,提前算会和主按钮自相矛盾(2026-07-12 截图bug)
+    });
+  } else coachAdvice = null;
   shareRoast = pickShareRoast({
     outcome: runOutcome,
     deathKind: player.hp <= 0 ? lastHitKind : null,
@@ -968,6 +1006,8 @@ function settleGame(kind) {
     deathBy: lastHitKind || "",
     chests: runChestsOpened,
     relics: Object.keys(relics).length,
+    wallet: getCoins(),
+    up: ["atk", "hp", "speed", "magnet", "greed", "reroll", "gear"].map((id) => upgradeLevel(id)).join("."),
   });
   if (bossDefeated) finishRankedRun({ mode: dailyMode ? "daily" : runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: dailyMode || runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
   else cancelRankedRun(); // died/quit before the boss: the run never boards
@@ -1009,6 +1049,13 @@ function settleGame(kind) {
     localStorage.setItem(key, String(dailyBestToday));
   }
   exitDailyMode();
+  // 提交A snapshots: what THIS run adds to the account, taken pre-record
+  const preStats = getStats();
+  const newCodexNames = Object.keys(runKillsByType)
+    .filter((k) => !(preStats.killsByType[k] > 0))
+    .map((k) => CODEX_MONSTERS.find((m) => m.key === k)?.name)
+    .filter(Boolean);
+  const diffClearedBefore = preStats.diffCleared ?? -1;
   recordRun({
     kills: player.kills,
     bossKilled: bossDefeated,
@@ -1073,6 +1120,39 @@ function settleGame(kind) {
   // 角色残响: this timeline's private echoes open with mastery
   if (lvlAfter >= 1) unlockEchoToast(player.character + "1");
   if (lvlAfter >= 3) unlockEchoToast(player.character + "2");
+  // 「永久成长」块(提交A): even a failed run visibly feeds the account
+  permaGrowth = {
+    coins: lastRunCoins,
+    killsBefore: killsAfter - player.kills,
+    killsAfter,
+    lvlBefore,
+    lvlAfter,
+    newCodex: newCodexNames,
+  };
+  // 动态主按钮(提交A): the one next action, picked by situation
+  const diffClearedNow = getStats().diffCleared ?? -1;
+  const affordable = UPGRADES
+    .map((u) => ({ u, lvl: upgradeLevel(u.id), cost: upgradeCost(u.id), gate: upgradeGate(u.id) }))
+    .filter((x) => x.lvl < x.u.max && !x.gate && x.cost <= getCoins())
+    .sort((a, b) => a.cost - b.cost)[0];
+  if (runOutcome === "victory" && diffClearedNow > diffClearedBefore && diffClearedNow < 3) {
+    gameoverCta = { label: `⚔ 挑 战 ${DIFFICULTIES[diffClearedNow + 1].name}`, act: "char" };
+  } else if (runOutcome !== "victory" && affordable) {
+    gameoverCta = { label: "⚡ 去 变 强", act: "shop" }; // 商品名放教练句,按钮不截断
+    if (coachAdvice) coachAdvice += `(「${affordable.u.name}」已经买得起了)`;
+  } else if (nearMiss) {
+    gameoverCta = { label: "⟳ 再 次 挑 战", act: "char" };
+  } else {
+    gameoverCta = { label: "⟳ 再 来 一 局", act: "char" };
+  }
+  if (gameoverCta.act !== "shop" && coachAdvice) {
+    const nextBuy = UPGRADES
+      .map((u) => ({ u, lvl: upgradeLevel(u.id), cost: upgradeCost(u.id), gate: upgradeGate(u.id) }))
+      .filter((x) => x.lvl < x.u.max && !x.gate)
+      .sort((a, b) => a.cost - b.cost)[0];
+    const gap = nextBuy ? nextBuy.cost - getCoins() : 0;
+    if (nextBuy && gap > 0 && gap <= 90) coachAdvice += `(还差 ${gap} 金币就能拿下「${nextBuy.u.name}」)`;
+  }
   // 审判纪元: first-time milestones open a story chapter before the results
   chapterQueue = unseenChapters({
     victory: runOutcome === "victory",
@@ -2390,10 +2470,6 @@ function handleCanvasTap(pos) {
       }
     }
     if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) {
-      if (charLocks()[currentCharacter().id]) {
-        sfxHurt(); // locked character: show the condition, no entry
-        return;
-      }
       selectedWeapon = 0;
       state = "select";
       rollContracts();
@@ -2485,7 +2561,8 @@ function handleCanvasTap(pos) {
     }
     if (inRect(pos, restartButtonRect(WIDTH, HEIGHT))) {
       sfxClick();
-      toCharSelect();
+      if (gameoverCta?.act === "shop") state = "shop";
+      else toCharSelect();
       return;
     }
     if (inRect(pos, homeButtonRect(WIDTH, HEIGHT))) {
@@ -2630,10 +2707,6 @@ window.addEventListener("keydown", (e) => {
     if (k === "arrowleft" || k === "arrowright") selectedChar = (selectedChar + 1) % n;
     else if (k >= "1" && k <= String(n)) selectedChar = Number(k) - 1;
     else if (k === " " || k === "enter") {
-      if (charLocks()[currentCharacter().id]) {
-        sfxHurt(); // locked: stay on the select screen
-        return;
-      }
       selectedWeapon = 0;
       state = "select";
       rollContracts();
@@ -3726,6 +3799,7 @@ function update(dt) {
         sfxCoin();
       } else {
         pu.data.type.apply(player);
+        runEquip[pu.data.type.id] = (runEquip[pu.data.type.id] || 0) + 1;
         sfxEquip();
         floatingTexts.push(new FloatingText(player.x, player.y - 26, pu.data.type.label, pu.data.type.color));
       }
@@ -5286,12 +5360,17 @@ function draw() {
     // evolves with account progress — everything else serves these three
     {
       const st = getStats();
+      const dc = st.diffCleared ?? -1;
       const goal =
         st.bossKills === 0
-          ? "当前目标:通关普通难度——在 5:00 活到 Boss 出现并击败它"
-          : st.diffCleared < 3
-            ? `当前目标:挑战${DIFFICULTIES[Math.min(3, (st.diffCleared ?? 0) + 1)].name}难度,解锁新角色`
-            : "当前目标:冲击排行榜名次与无尽轮数";
+          ? "当前目标:击败普通难度 Boss(5:00 出现)"
+          : dc === 0
+            ? "当前目标:购买推荐强化,挑战狂暴难度"
+            : dc === 1
+              ? "当前目标:提升角色专精,挑战地狱难度"
+              : dc === 2
+                ? "当前目标:挑战屠杀难度与无尽轮数"
+                : "当前目标:刷新角色、难度与无尽榜名次";
       ctx.save();
       ctx.textAlign = "center";
       ctx.fillStyle = "#d9c47a";
@@ -5376,7 +5455,7 @@ function draw() {
       selectedChar,
       PLAYER_SPRITES,
       Object.fromEntries(CHARACTERS.map((c) => [c.id, bestScoreOf(c.id)])),
-      charLocks(),
+      {}, // 角色已全部免费开放(死代码 charLocks 已删,2026-07-12 提交A)
       diffPills(),
       Object.fromEntries(
         CHARACTERS.map((c) => {
@@ -5875,8 +5954,25 @@ function draw() {
             ...(runOutcome === "victory" && getDifficulty().id < 3
               ? [{ text: "⚠ 觉得太简单？选人页可切换 狂暴/地狱 难度,金币加成更高", font: "13px monospace", color: "#ff8a5d" }]
               : []),
+            ...(loveVerdict?.lines || []).map((t) => ({ text: t, font: "13px monospace", color: "#c59bff" })),
             ...(deathQuote ? [{ text: deathQuote, font: "13px monospace", color: "#8fa8c9" }] : []),
             { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
+            ...(runEquipSummary() ? [
+              { text: "—— 本局装备 ——", font: "12px monospace", color: "#5a5468" },
+              { text: runEquipSummary(), font: "13px monospace", color: "#c8c2d4" },
+            ] : []),
+            ...(permaGrowth ? [
+              { text: "—— 永久成长(死了也算数) ——", font: "12px monospace", color: "#5a5468" },
+              { text: `金币 +${permaGrowth.coins}(钱包 ${getCoins()})`, font: "13px monospace", color: "#ffd166" },
+              {
+                text: `角色专精 ${permaGrowth.killsBefore} → ${permaGrowth.killsAfter} 杀${permaGrowth.lvlAfter > permaGrowth.lvlBefore ? ` · 升至 Lv${permaGrowth.lvlAfter}!` : ` (Lv${permaGrowth.lvlAfter})`}`,
+                font: "13px monospace",
+                color: "#7cf28a",
+              },
+              ...(permaGrowth.newCodex.length
+                ? [{ text: `图鉴新发现:${permaGrowth.newCodex.slice(0, 3).join("、")}${permaGrowth.newCodex.length > 3 ? ` 等 ${permaGrowth.newCodex.length} 种` : ""}`, font: "13px monospace", color: "#7ea8ff" }]
+                : []),
+            ] : []),
           ]
         : [
             title,
@@ -5899,7 +5995,6 @@ function draw() {
               font: "16px monospace",
             },
             { text: `金币 +${lastRunCoins}(钱包 ${getCoins()})`, font: "14px monospace", color: "#ffd166" },
-            ...(loveVerdict?.lines || []).map((t) => ({ text: t, font: "13px monospace", color: "#c59bff" })),
             ...(wasDaily
               ? [
                   {
@@ -5923,7 +6018,7 @@ function draw() {
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 20px monospace";
       ctx.textAlign = "center";
-      ctx.fillText("⟳ 再 来 一 局", b.x + b.w / 2, b.y + 31);
+      ctx.fillText(gameoverCta?.label || "⟳ 再 来 一 局", b.x + b.w / 2, b.y + 31);
       ctx.restore();
       ctx.textAlign = "left";
     }
@@ -5948,7 +6043,8 @@ function draw() {
     drawShareButton(ctx, WIDTH, HEIGHT);
     drawHomeButton(ctx, WIDTH, HEIGHT);
     // 去变强: one obvious next action after a defeat — straight to the shop
-    if (coachAdvice) {
+    // (hidden when the primary button already IS the shop CTA)
+    if (coachAdvice && gameoverCta?.act !== "shop") {
       const b = upgradeJumpRect(WIDTH, HEIGHT);
       ctx.save();
       ctx.fillStyle = "#241a10";

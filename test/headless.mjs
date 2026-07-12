@@ -200,6 +200,12 @@ function run(seconds, onFrame) {
       N.pickPapyrusLetter("sans").text.includes("帕派瑞斯"),
   );
   check("AU互文: 四角色都有半血认亲台词", ["sans", "ukb", "horror", "hard"].every((c) => typeof N.bossLineFor(c, "half") === "string"));
+  check(
+    "教练句死因分流: 慢速贴脸推移速, 低输出推攻击, 商店差额并入尾句",
+    N.coachLine({ kind: "slime", survived: 120, moveSpeed: 180 }).includes("移速") &&
+      N.coachLine({ kind: "slime", survived: 200, kills: 100, moveSpeed: 300 }).includes("输出") &&
+      N.coachLine({ kind: "slime", survived: 120, moveSpeed: 180, shopGapName: "力量刻印", shopGap: 30 }).includes("还差 30"),
+  );
   // P0 美术止血: FIGHT/MERCY 改 canvas 绘制,精灵按钮出口应已移除
   const bossSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/boss.js", import.meta.url), "utf8"));
   check("FIGHT/MERCY 不再使用贴图按钮", !bossSrc.includes("BTN_FIGHT") && !bossSrc.includes("BTN_MERCY"));
@@ -596,7 +602,7 @@ if (MODE === "normal") {
     else { release("ArrowDown"); release("ArrowUp"); }
   }
   // play until the heart is taken and the bossclear screen appears
-  function reachBossClear(capSec = 360) {
+  function reachBossClear(capSec = 560) { // 360→560: 出招提速后弱假人P2偶尔磨过老预算(~1/10 flake,与提交A无关,隔离验证过)
     for (let i = 0; i < 30 * capSec; i++) {
       frame();
       const d = dbg();
