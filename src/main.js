@@ -1292,15 +1292,15 @@ function chestSpawnSparks(n, jackpot) {
     ? ["#ffd93d", "#fff3b0", "#ff8fc7", "#7cf28a", "#8fd6ff"]
     : ["#ffd166", "#fff3b0", "#f2ead8"];
   for (let i = 0; i < n; i++) {
-    const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.9;
-    const sp = 220 + Math.random() * 320;
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+    const sp = 260 + Math.random() * 380;
     chestCeremony.sparks.push({
       x: cx + (Math.random() - 0.5) * 30,
       y: cy,
       vx: Math.cos(a) * sp,
-      vy: Math.sin(a) * sp,
+      vy: Math.sin(a) * sp - 120, // harder upward kick
       t: 0,
-      life: 0.7 + Math.random() * 0.5,
+      life: 1.1 + Math.random() * 0.7,
       size: 2 + Math.random() * 3,
       color: palette[Math.floor(Math.random() * palette.length)],
       spin: Math.random() * Math.PI * 2,
@@ -5479,13 +5479,19 @@ function draw() {
       ctx.restore();
     }
 
-    // the chest: falls in, squashes on landing, rattles during the spin
+    // the chest: falls in, squashes on landing, rattles during the spin,
+    // and HOPS with a squash-pop the instant it opens (开箱要有爆发力)
     let chestY = cy;
     let squash = 1;
     if (cc.phase === "drop") {
       const p = Math.min(1, cc.t / 0.35);
       chestY = cy - (1 - p * p) * 260; // ease-in fall
       if (cc.landed) squash = 1 + Math.max(0, 0.25 - (cc.t - 0.35) * 1.6);
+    }
+    if (open && cc.t < 0.4) {
+      const hk = cc.t / 0.4;
+      chestY = cy - Math.sin(hk * Math.PI) * 16; // pop-up hop
+      squash = cc.t < 0.1 ? 0.86 : cc.t < 0.26 ? 1.14 : 1 + 0.05 * Math.sin(cc.t * 40);
     }
     let jitterX = 0;
     if (cc.phase === "spin") {
@@ -5499,20 +5505,35 @@ function draw() {
     const S = 9; // chest ~2x bigger: it IS the show (P0 美术止血, no blur glow)
     const LW = 22 * S, LH = 7 * S, BW = 22 * S, BH = 9 * S;
     if (open) {
-      // light spills out of the mouth: dithered pixel column rising
+      // LIGHT PILLAR: a solid beam punches out of the mouth with overshoot,
+      // then settles into a stepped pulse — the money shot of the ceremony
       const lt = Math.min(1, cc.t / 0.45);
-      ctx.save();
-      ctx.shadowBlur = 0;
-      for (let row = 0; row < 9; row++) {
-        const ry = -14 - row * 12 - lt * 8;
-        ctx.globalAlpha = 0.5 * (1 - row / 9) * lt;
-        ctx.fillStyle = row < 2 ? "#fff3b0" : "#ffd166";
-        const wRow = BW - 24 - row * 8;
-        for (let px2 = -wRow / 2; px2 < wRow / 2; px2 += 10) {
-          ctx.fillRect(Math.round(px2 + ((row % 2) * 5)), Math.round(ry), 5, 5);
+      {
+        const pk = Math.min(1, cc.t / 0.3);
+        const shoot = 1 + 2.70158 * Math.pow(pk - 1, 3) + 1.70158 * Math.pow(pk - 1, 2); // easeOutBack
+        const pillarH = (jackpot === 2 ? 400 : jackpot === 1 ? 330 : 260) * Math.max(0, shoot);
+        const breathe = S * ((Math.floor(elapsedWall() * 8) % 2) ? 1 : 0); // stepped pulse
+        const wCore = 4 * S + breathe;
+        const wMid = 8 * S + breathe;
+        const wOut = 12 * S;
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = "#ffd166";
+        ctx.fillRect(-wOut / 2, -12 - pillarH, wOut, pillarH);
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(-wMid / 2, -12 - pillarH * 0.92, wMid, pillarH * 0.92);
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = "#fff3b0";
+        ctx.fillRect(-wCore / 2, -12 - pillarH * 0.85, wCore, pillarH * 0.85);
+        // rising motes inside the beam
+        ctx.fillStyle = "#ffffff";
+        for (let i = 0; i < 6; i++) {
+          const my = -20 - (((elapsedWall() * 130 + i * 47) % Math.max(60, pillarH * 0.8)));
+          ctx.globalAlpha = 0.8 * (1 + my / Math.max(60, pillarH));
+          ctx.fillRect(Math.round(((i % 3) - 1) * wCore * 0.3) - 2, Math.round(my), 4, 4);
         }
+        ctx.restore();
       }
-      ctx.restore();
       // page-flip open (定稿): three stepped frames, zero transforms —
       // closed lid → half-squashed lid → dedicated OPEN-LID art standing
       // flat behind the mouth. Always reads "打开", never "炸飞"。
@@ -5923,11 +5944,18 @@ function loop(now) {
     cc.t += dt;
     if (cc.shake > 0) cc.shake = Math.max(0, cc.shake - dt * 2.2);
     if (cc.flash > 0) cc.flash -= dt;
+    const sparkFloor = HEIGHT / 2 - 110 + 46; // the chest's foot line
     for (const s of cc.sparks) {
       s.t += dt;
       s.x += s.vx * dt;
       s.y += s.vy * dt;
       s.vy += 620 * dt; // gravity
+      // gold lands on the floor and hops — juice lives in the bounce
+      if (s.y > sparkFloor + (s.floorJitter ??= Math.random() * 60) && s.vy > 0) {
+        s.y = sparkFloor + s.floorJitter;
+        s.vy *= -0.45;
+        s.vx *= 0.65;
+      }
       s.spin += dt * 9;
     }
     cc.sparks = cc.sparks.filter((s) => s.t < s.life);
