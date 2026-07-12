@@ -194,6 +194,7 @@ import {
   codexPageRect,
   drawCodexScreen,
   dailyButtonRect,
+  leaderboardButtonRect,
   bossClearLeaveRect,
   bossClearContinueRect,
   drawBossClearScreen,
@@ -1923,6 +1924,11 @@ function handleCanvasTap(pos) {
       sfxClick();
     } else if (inRect(pos, creditsButtonRect(WIDTH, HEIGHT))) {
       state = "credits";
+      titleMenuOpen = false;
+      sfxClick();
+    } else if (inRect(pos, leaderboardButtonRect(WIDTH, HEIGHT))) {
+      state = "leaderboard";
+      loadLeaderboard();
       titleMenuOpen = false;
       sfxClick();
     } else if (inRect(pos, dailyButtonRect(WIDTH, HEIGHT))) {

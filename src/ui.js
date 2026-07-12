@@ -292,6 +292,16 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.fillStyle = "#c59bff";
   ctx.font = "bold 14px monospace";
   ctx.fillText("✦ 每日挑战", db.x + db.w / 2, db.y + 22);
+
+  const rb = leaderboardButtonRect(width, height);
+  ctx.fillStyle = "#261b16";
+  ctx.fillRect(rb.x, rb.y, rb.w, rb.h);
+  ctx.strokeStyle = "#ff8a5d";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(rb.x, rb.y, rb.w, rb.h);
+  ctx.fillStyle = "#ff8a5d";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText("★ 排行榜", rb.x + rb.w / 2, rb.y + 22);
   ctx.restore();
 }
 
@@ -720,6 +730,10 @@ export function codexButtonRect(width, height) {
 
 export function dailyButtonRect(width, height) {
   return { x: 136, y: height - 52, w: 170, h: 34 };
+}
+
+export function leaderboardButtonRect(width, height) {
+  return { x: 316, y: height - 52, w: 150, h: 34 };
 }
 
 // ---- boss-clear choice screen ------------------------------------------------
