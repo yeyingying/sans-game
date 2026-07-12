@@ -584,16 +584,18 @@ function weaponLocks() {
 
 // one-line summary of everything the shop has permanently granted
 function metaBonusLine() {
+  // numbers must mirror what the upgrades REALLY do post-rework:
+  // 力量=×1.06^lvl final damage, 决心=+7%/lvl max hp (see meta.js UPGRADES)
   const parts = [];
-  if (upgradeLevel("atk")) parts.push(`攻+${2 * upgradeLevel("atk")}`);
-  if (upgradeLevel("hp")) parts.push(`血+${25 * upgradeLevel("hp")}`);
-  if (upgradeLevel("speed")) parts.push(`速+${8 * upgradeLevel("speed")}`);
-  if (upgradeLevel("magnet")) parts.push(`磁+${25 * upgradeLevel("magnet")}`);
+  if (upgradeLevel("atk")) parts.push(`伤害×${Math.pow(1.06, upgradeLevel("atk")).toFixed(2)}`);
+  if (upgradeLevel("hp")) parts.push(`生命+${7 * upgradeLevel("hp")}%`);
+  if (upgradeLevel("speed")) parts.push(`移速+${8 * upgradeLevel("speed")}`);
+  if (upgradeLevel("magnet")) parts.push(`磁吸+${25 * upgradeLevel("magnet")}`);
   if (upgradeLevel("greed")) parts.push(`金币+${20 * upgradeLevel("greed")}%`);
-  if (upgradeLevel("reroll")) parts.push(`刷新+${upgradeLevel("reroll")}`);
+  if (upgradeLevel("reroll")) parts.push(`选卡刷新+${upgradeLevel("reroll")}`);
   if (upgradeLevel("gear")) parts.push(`开局装备+${upgradeLevel("gear")}`);
   if (reviveStock()) parts.push(`复活×${reviveStock()}`);
-  return parts.length ? `当前永久加成:${parts.join(" ")}` : "暂无永久加成";
+  return parts.length ? `已生效:${parts.join(" ")}` : "还没买过强化——买了的每一局自动生效";
 }
 
 function visibleCosmetics() {

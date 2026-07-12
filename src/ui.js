@@ -1106,7 +1106,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
   ctx.font = "12px monospace";
   ctx.fillText(
     tab === 0
-      ? `金币 ⓖ ${coins} · 升级永久生效 · ${infoLine}`
+      ? `金币 ⓖ ${coins} · ${infoLine}`
       : `金币 ⓖ ${coins} · 纯外观:发光/心心拖尾/骨头换色,不加任何属性 · ${infoLine}`,
     width / 2,
     112
