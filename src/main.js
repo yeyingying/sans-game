@@ -5522,11 +5522,12 @@ function draw() {
       if (lt >= 0.16) {
         const pk = Math.min(1, Math.max(0, cc.t - 0.1) / 0.3);
         const shoot = 1 + 2.70158 * Math.pow(pk - 1, 3) + 1.70158 * Math.pow(pk - 1, 2); // easeOutBack
-        const pillarH = (jackpot === 2 ? 400 : jackpot === 1 ? 330 : 260) * Math.max(0, shoot);
+        // 三档演出: 单奖利落 / 三连更粗更高 / 五连全场戏
+        const pillarH = (jackpot === 2 ? 430 : jackpot === 1 ? 330 : 230) * Math.max(0, shoot);
         const breathe = S * ((Math.floor(elapsedWall() * 8) % 2) ? 1 : 0); // stepped pulse
-        const wCore = 4 * S + breathe;
-        const wMid = 8 * S + breathe;
-        const wOut = 12 * S;
+        const wCore = (jackpot === 2 ? 5 : jackpot === 1 ? 4 : 3) * S + breathe;
+        const wMid = (jackpot === 2 ? 10 : jackpot === 1 ? 8 : 6) * S + breathe;
+        const wOut = (jackpot === 2 ? 16 : jackpot === 1 ? 12 : 9) * S;
         const rootY = -12 + 3 * S; // inside the box mouth
         ctx.save();
         ctx.globalAlpha = 0.22;
@@ -5550,6 +5551,23 @@ function draw() {
       ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
       ctx.fillStyle = "#fff3b0"; // glowing mouth strip
       ctx.fillRect(-BW / 2 + 2 * S, -12, BW - 4 * S, S);
+      // ④ tier shockwaves: 三连一圈、五连双圈 — flattened pixel rings
+      const ringsN = jackpot === 2 ? 2 : jackpot === 1 ? 1 : 0;
+      for (let ri = 0; ri < ringsN; ri++) {
+        const rt = cc.t - 0.16 - ri * 0.2;
+        if (rt > 0 && rt < 0.55) {
+          const rr = 30 + rt * 460;
+          ctx.save();
+          ctx.globalAlpha = (1 - rt / 0.55) * 0.85;
+          ctx.fillStyle = ri === 0 ? "#ffd166" : "#fff3b0";
+          const steps = Math.max(18, Math.round(rr / 5));
+          for (let k2 = 0; k2 < steps; k2++) {
+            const a2 = (k2 / steps) * Math.PI * 2;
+            ctx.fillRect(Math.round(Math.cos(a2) * rr) - 2, Math.round(-6 + Math.sin(a2) * rr * 0.5) - 2, 4, 4);
+          }
+          ctx.restore();
+        }
+      }
     } else {
       ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
       ctx.drawImage(CHEST_LID, -LW / 2, -12 - LH + S, LW, LH);
@@ -5958,6 +5976,20 @@ function loop(now) {
         s.vx *= 0.65;
       }
       s.spin += dt * 9;
+    }
+    // 五连大奖: golden rain pours from the sky for the opening beat
+    if (cc.phase === "reveal" && cc.rewards.length >= 5 && cc.t < 1.6 && Math.random() < 0.55) {
+      cc.sparks.push({
+        x: WIDTH / 2 + (Math.random() - 0.5) * 880,
+        y: 16,
+        vx: (Math.random() - 0.5) * 50,
+        vy: 140 + Math.random() * 160,
+        t: 0,
+        life: 1.5 + Math.random() * 0.7,
+        size: 2 + Math.random() * 3,
+        color: ["#ffd166", "#fff3b0", "#ffd93d"][Math.floor(Math.random() * 3)],
+        spin: 0,
+      });
     }
     cc.sparks = cc.sparks.filter((s) => s.t < s.life);
     if (cc.phase === "drop") {
