@@ -552,6 +552,7 @@ let shopMsg = null; // {text, t} UT-style denial line in the shop
 let hotdogStock = 0; // 🌭 chest hot dogs: auto-eaten at low HP, run-scoped
 let hotdogCd = 0; // one dog per second, not a chug
 let relics = {}; // 六魂遗物: run-scoped mechanic passives, chest-exclusive
+let runChestsOpened = 0; // telemetry: 宝箱对平衡的真实影响用数据说话
 // FUN value, UT-style: rolled per run, silently decides ultra-rare events
 // (66 = glitched savepoint, 61-63 = ghost codex entry, 100 = flower warning)
 let funValue = 1 + Math.floor(Math.random() * 100);
@@ -846,6 +847,7 @@ function reset(weaponId) {
   hotdogCd = 0;
   relics = {};
   Enemy.eliteAmp = 1;
+  runChestsOpened = 0;
   visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false };
   nextWarnBeep = bossWarnAt();
 }
@@ -964,6 +966,8 @@ function settleGame(kind) {
     speed: timeScale,
     metaPower: UPGRADES.reduce((s, u) => s + upgradeLevel(u.id), 0),
     deathBy: lastHitKind || "",
+    chests: runChestsOpened,
+    relics: Object.keys(relics).length,
   });
   if (bossDefeated) finishRankedRun({ mode: dailyMode ? "daily" : runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: dailyMode || runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
   else cancelRankedRun(); // died/quit before the boss: the run never boards
@@ -1338,6 +1342,7 @@ function rollChestRewards() {
 }
 
 function openChest(forceCount = 0) {
+  runChestsOpened += 1;
   let rewards = rollChestRewards();
   if (forceCount > 0) {
     while (rewards.length < forceCount) rewards = rewards.concat(rollChestRewards());
