@@ -1267,7 +1267,7 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
     }
 
     // B站圈内的时间线称呼,钉在角色名上方(先画,免得污染角色名的字体)
-    const auTag = charAuTag(c.id);
+    const auTag = c.id === "sans" ? null : charAuTag(c.id);
     if (auTag) {
       ctx.fillStyle = lock ? "#544d63" : c.color;
       ctx.font = "11px monospace";
