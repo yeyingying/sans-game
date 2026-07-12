@@ -24,6 +24,18 @@ export function expectedScore({ kills, elapsed, difficulty, silence }) {
   if (!mult) throw Object.assign(new Error("无效难度"), { status: 400 });
   return Math.floor((kills * 5 + Math.floor(elapsed) * 2.5) * mult * (silence ? 1.35 : 1));
 }
+// Broad plausibility guard, not a balance cap. Legitimate area weapons can
+// remove large spawn packs in one frame and the Boss grants 50 kills, so the
+// old 12 kills/s limit rejected real clears. Checkpoint monotonicity and score
+// recomputation remain the primary protections.
+export function runProgressError({ elapsed, kills, rounds, lastElapsed, lastKills, lastRounds, wallElapsed }) {
+  if (![elapsed, kills, rounds].every(Number.isFinite)) return "nonfinite";
+  if (elapsed < lastElapsed || kills < lastKills || rounds < lastRounds) return "rollback";
+  if (kills > elapsed * 30 + 100) return "kills";
+  if (rounds > Math.floor(Math.max(0, elapsed - 300) / 70) + 1) return "rounds";
+  if (elapsed > wallElapsed * 3.25 + 30) return "time";
+  return "";
+}
 export function signToken(secret, value) {
   return crypto.createHmac("sha256", secret).update(value).digest("base64url");
 }
