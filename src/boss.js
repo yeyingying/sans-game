@@ -277,10 +277,19 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         // adaptive phase 1 (user request 2026-07-10): a few seconds in, resize
         // the HP pool to the player's REAL dps so the phase lasts ~45s — the
         // boss must be beatable but a struggle. Weak debug bosses skip this.
+        // 2026-07-12「一下就把他秒掉了」: endgame builds burned the whole
+        // starting pool before the 2.5s sample existed — until the rescale
+        // runs, hp floors at 5% so there is always a sample to measure
+        if (!this._p1Scaled && boss.maxHp > 1000 && boss.hp < boss.maxHp * 0.05) {
+          boss.hp = boss.maxHp * 0.05;
+        }
         if (
           !this._p1Scaled &&
           boss.maxHp > 1000 &&
-          (this.p1Time >= 6 || (this.p1Time >= 2.5 && boss.hp < boss.maxHp * 0.45))
+          (this.p1Time >= 6 ||
+            (this.p1Time >= 2.5 && boss.hp < boss.maxHp * 0.45) ||
+            // nuked to the floor already: rescale NOW off the short sample
+            (this.p1Time >= 1.2 && boss.hp <= boss.maxHp * 0.06))
         ) {
           this._p1Scaled = true;
           const dealt = boss.maxHp - boss.hp;
