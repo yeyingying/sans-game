@@ -9,8 +9,8 @@ import { bossLineFor } from "./narrative.js";
 
 export const BOSS_APPEAR_TIME = 300; // 5 minutes
 const BOSS_HP = 50000; // phase 1
-const P1_SECONDS = 38; // phase 1 duration for a NORMAL build (band ceiling)
-const P2_SECONDS = 58; // phase 2 duration for a NORMAL build (band ceiling)
+const P1_SECONDS = 36; // includes signature/recovery beats in the time budget
+const P2_SECONDS = 54; // normal build: both phases + transition ≈95 seconds
 // 区间制自适应(2026-07-12 评审): 固定时长会抹掉“变强的反馈”——DPS翻倍
 // Boss 也永远打一样久。改为时长随强度滑落: 普通构筑打满全程, 强构筑明显
 // 更快(10倍输出≈快44%), 但下限兜底, 永远不会一秒融化。
@@ -117,6 +117,9 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     // (normal ÷1.15 → P1 every ~1.39s; 屠杀 ÷1.30)
     aggro: 1.15 + 0.05 * diffId,
     attackTimer: 1.5,
+    attacksSinceSignature: 0,
+    signature: null,
+    recoveryTimer: 0,
     stillTimer: 0,
     lastPX: 0,
     lastPY: 0,
@@ -283,6 +286,9 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       this._barPct = 1; // display bar resets per phase, then only ever falls
       boss.invulnTimer = 0;
       this.attackTimer = 1.2;
+      this.attacksSinceSignature = 0;
+      this.signature = null;
+      this.recoveryTimer = 0;
       this.t = 0;
       if (phase === 1) this.p1Time = 0; // game-time spent in phase 1
     },
@@ -305,6 +311,70 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     // wind-up gesture before firing; `fire` runs at the apex
     windup(kind, fire) {
       this.gesture = { kind, t: 0, dur: 0.42, fire, fired: false };
+    },
+
+    // A readable fight has sentences, not an endless stream of commas.
+    // Each phase periodically replaces a normal attack with one learned
+    // signature, then gives the player a short, explicit breathing window.
+    startSignature(ctx) {
+      const { player } = ctx;
+      this.tele = null;
+      this.gesture = null;
+      this.attacksSinceSignature = 0;
+      if (this.phase === 1) {
+        const centreX = ctx.camX + this.WIDTH / 2;
+        const gapAngle = player.x < centreX ? 0 : Math.PI; // gap points inward
+        this.signature = { kind: "boneGate", t: 0, fired: false, gapAngle, px: player.x, py: player.y };
+      } else {
+        const slots = 6;
+        const slotW = this.WIDTH / slots;
+        const safe = Math.max(0, Math.min(slots - 1, Math.floor((player.x - ctx.camX) / slotW)));
+        this.signature = { kind: "blasterLanes", t: 0, fired: false, safe, camX: ctx.camX };
+      }
+    },
+
+    updateSignature(dt, ctx) {
+      const s = this.signature;
+      if (!s) return;
+      s.t += dt;
+      // keep the boss on stage and facing the player while the pattern reads
+      boss.x += (this.homeX - boss.x) * Math.min(1, dt * 4);
+      boss.y += (this.homeY - boss.y) * Math.min(1, dt * 4);
+      this.faceDir = "down";
+      this.moving = false;
+
+      if (!s.fired && s.t >= 0.12) {
+        s.fired = true;
+        if (s.kind === "boneGate") {
+          // Seven points close around the old player position; one broad gap
+          // always points back toward screen centre. The delayed centre pop
+          // asks the player to leave through the promised opening.
+          for (let i = 0; i < 10; i++) {
+            const a = (i / 10) * Math.PI * 2;
+            const delta = Math.atan2(Math.sin(a - s.gapAngle), Math.cos(a - s.gapAngle));
+            if (Math.abs(delta) < 0.62) continue;
+            this.bone(s.px + Math.cos(a) * 64, s.py + Math.sin(a) * 64, 75, 0.58, { size: 34 });
+          }
+          this.boom(s.px, s.py, 30, 90, 0.9);
+        } else {
+          // Six evenly spaced lanes, five beams: the missing lane is visually
+          // obvious before firing and remains safe for the whole sweep.
+          const slots = 6;
+          const slotW = this.WIDTH / slots;
+          for (let i = 0; i < slots; i++) {
+            if (i === s.safe) continue;
+            const bx = s.camX + slotW * (i + 0.5);
+            this.blaster(bx, this.WALL_H + 18, Math.PI / 2, 1, 1.3);
+          }
+        }
+      }
+
+      const endAt = s.kind === "boneGate" ? 1.45 : 1.65;
+      if (s.t >= endAt) {
+        this.signature = null;
+        this.recoveryTimer = this.phase === 1 ? 1.2 : 1.4;
+        this.attackTimer = 0.7;
+      }
     },
 
     // ----- combat AI --------------------------------------------------------
@@ -355,7 +425,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         this._p2Dealt = (this._p2Dealt || 0) + Math.max(0, (this._p2LastHp ?? boss.maxHp) - boss.hp);
         if (this.p2Time >= 1) {
           const dps = this._p2Dealt / this.p2Time;
-          const target = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * fightSeconds(P2_SECONDS, 32, dps))));
+          const target = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * fightSeconds(P2_SECONDS, 30, dps))));
           const remainingWanted = target - this._p2Dealt;
           if (remainingWanted > boss.hp) {
             boss.maxHp = Math.max(boss.maxHp, target);
@@ -366,6 +436,20 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       }
       const prevX = boss.x;
       const prevY = boss.y;
+
+      if (this.signature) {
+        this.updateSignature(dt, ctx);
+        return;
+      }
+
+      if (this.recoveryTimer > 0) {
+        this.recoveryTimer = Math.max(0, this.recoveryTimer - dt);
+        boss.x += (this.homeX - boss.x) * Math.min(1, dt * 3);
+        boss.y += (this.homeY - boss.y) * Math.min(1, dt * 3);
+        this.faceDir = "down";
+        this.moving = false;
+        return;
+      }
 
       // teleport in progress: fade out, blink, fade back in
       if (this.tele) {
@@ -421,11 +505,17 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
 
       this.attackTimer -= dt;
       if (this.attackTimer > 0) return;
+      const signatureEvery = this.phase === 1 ? 6 : 8;
+      if (this.attacksSinceSignature >= signatureEvery) {
+        this.startSignature(ctx);
+        return;
+      }
       const rate = this.phase === 2 ? 1.2 : 1; // phase 2 attacks 20% faster
       // 2026-07-11 user tuning: ~35% faster skill cadence across both phases
       this.attackTimer = (this.phase === 1 ? 1.6 : 1.5) / rate / (this.aggro || 1);
 
       const attack = () => (this.phase === 1 ? this.pickAttackP1(ctx) : this.pickAttackP2(ctx));
+      this.attacksSinceSignature += 1;
       // half the time, blink to a fresh flank before attacking
       if (Math.random() < 0.5) {
         const pa = Math.random() * Math.PI * 2;
@@ -589,7 +679,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         }
       } else if (this.step === 1) {
         // pause… then the body shudders left-right
-        if (this.t > 1.0) {
+        if (this.t > 0.7) {
           this.step = 2;
           this.t = 0;
           // the struggle against mercy, voiced per character
@@ -598,7 +688,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         }
       } else if (this.step === 2) {
         this.shake = Math.sin(this.t * 40) * 5 * Math.max(0, 1 - this.t / 0.6);
-        if (this.t > 0.7) {
+        if (this.t > 0.5) {
           this.shake = 0;
           this.step = 3;
           this.t = 0;
@@ -610,27 +700,27 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       } else if (this.step === 3) {
         boss.x += (this._mercyX - boss.x) * Math.min(1, dt * 2.2);
         boss.y += (this._mercyY - boss.y) * Math.min(1, dt * 2.2);
-        if (dist(boss.x, boss.y, this._mercyX, this._mercyY) < 8 && this.t > 1.2) {
+        if (dist(boss.x, boss.y, this._mercyX, this._mercyY) < 8 && this.t > 0.9) {
           this.step = 4;
           this.t = 0;
           this.subtitleShow("* Sans 拒绝了仁慈", 2.5);
         }
       } else if (this.step === 4) {
-        if (this.t > 0.8 && !this._mercySmash) {
+        if (this.t > 0.6 && !this._mercySmash) {
           this._mercySmash = true;
           // a giant bone falls from the sky and shatters MERCY
           const m = mercyBtnRect(this.WIDTH, this.HEIGHT);
           this.bone(ctx.camX + m.x + m.w / 2, m.y + m.h / 2, 0, 0.15, { size: 100 });
         }
-        if (this.t > 1.1) this.mercySmashed = true; // button breaks
-        if (this.t > 2.0) {
+        if (this.t > 0.9) this.mercySmashed = true; // button breaks
+        if (this.t > 1.65) {
           // refill, return home, phase 2 — sized so it lasts ~P2_SECONDS
           // against the DPS the player actually showed in phase 1
           this.mercyChoice = false;
           this.mercySmashed = false;
           const p1Time = Math.max(10, this.p1Time || 60);
           const dps = (this.p1MaxHp || BOSS_HP) / p1Time; // real phase-1 pool, post-scaling
-          const p2hp = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * fightSeconds(P2_SECONDS, 32, dps))));
+          const p2hp = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * fightSeconds(P2_SECONDS, 30, dps))));
           boss.maxHp = p2hp;
           boss.hp = p2hp;
           this.homeX = ctx.camX + this.WIDTH * 0.72;
@@ -648,6 +738,9 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       this.t = 0;
       boss.invulnTimer = 999;
       this.hazards.length = 0;
+      this.signature = null;
+      this.recoveryTimer = 0;
+      this.victoryFlash = 0.55;
       const line = bossLineFor(this.character, "death");
       if (line) this.subtitleShow(line, 2.5);
       this.dust = [];
@@ -663,6 +756,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     },
 
     updateDeath(dt, ctx) {
+      if (this.victoryFlash > 0) this.victoryFlash = Math.max(0, this.victoryFlash - dt);
       for (const d of this.dust) {
         d.x += d.vx * dt;
         d.y += d.vy * dt;
@@ -969,6 +1063,20 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         }
       }
 
+      // Recovery is a reward state, not merely a gap in the attack stream.
+      // Mark it on the boss itself so mobile players do not have to read HUD
+      // text while steering through the last particles of the signature.
+      if (this.recoveryTimer > 0) {
+        const pulse = 30 + (Math.floor(this.t * 8) % 2) * 4;
+        pxRing(c, boss.x, boss.y - 5, pulse, "#ffd166", 0.72, 4);
+        c.save();
+        c.fillStyle = "#fff3b0";
+        for (const [ox, oy] of [[-24, -28], [24, -28], [-24, 18], [24, 18]]) {
+          c.fillRect(Math.round(boss.x + ox) - 3, Math.round(boss.y + oy) - 3, 6, 6);
+        }
+        c.restore();
+      }
+
       // boss body (unless fully dead)
       if (this.state !== "death" || this.t < 1.2) {
         drawBossBody(c, boss.x, boss.y, this.t, boss.invulnTimer <= 0 || this.state === "transition", {
@@ -996,6 +1104,25 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         g.addColorStop(1, `rgba(214, 40, 40, ${(this.flash / 0.3) * 0.5})`);
         c.fillStyle = g;
         c.fillRect(0, 0, W, H);
+        c.restore();
+      }
+      // Final hit: one short white frame and a restrained gold verdict. This
+      // is deliberately briefer than the chest fanfare so victory stays UT.
+      if (this.state === "death" && this.t < 1.35) {
+        c.save();
+        if (this.victoryFlash > 0) {
+          c.globalAlpha = Math.min(0.42, this.victoryFlash * 0.75);
+          c.fillStyle = "#ffffff";
+          c.fillRect(0, 0, W, H);
+        }
+        if (this.t > 0.25) {
+          c.globalAlpha = Math.min(1, (this.t - 0.25) * 4) * Math.min(1, (1.35 - this.t) * 3);
+          c.textAlign = "center";
+          c.fillStyle = "#ffd166";
+          c.font = "bold 23px monospace";
+          c.fillText("★ 审判通过 ★", W / 2, 76);
+          c.fillRect(W / 2 - 88, 84, 176, 3);
+        }
         c.restore();
       }
       // boss health bar at the bottom
@@ -1035,6 +1162,20 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         c.fillStyle = "#ffffff";
         c.font = "bold 22px monospace";
         c.fillText(this.subtitle, W / 2, H - 90);
+        c.restore();
+      }
+      if (this.recoveryTimer > 0) {
+        c.save();
+        c.textAlign = "center";
+        c.fillStyle = "#ffd166";
+        c.font = "bold 17px monospace";
+        c.fillText("反击窗口", W / 2, 118);
+        const blocks = 8;
+        const lit = Math.ceil((this.recoveryTimer / (this.phase === 1 ? 1.2 : 1.4)) * blocks);
+        for (let i = 0; i < blocks; i++) {
+          c.fillStyle = i < lit ? "#ffd166" : "#3a2f4a";
+          c.fillRect(W / 2 - 50 + i * 13, 127, 9, 4);
+        }
         c.restore();
       }
       // FIGHT / MERCY buttons (1:1 sprites from the reference image)
