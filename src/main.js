@@ -122,7 +122,10 @@ import {
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
-import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js";
+import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js";
+
+// bump when scoring/balance changes meaningfully — telemetry is sliced by this
+const GAME_VERSION = "s1-20260712";
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
@@ -455,6 +458,7 @@ let chapterShow = null; // {chapter, line, t} the cutscene being typed out
 let shareRoast = null; // 裂缝外锐评 line for the share card
 let pauseTip = null; // 小贴士 picked fresh each time the game pauses
 let coachAdvice = null; // 裂缝外攻略组: the actionable line after a pre-boss death
+let reviveArmed = 0; // revives carried into this run (telemetry baseline)
 let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
 let spareVisit = null; // {type, x, y, t, nearT, state} yellow-name SPARE monster
@@ -847,6 +851,27 @@ function settleGame(kind) {
   // the normal best NEVER absorbs endless-inflated scores: once the boss is
   // down, the stage score is frozen at the moment the heart was taken
   lastScore = bossDefeated ? stageClearScore : currentScore();
+  // 匿名 run 汇总: win or loss, one whitelisted blob per registered run —
+  // this is the production data the balance loop runs on (P1, 2026-07-12)
+  reportRankedRun({
+    version: GAME_VERSION,
+    mode: dailyMode ? "daily" : bossDefeated && runOutcome !== "victory" ? "endless" : "normal",
+    outcome: runOutcome,
+    elapsed: Math.floor(elapsed),
+    kills: player.kills,
+    score: bossDefeated ? stageClearScore : currentScore(),
+    bossReached: bossDefeated || elapsed >= bossAppearAt(),
+    bossDefeated,
+    rounds: roundsCleared,
+    hpPct: player.maxHp > 0 ? Math.round((Math.max(0, player.hp) / player.maxHp) * 100) : 0,
+    damageTaken: Math.round(player.damageTaken || 0),
+    revivesUsed: Math.max(0, reviveArmed - player.revives),
+    weapons: player.weapons.map((i) => `${i.id}${i.evolved ? "*" : ""}:${i.tier}`),
+    contract: activeContract?.id || "",
+    speed: timeScale,
+    metaPower: UPGRADES.reduce((s, u) => s + upgradeLevel(u.id), 0),
+    deathBy: lastHitKind || "",
+  });
   if (bossDefeated) finishRankedRun({ mode: dailyMode ? "daily" : runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: dailyMode || runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
   else cancelRankedRun(); // died/quit before the boss: the run never boards
   lastBest = bestScoreOf(player.character);
@@ -1514,6 +1539,7 @@ function startGame() {
   }
   // 重燃决心(消耗品): arm one revive if stocked — 屠杀线没有第二次机会
   player.revives = dailyMode || getDifficulty().id === 3 || reviveStock() <= 0 ? 0 : 1; // 每日零复活
+  reviveArmed = player.revives; // telemetry: used = armed - remaining at settle
   // 行前整备: shop-bought loadout, granted before the first frame
   for (let i = 0; i < upgradeLevel("gear"); i++) {
     rollEquipmentDrop().apply(player);

@@ -101,6 +101,15 @@ export function cancelRankedRun() {
   run = null;
 }
 
+// 匿名 run 汇总: one whitelisted stats blob per run (win OR loss), fired at
+// settlement before the run handle is settled/cancelled. No PII, no替文本.
+export async function reportRankedRun(stats) {
+  if (!run) return;
+  try {
+    await call(`/runs/${run.runId}/report`, { method: "POST", body: JSON.stringify({ token: run.token, stats }) });
+  } catch {}
+}
+
 export async function checkpointRankedRun(getStats) {
   if (!run) return;
   try {

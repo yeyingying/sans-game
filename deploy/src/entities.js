@@ -74,7 +74,9 @@ export class Player {
       return false;
     }
     const reduction = Math.min(this.dmgReduction + (this.guardBonus || 0), 0.9);
-    this.hp -= Math.max(1, Math.round(amount * (1 - reduction)));
+    const dealt = Math.max(1, Math.round(amount * (1 - reduction)));
+    this.hp -= dealt;
+    this.damageTaken = (this.damageTaken || 0) + dealt; // per-run balance telemetry
     this.invuln = 0.6;
     return true;
   }
