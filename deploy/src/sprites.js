@@ -36,6 +36,190 @@ function diamondSprite(size, color, shadeColor) {
   return c;
 }
 
+// ---- Shared 12px UI icon language -----------------------------------------
+// System emoji render differently on every phone and clash with the game's
+// hard pixel edges. These tiny canvases are the single source of truth for
+// menus, rewards, HUD markers and status labels.
+function iconFromMap(rows, palette) {
+  const h = rows.length;
+  const w = Math.max(...rows.map((row) => row.length));
+  const c = makeCanvas(w, h);
+  const ctx = c.getContext("2d");
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < rows[y].length; x++) {
+      const color = palette[rows[y][x]];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  return c;
+}
+
+const UI_INK = "#0a0810";
+const UI_WHITE = "#f2ead8";
+const UI_GOLD = "#ffd166";
+const UI_GOLD_DARK = "#b77a2a";
+const UI_BLUE = "#8fd6ff";
+const UI_PURPLE = "#c59bff";
+const UI_RED = "#ff5d73";
+const UI_GREEN = "#7cf28a";
+
+const uiIcon = (rows, colors = {}) => iconFromMap(rows, {
+  K: UI_INK,
+  W: UI_WHITE,
+  G: UI_GOLD,
+  g: UI_GOLD_DARK,
+  B: UI_BLUE,
+  P: UI_PURPLE,
+  R: UI_RED,
+  V: UI_GREEN,
+  ...colors,
+});
+
+export const ICONS = Object.freeze({
+  coin: uiIcon([
+    "....KKKK....", "..KKGGGGKK..", ".KGGGGGGGGK.", "KGGGgGGgGGGK",
+    "KGGgGGGGGGGK", "KGGGGGGgGGGK", "KGGGGGGgGGGK", "KGGgGGGgGGGK",
+    "KGGGgggGGGGK", ".KGGGGGGGGK.", "..KKGGGGKK..", "....KKKK....",
+  ]),
+  lock: uiIcon([
+    "............", "....KKKK....", "...KWWWWK...", "..KW....WK..",
+    "..KW....WK..", ".KKKKKKKKKK.", ".KGGGGGGGGK.", ".KGGGKKGGGK.",
+    ".KGGGKKGGGK.", ".KGGGGGGGGK.", ".KKKKKKKKKK.", "............",
+  ]),
+  pie: uiIcon([
+    "............", "....RRRR....", "..RRGGGGRR..", ".RGGgGgGgGR.",
+    "RGgGgGgGgGGR", "KGGGGGGGGGGK", ".KggggggggK.", "..KKggggKK..",
+    "...KggggK...", "....KggK....", ".....KK.....", "............",
+  ], { R: "#ff8fc7" }),
+  hotdog: uiIcon([
+    "............", "............", "..KKRRRRKK..", ".KggRRRRggK.",
+    "KggRRGGRRggK", "KggRRGRRRggK", "KggRRGGRRggK", "KggRRRRRRggK",
+    ".KggRRRRggK.", "..KKRRRRKK..", "............", "............",
+  ], { R: "#d85b45", g: "#e6a158" }),
+  tip: uiIcon([
+    ".....GG.....", "..G..GG..G..", "...GGGGGG...", "..GGWWWWGG..",
+    "..GWWWWWWG..", "..GGWWWWGG..", "...GGWWGG...", "....KWWK....",
+    "....KGGK....", "....KGGK....", ".....KK.....", "............",
+  ]),
+  quest: uiIcon([
+    "..KKKKKKKK..", ".KWWWWWWWWK.", ".KWKKKKKWWK.", ".KWWWWWWWWK.",
+    ".KWKKKKWWWK.", ".KWWWWWWWWK.", ".KWKKKWWWWK.", ".KWWWWWWWWK.",
+    ".KWWWWWWWWK.", "..KKKKKKKWK.", ".........KK.", "............",
+  ]),
+  weapon: uiIcon([
+    "K..........K", "KK........KK", ".KK......KK.", "..KK....KK..",
+    "...KK..KK...", "....KKKK....", "....KKKK....", "...KK..KK...",
+    "..KK....KK..", ".GK......KG.", "GG........GG", "G..........G",
+  ]),
+  flower: uiIcon([
+    "....BB......", "...BWWB.....", ".BBWWWWBB...", "BWWWGGWWWB..",
+    ".BWWGGWWB...", "..BBGGBB....", "....VV......", "....VV......",
+    "..V.VV.V....", ".V..VV..V...", "....VV......", "............",
+  ]),
+  save: uiIcon([
+    ".KKKKKKKKKK.", ".KBBBBBBBBK.", ".KBKKKKKBBK.", ".KBKWWWKBBK.",
+    ".KBKKKKKBBK.", ".KBBBBBBBBK.", ".KBBKKKKBBK.", ".KBKWWWWKBK.",
+    ".KBKWWWWKBK.", ".KBKWWWWKBK.", ".KKKKKKKKKK.", "............",
+  ]),
+  daily: uiIcon([
+    ".....P......", ".....P......", "..P..P..P...", "...PPPPP....",
+    ".PPPPWPPPPP.", "...PPWPP....", "..PPWWWPP...", ".PPWWWWWPP..",
+    "...PPWPP....", "....PPP.....", ".....P......", "............",
+  ]),
+  leaderboard: uiIcon([
+    ".....GG.....", "....GGGG....", "...GGGGGG...", "....KGGK....",
+    "....KGGK....", "..KKKGGKKK..", "..KGGGGGGK..", "..KKKKKKKK..",
+    "....KGGKKKK.", ".KKKKGGKGGK.", ".KGGGGGKGGK.", ".KKKKKKKKKK.",
+  ]),
+  edit: uiIcon([
+    ".........KK.", "........KGGK", ".......KGGK.", "......KGGK..",
+    ".....KGGK...", "....KGGK....", "...KGGK.....", "..KGGK......",
+    ".KGGK.......", ".KGK........", ".KK.........", "............",
+  ]),
+  copy: uiIcon([
+    "...KKKKKKK..", "...KWWWWWK..", "...KWKKKWK..", ".KKKKKKKWK..",
+    ".KWWWWKKWK..", ".KWKKKWWKK..", ".KWWWWWWWK..", ".KWKKKKWWK..",
+    ".KWWWWWWWK..", ".KWWWWWWWK..", ".KKKKKKKKK..", "............",
+  ]),
+  skull: uiIcon([
+    "...KKKKKK...", "..KWWWWWWK..", ".KWWWWWWWWK.", ".KWKKWWKKWK.",
+    ".KWKKWWKKWK.", ".KWWKKKKWWK.", "..KWWKKWWK..", "...KWWWWK...",
+    "...KWKWK....", "...KKKKKK...", "............", "............",
+  ]),
+  relic: uiIcon([
+    ".....P......", "....PPP.....", "...PPWPP....", "..PPWWWPP...",
+    ".PPWWWWWPP..", "PPWWWWWWWPP.", ".PPWWWWWPP..", "..PPWWWPP...",
+    "...PPWPP....", "....PPP.....", ".....P......", "............",
+  ]),
+  awakening: uiIcon([
+    ".....G......", ".....G......", "..G..G..G...", "...G.G.G....",
+    "GGGGGWGGGGG.", "....GWG.....", "...GWWWG....", "..GGGWGGG...",
+    "....G.G.....", "...G...G....", "............", "............",
+  ]),
+  heart: uiIcon([
+    "............", "..RR....RR..", ".RRRR..RRRR.", "RRRRRRRRRRRR",
+    "RRRRRRRRRRRR", ".RRRRRRRRRR.", "..RRRRRRRR..", "...RRRRRR...",
+    "....RRRR....", ".....RR.....", "............", "............",
+  ]),
+  shop: uiIcon([
+    "...KKKKKK...", "..KG....GK..", "..KG....GK..", ".KKKKKKKKKK.",
+    ".KGGGGGGGGK.", ".KGGKGGKGGK.", ".KGGKGGKGGK.", ".KGGGGGGGGK.",
+    ".KGGKKKKGGK.", ".KGGK..KGGK.", ".KKKK..KKKK.", "............",
+  ]),
+  home: uiIcon([
+    ".....BB.....", "....BBBB....", "...BBWWBB...", "..BBWWWWBB..",
+    ".BBWWWWWWBB.", "BBWWWWWWWWBB", "..KWWWWWWK..", "..KWWKKWWK..",
+    "..KWWKKWWK..", "..KWWKKWWK..", "..KKKKKKKK..", "............",
+  ]),
+  share: uiIcon([
+    ".....BB.....", "....BBBB....", "...BBWWBB...", ".....BB.....",
+    ".....BB.....", ".....BB.....", ".KKKKBBKKKK.", ".KWWWWWWWWK.",
+    ".KWWWWWWWWK.", ".KWWWWWWWWK.", ".KKKKKKKKKK.", "............",
+  ]),
+  codex: uiIcon([
+    "..KK....KK..", ".KWWK..KWWK.", ".KWWWKKWWWK.", ".KWWWWWWWWK.",
+    ".KWWWWWWWWK.", ".KWWWWWWWWK.", ".KWWWWWWWWK.", ".KWWWKKWWWK.",
+    ".KWWK..KWWK.", "..KK....KK..", "............", "............",
+  ]),
+  magnet: uiIcon([
+    ".RR......BB.", ".RR......BB.", ".RR......BB.", ".RR......BB.",
+    ".RR......BB.", ".RR......BB.", ".RRR....BBB.", "..RRR..BBB..",
+    "...RRRRBB...", "....RRBB....", ".....KK.....", "............",
+  ]),
+  speed: uiIcon([
+    "............", "....BBBB....", "..BBBBBB....", "BBBBBBBBBB..",
+    "..BBBBBBBBB.", "....BBBBBBBB", "..BBBBBBBBB.", "BBBBBBBBBB..",
+    "..BBBBBB....", "....BBBB....", "............", "............",
+  ]),
+  attack: uiIcon([
+    ".........WWK", "........WWK.", ".......WWK..", "......WWK...",
+    ".....WWK....", "....WWK.....", "...WWK......", "..WWK.......",
+    ".WWK........", "KKK.........", "KGK.........", "KKK.........",
+  ]),
+});
+
+export function drawPixelIcon(ctx, icon, x, y, size = 16, alpha = 1) {
+  if (!icon) return;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(icon, Math.round(x), Math.round(y), Math.round(size), Math.round(size));
+  ctx.restore();
+}
+
+export function drawIconLabel(ctx, icon, label, centerX, baselineY, size = 16, gap = 5) {
+  const textW = ctx.measureText(label).width;
+  const totalW = size + gap + textW;
+  const left = Math.round(centerX - totalW / 2);
+  drawPixelIcon(ctx, icon, left, baselineY - size + 3, size);
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.fillText(label, left + size + gap, baselineY);
+  ctx.restore();
+}
+
 // ---- Player: Sans (based on the classic look: wide skull + huge grin,
 // blue hoodie over white shirt, black shorts with white stripe, pink slippers)
 const BONE = "#f0f0e6";

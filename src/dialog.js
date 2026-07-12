@@ -41,7 +41,7 @@ export function utPrompt({ title, hint, value = "", maxLength = 8, copy = false 
       resolve(v);
     };
     if (copy) {
-      const copyBtn = mkBtn("📋 复制", false);
+      const copyBtn = mkBtn("复制", false);
       copyBtn.onclick = async () => {
         try {
           await navigator.clipboard.writeText(input.value);

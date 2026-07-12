@@ -210,6 +210,16 @@ function run(seconds, onFrame) {
   const bossSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/boss.js", import.meta.url), "utf8"));
   check("FIGHT/MERCY 不再使用贴图按钮", !bossSrc.includes("BTN_FIGHT") && !bossSrc.includes("BTN_MERCY"));
   check("光炮同屏上限护栏存在", bossSrc.includes('h.kind === "blaster").length >= 6'));
+  const spriteSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/sprites.js", import.meta.url), "utf8"));
+  const uiSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/ui.js", import.meta.url), "utf8"));
+  const mainSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8"));
+  check(
+    "像素图标系统覆盖核心入口",
+    ["coin", "lock", "pie", "hotdog", "tip", "quest", "weapon", "flower", "save", "daily", "leaderboard", "edit", "copy", "skull", "relic", "awakening", "heart", "shop", "home", "share", "codex"].every((id) =>
+      spriteSrc.includes(`${id}: uiIcon`),
+    ),
+  );
+  check("高频 UI 不再依赖系统 Emoji", !/[🏠📤📜🔒]/u.test(uiSrc) && !mainSrc.includes('icon: "🥧"') && !mainSrc.includes('icon: "🌭"') && !mainSrc.includes("💡"));
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };

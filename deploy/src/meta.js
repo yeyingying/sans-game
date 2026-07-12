@@ -165,7 +165,7 @@ export const COSMETICS = [
   { id: "hotland", slot: "bone", name: "热域之骨", color: "#ff8a4a", desc: "熔岩涂装——Hotland 的灼热", price: 800 },
   { id: "core", slot: "bone", name: "核心之骨", color: "#7df0e8", desc: "电光涂装——The CORE 的能量", price: 1000 },
   // secret: never sold — granted when all ten echoes have been heard
-  { id: "goldenflower", slot: "soul", name: "金色之花", color: "#ffd93d", desc: "❀ 它笑着说:这是给聆听者的。", price: 0, secret: true },
+  { id: "goldenflower", slot: "soul", name: "金色之花", color: "#ffd93d", desc: "它笑着说:这是给聆听者的。", price: 0, secret: true },
 ];
 
 let cosmetics = readJson("metaCosmetics", { owned: {}, equipped: null });

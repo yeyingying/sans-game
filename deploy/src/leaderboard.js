@@ -3,6 +3,7 @@
 // GitHub Pages 镜像不发任何请求。UI 约定与全游戏一致:深色卡片+彩边+等宽字。
 import { backButtonRect, drawBackButton } from "./ui.js";
 import { utPrompt } from "./dialog.js";
+import { ICONS, drawIconLabel } from "./sprites.js";
 
 const API = "https://api.sansgecao.com/v1";
 // names must mirror weapon.js CHARACTERS — the board and the game must agree
@@ -188,7 +189,7 @@ function myCardRect(w, h) {
 // touch slop mirrors main.js inRect: phone scale shrinks these controls hard
 const inRect = (x, y, r) => x >= r.x - 8 && x <= r.x + r.w + 8 && y >= r.y - 4 && y <= r.y + r.h + 4;
 
-function button(ctx, r, label, color, active = false) {
+function button(ctx, r, label, color, active = false, icon = null) {
   ctx.fillStyle = active ? "#2e2748" : "#1d1828";
   ctx.fillRect(r.x, r.y, r.w, r.h);
   ctx.strokeStyle = active ? color : "#3a2f4a";
@@ -203,7 +204,8 @@ function button(ctx, r, label, color, active = false) {
   const fs = r.h >= 60 ? 24 : r.h >= 46 ? 19 : r.h >= 34 ? 15 : 12;
   ctx.font = `bold ${fs}px monospace`;
   ctx.textAlign = "center";
-  ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + fs * 0.36);
+  if (icon) drawIconLabel(ctx, icon, label, r.x + r.w / 2, r.y + r.h / 2 + fs * 0.36, Math.min(18, fs), 5);
+  else ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + fs * 0.36);
 }
 
 export function drawLeaderboard(ctx, w, h) {
@@ -236,7 +238,7 @@ export function drawLeaderboard(ctx, w, h) {
   ctx.fillText(`你是:${me?.nickname || "游客身份连接中……"}`, w / 2 - (ph ? 90 : 40), ph ? 66 : 77);
   if (me) {
     const cooling = me.canRenameAt && Date.now() < me.canRenameAt;
-    button(ctx, renameRect(w), cooling ? "冷却中" : "✎ 改名", cooling ? "#7d7690" : "#8fd6ff", !cooling);
+    button(ctx, renameRect(w), cooling ? "冷却中" : "改名", cooling ? "#7d7690" : "#8fd6ff", !cooling, cooling ? null : ICONS.edit);
   }
 
   // three explicit board tabs — what you're on is never a mystery

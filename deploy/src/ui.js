@@ -1,3 +1,5 @@
+import { ICONS, drawIconLabel, drawPixelIcon } from "./sprites.js";
+
 function formatTime(sec) {
   const m = Math.floor(sec / 60)
     .toString()
@@ -258,13 +260,13 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
     // 排行榜 left the drawer — it is a primary button now. Header slots are
     // not clickable (main.js targets carry null at the same indices).
     const items = [
-      { label: `强化商店 · ⓖ ${coins}`, color: "#ffd166" },
-      { label: `📜 悬赏 ${questDone}`, color: "#ffd166" },
-      { label: "⚔ 武器图鉴", color: "#c8c2d4" },
+      { label: `强化商店 · ${coins}`, color: "#ffd166", icon: ICONS.shop },
+      { label: `悬赏 ${questDone}`, color: "#ffd166", icon: ICONS.quest },
+      { label: "武器图鉴", color: "#c8c2d4", icon: ICONS.weapon },
       { label: "成 长", header: true },
-      { label: `图鉴 ${codexPct}%`, color: "#7ea8ff" },
-      { label: `❀ 回响 ${echoCount}`, color: "#6bd0ff" },
-      { label: "☁ 存档码", color: "#8fd6ff" },
+      { label: `图鉴 ${codexPct}%`, color: "#7ea8ff", icon: ICONS.codex },
+      { label: `回响 ${echoCount}`, color: "#6bd0ff", icon: ICONS.flower },
+      { label: "存档码", color: "#8fd6ff", icon: ICONS.save },
       { label: "收 藏", header: true },
     ];
     items.forEach((it, i) => {
@@ -284,7 +286,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
       ctx.strokeRect(r.x, r.y, r.w, r.h);
       ctx.fillStyle = it.color;
       ctx.font = "bold 14px monospace";
-      ctx.fillText(it.label, r.x + r.w / 2, r.y + 26);
+      drawIconLabel(ctx, it.icon, it.label, r.x + r.w / 2, r.y + 26, 16, 6);
     });
   }
 
@@ -298,7 +300,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(db.x, db.y, db.w, db.h);
   ctx.fillStyle = "#c59bff";
   ctx.font = "bold 15px monospace";
-  ctx.fillText("✦ 每日挑战", db.x + db.w / 2, db.y + db.h / 2 + 5);
+  drawIconLabel(ctx, ICONS.daily, "每日挑战", db.x + db.w / 2, db.y + db.h / 2 + 5, 16, 6);
 
   const rb = leaderboardButtonRect(width, height);
   ctx.fillStyle = "#261b16";
@@ -308,7 +310,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(rb.x, rb.y, rb.w, rb.h);
   ctx.fillStyle = "#ff8a5d";
   ctx.font = "bold 15px monospace";
-  ctx.fillText("★ 排行榜", rb.x + rb.w / 2, rb.y + rb.h / 2 + 5);
+  drawIconLabel(ctx, ICONS.leaderboard, "排行榜", rb.x + rb.w / 2, rb.y + rb.h / 2 + 5, 16, 6);
   ctx.restore();
 }
 
@@ -366,7 +368,7 @@ export function drawHomeButton(ctx, width, height) {
   ctx.fillStyle = "#8fd6ff";
   ctx.font = "bold 15px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("🏠 回主页", btn.x + btn.w / 2, btn.y + 28);
+  drawIconLabel(ctx, ICONS.home, "回主页", btn.x + btn.w / 2, btn.y + 28, 16, 6);
   ctx.restore();
 }
 
@@ -385,7 +387,7 @@ export function drawShareButton(ctx, width, height) {
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 15px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("📤 分享战绩", btn.x + btn.w / 2, btn.y + 28);
+  drawIconLabel(ctx, ICONS.share, "分享战绩", btn.x + btn.w / 2, btn.y + 28, 16, 6);
   ctx.restore();
 }
 
@@ -429,7 +431,7 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
   ctx.textAlign = "center";
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 26px monospace";
-  ctx.fillText("⚔ 武 器 图 鉴", width / 2, 40);
+  drawIconLabel(ctx, ICONS.weapon, "武 器 图 鉴", width / 2, 40, 22, 8);
 
   chars.forEach((c, i) => {
     const r = bookCharPillRect(i, width);
@@ -593,7 +595,7 @@ export function drawQuestsScreen(ctx, width, height, quests) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 30px monospace";
-  ctx.fillText("📜 今 日 悬 赏", width / 2, 62);
+  drawIconLabel(ctx, ICONS.quest, "今 日 悬 赏", width / 2, 62, 24, 8);
   ctx.fillStyle = "#9a93ab";
   ctx.font = "13px monospace";
   ctx.fillText("回声花的今日委托 · 进度跨局累计 · 完成即发金币 · 每天刷新", width / 2, 92);
@@ -622,7 +624,14 @@ export function drawQuestsScreen(ctx, width, height, quests) {
     ctx.fillText(`${Math.min(q.progress, q.target)}/${q.target}`, box.x + box.w - 96, box.y + 55);
     ctx.fillStyle = q.done ? "#7cf28a" : "#ffd166";
     ctx.font = "bold 14px monospace";
-    ctx.fillText(q.done ? "已入账" : `ⓖ ${q.reward}`, box.x + box.w - 18, box.y + 34);
+    if (q.done) {
+      ctx.fillText("已入账", box.x + box.w - 18, box.y + 34);
+    } else {
+      const rewardText = String(q.reward);
+      const tw = ctx.measureText(rewardText).width;
+      drawPixelIcon(ctx, ICONS.coin, box.x + box.w - 24 - tw - 18, box.y + 18, 16);
+      ctx.fillText(rewardText, box.x + box.w - 18, box.y + 34);
+    }
   });
   ctx.textAlign = "center";
   drawBackButton(ctx, width, height);
@@ -653,7 +662,7 @@ export function drawEchoField(ctx, width, height, entries, count) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#6bd0ff";
   ctx.font = "bold 30px monospace";
-  ctx.fillText("❀ 回 响", width / 2, 52);
+  drawIconLabel(ctx, ICONS.flower, "回 响", width / 2, 52, 24, 8);
   ctx.fillStyle = "#9ab8d0";
   ctx.font = "13px monospace";
   ctx.fillText(`审判廊的回声花,记得每一次轮回 · 已聆听 ${count}/${entries.length} · 后八朵是四条时间线的残响`, width / 2, 82);
@@ -1038,7 +1047,15 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
   const by = 432;
   ctx.fillStyle = bossKills > 0 ? "#ffd166" : "#453f52";
   ctx.font = "bold 12px monospace";
-  ctx.fillText(bossKills > 0 ? `☠ 天意侵蚀Sans · 击败 ${bossKills} 次` : "☠ ？？？（5:00 出现的存在）", width / 2, by);
+  drawIconLabel(
+    ctx,
+    ICONS.skull,
+    bossKills > 0 ? `天意侵蚀Sans · 击败 ${bossKills} 次` : "？？？（5:00 出现的存在）",
+    width / 2,
+    by,
+    16,
+    6
+  );
 
   ctx.font = "11px monospace";
   weaponRows.forEach((r, i) => {
@@ -1108,12 +1125,16 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
   ctx.fillStyle = "#f2ead8";
   ctx.font = "13px monospace";
   ctx.font = "12px monospace";
-  ctx.fillText(
+  drawIconLabel(
+    ctx,
+    ICONS.coin,
     tab === 0
-      ? `金币 ⓖ ${coins} · ${infoLine}`
-      : `金币 ⓖ ${coins} · 纯外观:发光/心心拖尾/骨头换色,不加任何属性 · ${infoLine}`,
+      ? `${coins} · ${infoLine}`
+      : `${coins} · 灵魂外观,不影响属性 · ${infoLine}`,
     width / 2,
-    112
+    112,
+    14,
+    5
   );
 
   if (tab === 1) {
@@ -1150,7 +1171,10 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
         ctx.fillText("已拥有 · 点击装备", box.x + box.w - 14, box.y + 20);
       } else {
         ctx.fillStyle = affordable ? "#ffd166" : "#6b6578";
-        ctx.fillText(`ⓖ ${c.price}`, box.x + box.w - 14, box.y + 20);
+        const priceText = String(c.price);
+        const priceW = ctx.measureText(priceText).width;
+        drawPixelIcon(ctx, ICONS.coin, box.x + box.w - 20 - priceW - 14, box.y + 7, 13);
+        ctx.fillText(priceText, box.x + box.w - 14, box.y + 20);
         ctx.font = "10px monospace";
         ctx.fillStyle = affordable ? "#7d7690" : "#5a5468";
         ctx.fillText(affordable ? "点击购买" : "金币不足", box.x + box.w - 14, box.y + 36);
@@ -1186,11 +1210,23 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
     // level pips
     ctx.fillText(`${"■".repeat(it.lvl)}${"□".repeat(it.max - it.lvl)}`, box.x + box.w - 118, box.y + 24);
     ctx.fillStyle = it.cost === null ? "#7cf28a" : affordable ? "#ffd166" : "#6b6578";
-    ctx.fillText(it.cost === null ? "已满级" : `ⓖ ${it.cost}`, box.x + box.w - 16, box.y + 24);
+    if (it.cost === null) {
+      ctx.fillText("已满级", box.x + box.w - 16, box.y + 24);
+    } else {
+      const costText = String(it.cost);
+      const costW = ctx.measureText(costText).width;
+      drawPixelIcon(ctx, ICONS.coin, box.x + box.w - 22 - costW - 16, box.y + 10, 14);
+      ctx.fillText(costText, box.x + box.w - 16, box.y + 24);
+    }
     if (it.cost !== null) {
       ctx.fillStyle = it.gate ? "#d9c47a" : affordable ? "#7d7690" : "#5a5468";
       ctx.font = "11px monospace";
-      ctx.fillText(it.gate ? `🔒 ${it.gate}` : affordable ? "点击购买" : "金币不足", box.x + box.w - 16, box.y + 44);
+      const statusText = it.gate || (affordable ? "点击购买" : "金币不足");
+      if (it.gate) {
+        const statusW = ctx.measureText(statusText).width;
+        drawPixelIcon(ctx, ICONS.lock, box.x + box.w - statusW - 31, box.y + 31, 11);
+      }
+      ctx.fillText(statusText, box.x + box.w - 16, box.y + 44);
     }
   }
 
@@ -1234,7 +1270,8 @@ function drawDifficultyRow(ctx, width, height, diffs) {
     ctx.strokeRect(box.x, box.y, box.w, box.h);
     ctx.fillStyle = d.locked ? "#6b6578" : d.active ? "#ffd166" : "#c8c2d4";
     ctx.font = "bold 14px monospace";
-    ctx.fillText(d.locked ? `🔒 ${d.name}` : d.name, box.x + box.w / 2, box.y + 20);
+    if (d.locked) drawIconLabel(ctx, ICONS.lock, d.name, box.x + box.w / 2, box.y + 20, 13, 4);
+    else ctx.fillText(d.name, box.x + box.w / 2, box.y + 20);
   }
   ctx.restore();
 }
@@ -1287,7 +1324,8 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
 
     ctx.fillStyle = lock ? "#7d7690" : active ? "#ffffff" : "#c8c2d4";
     ctx.font = "bold 22px monospace";
-    ctx.fillText(lock ? `🔒 ${c.name}` : c.name, box.x + box.w / 2, box.y + 228);
+    if (lock) drawIconLabel(ctx, ICONS.lock, c.name, box.x + box.w / 2, box.y + 228, 17, 5);
+    else ctx.fillText(c.name, box.x + box.w / 2, box.y + 228);
     if (lock) {
       ctx.fillStyle = "#d9c47a";
       ctx.font = "12px monospace";
@@ -1384,7 +1422,9 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
       ctx.textAlign = "left";
       ctx.fillStyle = "#7d7690";
       ctx.font = "bold 14px monospace";
-      ctx.fillText(`${i + 1}. 🔒 ${w.name}`, box.x + 40, box.y + 25);
+      ctx.fillText(`${i + 1}.`, box.x + 40, box.y + 25);
+      drawPixelIcon(ctx, ICONS.lock, box.x + 64, box.y + 12, 13);
+      ctx.fillText(w.name, box.x + 82, box.y + 25);
       ctx.fillStyle = "#d9c47a";
       ctx.font = "12px monospace";
       ctx.fillText(`解锁：${lock.hint} · 进度 ${lock.progress}`, box.x + 40, box.y + 47);

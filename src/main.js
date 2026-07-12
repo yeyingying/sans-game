@@ -24,6 +24,9 @@ import {
   GB_IDLE,
   GB_FIRE,
   PICKUP_XP,
+  ICONS,
+  drawPixelIcon,
+  drawIconLabel,
   drawSprite,
   tintSprite,
 } from "./sprites.js";
@@ -480,7 +483,7 @@ function unlockEchoToast(id) {
   if (unlockedEchoCount() >= ECHOES.length) {
     if (grantCosmetic("goldenflower")) {
       lastGoldenFlower = true;
-      tipQueue.push({ title: "❀ 花田满开", lines: ["「金色之花」已自动绽放在你的灵魂上"], t: 9 });
+      tipQueue.push({ title: "花田满开", lines: ["「金色之花」已自动绽放在你的灵魂上"], t: 9 });
       sfxFanfare();
     }
     if (unlockTitle("listener")) lastNewTitles.push("聆听者");
@@ -490,7 +493,7 @@ function unlockEchoToast(id) {
   }
   // in-run: floating tip card; at settlement the gameover card lists it
   if (state === "playing" || state === "choice") {
-    tipQueue.push({ title: `❀ 回响解锁:「${e.title}」`, lines: ["标题页 ❀回响 里,花会为你重述这段记忆"], t: 8 });
+    tipQueue.push({ title: `回响解锁:「${e.title}」`, lines: ["标题页「回响」里,花会为你重述这段记忆"], t: 8 });
   }
   sfxCandy();
 }
@@ -1115,7 +1118,7 @@ function settleGame(kind) {
   if (lvlAfter > lvlBefore) {
     const bonus = 30 * (lvlAfter - lvlBefore) * lvlAfter;
     addCoins(bonus);
-    lastMasteryUp = `⚔ ${currentCharacter().name} 专精升至 Lv${lvlAfter}(+${bonus}金币)`;
+    lastMasteryUp = `${currentCharacter().name} 专精升至 Lv${lvlAfter}(+${bonus}金币)`;
   }
   // 角色残响: this timeline's private echoes open with mastery
   if (lvlAfter >= 1) unlockEchoToast(player.character + "1");
@@ -1136,9 +1139,9 @@ function settleGame(kind) {
     .filter((x) => x.lvl < x.u.max && !x.gate && x.cost <= getCoins())
     .sort((a, b) => a.cost - b.cost)[0];
   if (runOutcome === "victory" && diffClearedNow > diffClearedBefore && diffClearedNow < 3) {
-    gameoverCta = { label: `⚔ 挑 战 ${DIFFICULTIES[diffClearedNow + 1].name}`, act: "char" };
+    gameoverCta = { label: `挑 战 ${DIFFICULTIES[diffClearedNow + 1].name}`, act: "char" };
   } else if (runOutcome !== "victory" && affordable) {
-    gameoverCta = { label: "⚡ 去 变 强", act: "shop" }; // 商品名放教练句,按钮不截断
+    gameoverCta = { label: "去 变 强", act: "shop" }; // 商品名放教练句,按钮不截断
     if (coachAdvice) coachAdvice += `(「${affordable.u.name}」已经买得起了)`;
   } else if (nearMiss) {
     gameoverCta = { label: "⟳ 再 次 挑 战", act: "char" };
@@ -1205,7 +1208,7 @@ function exportSaveCode() {
     } catch (e) {}
     utPrompt({
       title: "* 存档码已生成",
-      hint: "已尝试自动复制;也可点「📋 复制」或手动全选。\n在任何设备的「☁ 存档码」里导入即可恢复全部进度。",
+      hint: "已尝试自动复制;也可点「复制」或手动全选。\n在任何设备的「存档码」里导入即可恢复全部进度。",
       value: code,
       maxLength: 1000000,
       copy: true,
@@ -1267,8 +1270,8 @@ for (const c of CHARACTERS) {
 }
 const flowerGift = claimDailyFlower(todayKey(), yesterdayKey());
 const flowerGiftLine = flowerGift.already
-  ? `❀ 连日之花:第 ${flowerGift.days} 天(今日礼物已领取)`
-  : `❀ 连日之花:第 ${flowerGift.days} 天,花为你留了 ${flowerGift.coins} 金币`;
+  ? `连日之花:第 ${flowerGift.days} 天(今日礼物已领取)`
+  : `连日之花:第 ${flowerGift.days} 天,花为你留了 ${flowerGift.coins} 金币`;
 
 const QUEST_KIND_DESC = {
   kills: (q) => `击杀 ${q.target} 只怪物`,
@@ -1293,7 +1296,7 @@ function questToasts(completed) {
     const line = QUEST_KIND_DESC[q.kind](q);
     lastNewQuests.push(`${line} +${q.reward}金币`);
     if (state === "playing" || state === "choice") {
-      tipQueue.push({ title: "📜 悬赏完成!", lines: [`${line} —— 赏金 ${q.reward} 金币已入账`], t: 7 });
+      tipQueue.push({ title: "悬赏完成!", lines: [`${line} —— 赏金 ${q.reward} 金币已入账`], t: 7 });
     }
     sfxEquip();
   }
@@ -1335,14 +1338,14 @@ function rollChestRewards() {
   for (let i = 0; i < count; i++) {
     const pick = Math.random() * 100;
     if (pick < 22) {
-      rewards.push({ label: "羊妈的派", color: "#ff8fc7", icon: "🥧", apply: () => {
+      rewards.push({ label: "羊妈的派", color: "#ff8fc7", icon: ICONS.pie, apply: () => {
         player.maxHp += 15; // 永久上限,然后全回复 — 一大口家的味道
         player.hp = player.maxHp;
         healFlash = 0.6;
         candyBanner = { text: "* 黄油太妃派。有家的味道。生命上限 +15!", t: 3 };
       }});
     } else if (pick < 40) {
-      rewards.push({ label: "骨白审判", color: "#f2ead8", icon: "☠", apply: () => {
+      rewards.push({ label: "骨白审判", color: "#f2ead8", icon: ICONS.skull, apply: () => {
         let reaped = 0;
         for (const e of enemies) {
           if (!e.elite && !e.boss && e.hp > 0) {
@@ -1354,7 +1357,7 @@ function rollChestRewards() {
         candyBanner = { text: `* 骨白审判降下。${reaped} 个身影同时化尘。`, t: 3 };
       }});
     } else if (pick < 55) {
-      rewards.push({ label: "热狗 ×3('dogs)", color: "#ffb066", icon: "🌭", apply: () => {
+      rewards.push({ label: "热狗 ×3('dogs)", color: "#ffb066", icon: ICONS.hotdog, apply: () => {
         hotdogStock = Math.min(9, hotdogStock + 3); // 残血自动吃,用完为止
         candyBanner = { text: "* 三根热狗揣进口袋。残血时会自动想起它们。", t: 3 };
       }});
@@ -1362,7 +1365,7 @@ function rollChestRewards() {
       // 六魂遗物: 机制型独特物件 — rogue-like 的 item 心跳,卡池永远给不了
       const relic = pickRelic(relics);
       if (relic) {
-        rewards.push({ label: `${relic.name}·${relic.soul}`, color: relic.color, icon: "◈", apply: () => {
+        rewards.push({ label: `${relic.name}·${relic.soul}`, color: relic.color, icon: ICONS.relic, apply: () => {
           relics[relic.id] = true;
           if (relic.id === "patience") player.invulnMult = 1.25;
           sfxEquip();
@@ -1384,13 +1387,13 @@ function rollChestRewards() {
       } else {
         // all six collected: the souls send coins instead
         const v = Math.max(1, Math.round(30 * coinGainMult() * getDifficulty().coinMult * Math.max(currentCoinFactor(), endlessRound > 0 ? 0 : 1)));
-        rewards.push({ label: `金币雨 ×${v}`, color: "#ffd166", icon: "ⓖ", apply: () => {
+        rewards.push({ label: `金币雨 ×${v}`, color: "#ffd166", icon: ICONS.coin, apply: () => {
           if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
         }});
       }
     } else if (pick < 81) {
       // 觉醒骨: 宝箱的圣杯 — 三层逻辑永无死槽
-      rewards.push({ label: "觉醒骨", color: "#ffd93d", icon: "✦", apply: () => {
+      rewards.push({ label: "觉醒骨", color: "#ffd93d", icon: ICONS.awakening, apply: () => {
         const ready = player.weapons.find((w) => canEvolve(w));
         if (ready) {
           ready.evolved = true; // 已攒够条件的武器当场觉醒 — 质变时刻
@@ -1413,7 +1416,7 @@ function rollChestRewards() {
       }});
     } else {
       const v = Math.max(1, Math.round((25 + Math.random() * 20) * coinGainMult() * getDifficulty().coinMult * Math.max(currentCoinFactor(), endlessRound > 0 ? 0 : 1)));
-      rewards.push({ label: `金币雨 ×${v}`, color: "#ffd166", icon: "ⓖ", apply: () => {
+      rewards.push({ label: `金币雨 ×${v}`, color: "#ffd166", icon: ICONS.coin, apply: () => {
         if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
       }});
     }
@@ -5181,7 +5184,7 @@ function draw() {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffd166";
     ctx.font = "bold 14px monospace";
-    ctx.fillText(`💡 ${activeTip.title}`, WIDTH / 2, y + 20);
+    drawIconLabel(ctx, ICONS.tip, activeTip.title, WIDTH / 2, y + 20, 16, 6);
     ctx.fillStyle = "#e8e2d4";
     ctx.font = "12px monospace";
     activeTip.lines.forEach((line, i) => {
@@ -5282,7 +5285,7 @@ function draw() {
     ctx.textAlign = "left";
   }
 
-  drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player) + (hotdogStock > 0 ? `  🌭×${hotdogStock}` : ""), healFlash);
+  drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player) + (hotdogStock > 0 ? `  热狗×${hotdogStock}` : ""), healFlash);
   // run coins, top-right under the kill counter
   if (state === "playing" || state === "paused" || state === "choice") {
     ctx.save();
@@ -5533,7 +5536,7 @@ function draw() {
     if (pauseTip) {
       ctx.fillStyle = "#9a93ab";
       ctx.font = "12px monospace";
-      ctx.fillText(`💡 小贴士:${pauseTip}`, px0, py0 + 246 + 24);
+      drawIconLabel(ctx, ICONS.tip, `小贴士:${pauseTip}`, WIDTH / 2, py0 + 246 + 24, 15, 5);
     }
     ctx.restore();
     ctx.textAlign = "center";
@@ -5549,7 +5552,7 @@ function draw() {
       WIDTH,
       HEIGHT,
       [
-        { text: "☁ 存 档 码", font: "bold 30px monospace", color: "#8fd6ff" },
+        { text: "存 档 码", font: "bold 30px monospace", color: "#8fd6ff" },
         { text: "把进度带到另一台设备,或做个备份", font: "14px monospace", color: "#c8c2d4" },
         { text: "导出:生成一串代码,复制保存", font: "12px monospace", color: "#9a93ab" },
         { text: "导入:粘贴代码,覆盖本机进度并刷新", font: "12px monospace", color: "#9a93ab" },
@@ -5558,7 +5561,7 @@ function draw() {
       -110
     );
     for (const [rect, label, color] of [
-      [bossClearLeaveRect(WIDTH, HEIGHT), "📤 导出存档码", "#7cf28a"],
+      [bossClearLeaveRect(WIDTH, HEIGHT), "导出存档码", "#7cf28a"],
       [bossClearContinueRect(WIDTH, HEIGHT), "📥 导入存档码", "#8fd6ff"],
     ]) {
       ctx.save();
@@ -5813,16 +5816,14 @@ function draw() {
       ctx.font = "13px monospace";
       ctx.fillText("谜之宝箱……", cx, cy + 150);
     } else if (cc.phase === "spin") {
-      const icons = ["ⓖ", "◆", "♥", "▲", "★"];
-      const colors = ["#ffd166", "#ff8fc7", "#7cf28a", "#7ea8ff", "#c59bff"];
+      const icons = [ICONS.coin, ICONS.relic, ICONS.heart, ICONS.daily, ICONS.awakening];
       const idx = ((cc.lastTick % icons.length) + icons.length) % icons.length;
       const p = Math.min(1, cc.t / 1.5);
       ctx.save();
-      ctx.font = `bold ${Math.round(48 + p * 18)}px monospace`;
-      ctx.fillStyle = "#14101c"; // pixel drop shadow, no blur
-      ctx.fillText(icons[idx], cx + 3, cy + 135);
-      ctx.fillStyle = colors[idx];
-      ctx.fillText(icons[idx], cx, cy + 132);
+      const spinSize = Math.round(48 + p * 18);
+      ctx.fillStyle = "#14101c";
+      ctx.fillRect(cx - spinSize / 2 + 3, cy + 84 + 3, spinSize, spinSize);
+      drawPixelIcon(ctx, icons[idx], cx - spinSize / 2, cy + 84, spinSize);
       ctx.restore();
       ctx.fillStyle = "#9a93ab";
       ctx.font = "13px monospace";
@@ -5871,10 +5872,8 @@ function draw() {
         ctx.fillRect(3, 3, 2, 78);
         ctx.fillRect(w - 5, 3, 2, 78);
         ctx.fillStyle = "#14101c"; // icon pixel drop shadow
-        ctx.font = "bold 30px monospace";
-        ctx.fillText(rw.icon, w / 2 + 2, 42);
-        ctx.fillStyle = rw.color;
-        ctx.fillText(rw.icon, w / 2, 40);
+        ctx.fillRect(w / 2 - 17 + 2, 12 + 2, 34, 34);
+        drawPixelIcon(ctx, rw.icon, w / 2 - 17, 12, 34);
         ctx.font = "bold 12px monospace";
         ctx.fillStyle = "#f2ead8";
         ctx.fillText(rw.label, w / 2, 68);
@@ -5947,9 +5946,9 @@ function draw() {
             ...(activeContract ? [{ text: `⚖ 契约「${activeContract.name}」`, font: "13px monospace", color: "#d9c47a" }] : []),
             ...(bestTitle() ? [{ text: `称号:「${bestTitle().name}」`, font: "13px monospace", color: "#c59bff" }] : []),
             ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),
-            ...lastNewEchoes.map((n) => ({ text: `❀ 回响解锁:「${n}」(标题页❀回响聆听)`, font: "13px monospace", color: "#6bd0ff" })),
-            ...(lastGoldenFlower ? [{ text: "❀ 花田满开——「金色之花」已绽放", font: "bold 13px monospace", color: "#ffd93d" }] : []),
-            ...lastNewQuests.map((n) => ({ text: `📜 悬赏完成:${n}`, font: "13px monospace", color: "#ffd166" })),
+            ...lastNewEchoes.map((n) => ({ text: `回响解锁:「${n}」(标题页回响聆听)`, font: "13px monospace", color: "#6bd0ff" })),
+            ...(lastGoldenFlower ? [{ text: "花田满开——「金色之花」已绽放", font: "bold 13px monospace", color: "#ffd93d" }] : []),
+            ...lastNewQuests.map((n) => ({ text: `悬赏完成:${n}`, font: "13px monospace", color: "#ffd166" })),
             ...(lastMasteryUp ? [{ text: lastMasteryUp, font: "13px monospace", color: "#7cf28a" }] : []),
             ...(runOutcome === "victory" && getDifficulty().id < 3
               ? [{ text: "⚠ 觉得太简单？选人页可切换 狂暴/地狱 难度,金币加成更高", font: "13px monospace", color: "#ff8a5d" }]
@@ -6055,7 +6054,7 @@ function draw() {
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 15px monospace";
       ctx.textAlign = "center";
-      ctx.fillText("⚡ 去变强", b.x + b.w / 2, b.y + 28);
+      drawIconLabel(ctx, ICONS.attack, "去变强", b.x + b.w / 2, b.y + 28, 16, 6);
       ctx.restore();
       ctx.textAlign = "left";
     }
