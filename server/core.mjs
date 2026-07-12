@@ -1,6 +1,9 @@
 import crypto from "node:crypto";
 
-export const SCORE_MULT = { 0: 1, 1: 1.25, 2: 1.55, 3: 2 };
+// mirrors the client's DIFFICULTIES.scoreMult exactly — the board must show
+// the same number the player saw in-game (boards are difficulty-filterable
+// since s1, so the multiplier is display fidelity, not fairness policy)
+export const SCORE_MULT = { 0: 1, 1: 1.8, 2: 3.0, 3: 4.5 };
 const BLOCKED = /(官方|管理员|客服|系统|站长|微信|薇信|vx|v信|qq|企鹅|电话|手机|邮箱|@|操你|草你|傻[逼屌]|妈的|死全家)/i;
 const A = ["决心", "骨感", "审判", "地底", "瀑布", "热域", "羊爸", "羊妈", "小花", "帕派", "衫斯", "福福", "猹", "狗剩", "六魂", "番茄"];
 const B = ["摆烂", "摸鱼", "速通", "重开", "吃派", "躺平", "迷路", "加班", "卖萌", "挨打", "逃课", "存档", "读档", "骨折"];

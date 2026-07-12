@@ -18,7 +18,8 @@ const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard"];
 
 export const leaderboardOnline = typeof location !== "undefined" && /(^|\.)sansgecao\.com$/.test(location.hostname || "");
 let me = null, run = null, timer = null, result = "", rows = [], mode = "normal", character = "", boardDate = "";
-let loading = false, error = "";
+let loading = false, error = "", difficulty = "", myRank = null;
+const DIFF_FILTERS = ["", "0", "1", "2", "3"]; // 全部 + 四难度(账号榜按难度拆看)
 
 async function call(path, options = {}) {
   const r = await fetch(API + path, { credentials: "include", ...options, headers: { "content-type": "application/json", ...(options.headers || {}) } });
@@ -46,7 +47,7 @@ export async function renameLeaderboard() {
     result = `改名冷却中:还需 ${Math.ceil((me.canRenameAt - Date.now()) / 86400000)} 天`;
     return;
   }
-  const name = prompt("输入新昵称(2-8字;改名后7天内不可再次修改)", me?.nickname || "");
+  const name = prompt("输入新昵称(2-8字;7天内只能改一次)\n⚠ 不要使用真实姓名、QQ、微信等个人信息", me?.nickname || "");
   if (!name) return;
   try {
     me = (await call("/me/name", { method: "POST", body: JSON.stringify({ nickname: name }) })).player;
@@ -57,18 +58,23 @@ export async function renameLeaderboard() {
   }
 }
 
-export async function loadLeaderboard(nextMode = mode, nextChar = character) {
+export async function loadLeaderboard(nextMode = mode, nextChar = character, nextDiff = difficulty) {
   mode = nextMode;
   character = nextChar;
+  difficulty = mode === "daily" ? "" : nextDiff; // daily is one fixed difficulty
   loading = true;
   error = "";
   try {
-    const data = await call(`/leaderboard?mode=${mode}${character ? `&character=${character}` : ""}`);
+    const data = await call(
+      `/leaderboard?mode=${mode}${character ? `&character=${character}` : ""}${difficulty !== "" ? `&difficulty=${difficulty}` : ""}`
+    );
     rows = data.rows;
     boardDate = data.date || "";
+    myRank = data.me || null; // old server: absent — degrade gracefully
   } catch (e) {
     error = e.message;
     rows = [];
+    myRank = null;
   } finally {
     loading = false;
   }
@@ -121,7 +127,10 @@ function tabRect(i, w) {
   return { x: w / 2 - 198 + i * 136, y: 96, w: 124, h: 34 };
 }
 function charChipRect(i, w) {
-  return { x: w / 2 - 235 + i * 96, y: 142, w: 88, h: 26 };
+  return { x: w / 2 - 235 + i * 96, y: 138, w: 88, h: 28 };
+}
+function diffChipRect(i, w) {
+  return { x: w / 2 - 195 + i * 80, y: 172, w: 72, h: 28 };
 }
 function renameRect(w) {
   return { x: w / 2 + 128, y: 58, w: 88, h: 28 };
@@ -129,7 +138,8 @@ function renameRect(w) {
 function retryRect(w, h) {
   return { x: w / 2 - 70, y: h / 2 + 24, w: 140, h: 40 };
 }
-const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+// touch slop mirrors main.js inRect: phone scale shrinks these controls hard
+const inRect = (x, y, r) => x >= r.x - 8 && x <= r.x + r.w + 8 && y >= r.y - 4 && y <= r.y + r.h + 4;
 
 function button(ctx, r, label, color, active = false) {
   ctx.fillStyle = active ? "#2e2748" : "#1d1828";
@@ -179,15 +189,21 @@ export function drawLeaderboard(ctx, w, h) {
   ctx.fillStyle = "#7d7690";
   ctx.font = "12px monospace";
   const modeInfo = MODES.find((m) => m.id === mode);
-  ctx.fillText(`${modeInfo.hint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 186);
+  ctx.fillText(`${modeInfo.hint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 216);
 
   // character filter chips
   CHAR_FILTERS.forEach((c, i) =>
     button(ctx, charChipRect(i, w), c ? CHARACTER_NAMES[c] : "全部", c ? CHARACTER_COLORS[c] : "#f2ead8", (c || "") === character)
   );
+  // difficulty filter chips (daily is one fixed difficulty — no chips there)
+  if (mode !== "daily") {
+    DIFF_FILTERS.forEach((d, i) =>
+      button(ctx, diffChipRect(i, w), d === "" ? "全难度" : DIFF_NAMES[+d], d === "" ? "#f2ead8" : DIFF_COLORS[+d], d === difficulty)
+    );
+  }
 
   // board body
-  const top = 210;
+  const top = 232;
   if (loading) {
     ctx.fillStyle = "#9a93ab";
     ctx.font = "bold 14px monospace";
@@ -215,11 +231,11 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.fillText(mode === "endless" ? "轮数 · 无尽分" : "分数", cx + 320, top);
     const medals = ["#ffd166", "#c9d4e0", "#cd9a62"];
     rows.slice(0, 10).forEach((r, i) => {
-      const y = top + 24 + i * 30;
+      const y = top + 22 + i * 26;
       const mine = me && r.nickname === me.nickname;
       if (mine) {
         ctx.fillStyle = "rgba(143, 214, 255, 0.10)"; // your row glows faintly
-        ctx.fillRect(cx - 332, y - 19, 664, 27);
+        ctx.fillRect(cx - 332, y - 17, 664, 24);
       }
       ctx.textAlign = "left";
       ctx.fillStyle = medals[i] || "#7d7690";
@@ -240,6 +256,18 @@ export function drawLeaderboard(ctx, w, h) {
     });
   }
 
+  // 你的名次: visible even when you're nowhere near the top ten — a board
+  // you never appear on is a board that isn't about you
+  if (myRank && !loading && !error) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#8fd6ff";
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(
+      `你:第 ${myRank.rank} 名 · ${mode === "endless" ? `${myRank.rounds} 轮 · ` : ""}${myRank.score} 分`,
+      w / 2,
+      h - 96
+    );
+  }
   // footer: your latest settle result / status line
   if (result) {
     ctx.textAlign = "center";
@@ -266,6 +294,14 @@ export function leaderboardTap(x, y, w, h) {
     if (inRect(x, y, charChipRect(i, w))) {
       loadLeaderboard(mode, CHAR_FILTERS[i] || "");
       return "stay";
+    }
+  }
+  if (mode !== "daily") {
+    for (let i = 0; i < DIFF_FILTERS.length; i++) {
+      if (inRect(x, y, diffChipRect(i, w))) {
+        loadLeaderboard(mode, character, DIFF_FILTERS[i]);
+        return "stay";
+      }
     }
   }
   if (me && inRect(x, y, renameRect(w))) {

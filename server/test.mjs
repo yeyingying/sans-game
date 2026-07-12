@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { dailyKey, expectedScore, randomNickname, validateNickname } from "./core.mjs";
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:0,silence:false}),202);
-assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:1,silence:true}),341);
+assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:1,silence:true}),492);
 assert.equal(randomNickname(()=>0),"决心摆烂怪");
 assert.equal(validateNickname("  骨感摸鱼  "),"骨感摸鱼");
 assert.equal(dailyKey(Date.UTC(2026,6,11,15,59,59)),"2026-07-11");

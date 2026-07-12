@@ -709,6 +709,18 @@ export function shopDenyLine(reason) {
   return "* 你的钱包空空如也。连灰尘都没有。";
 }
 
+// ---- 裂缝外攻略组: one actionable line after a pre-boss death ---------------
+// the death screen already has feelings; this is the "now do THIS" coach
+
+export function coachLine({ kind = null, survived = 0 } = {}) {
+  if (kind === "boss") return "* 裂缝外攻略组:把「决心之心」买满再来,血厚才看得清 Boss 的出招。";
+  if (kind === "hazard") return "* 裂缝外攻略组:审判领域只烧站着不动的人,红圈亮就走。";
+  if ((kind || "").startsWith("elite_") || (kind || "").startsWith("champion_"))
+    return "* 裂缝外攻略组:精英的红圈亮起后必爆,先跑位,再输出。";
+  if (survived < 90) return "* 裂缝外攻略组:开局贴边走,别扎怪堆;90 秒后才是真正的考试。";
+  return "* 裂缝外攻略组:选卡优先攻速和移速——活着,才有输出。";
+}
+
 // ---- 暂停小贴士: half real mechanics, half memes grown on the mechanics -----
 
 const PAUSE_TIPS = [

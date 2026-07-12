@@ -157,6 +157,7 @@ import {
   shopDenyLine,
   BOSS_ANTHEM_LINE,
   pickPapyrusLetter,
+  coachLine,
 } from "./narrative.js";
 import {
   drawHud,
@@ -369,6 +370,10 @@ let nearMiss = null; // "差一点" line for the gameover card
 let offeredContracts = [];
 let selectedContract = -1; // -1 = 无契
 let activeContract = null; // the pact this run runs under
+// declared up here (not in the daily section) because reset() reads it at
+// module load — daily runs are the standardized fair-play mode
+let dailyMode = false;
+let bossDeathSnapped = false; // stage score freezes the frame the boss dies
 let lastNewQuests = []; // bounties finished this run (gameover lines)
 let lastMasteryUp = null; // "角色 专精 LvN (+coins)" line
 
@@ -449,6 +454,7 @@ let chapterQueue = []; // 审判纪元 chapters earned this settlement, story or
 let chapterShow = null; // {chapter, line, t} the cutscene being typed out
 let shareRoast = null; // 裂缝外锐评 line for the share card
 let pauseTip = null; // 小贴士 picked fresh each time the game pauses
+let coachAdvice = null; // 裂缝外攻略组: the actionable line after a pre-boss death
 let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
 let spareVisit = null; // {type, x, y, t, nearT, state} yellow-name SPARE monster
@@ -667,7 +673,8 @@ function currentWeaponList() {
 function reset(weaponId) {
   player = new Player(WIDTH / 2, HEIGHT / 2);
   player.character = currentCharacter().id;
-  applyMetaUpgrades(player); // permanent shop upgrades kick in from second zero
+  // 每日挑战 = 标准竞技:局外强化不进场,全服同一起跑线
+  if (!dailyMode) applyMetaUpgrades(player); // permanent shop upgrades kick in from second zero
   player.revives = 0; // armed in startGame from the consumable stock
   player.weapons = [createWeaponInstance(weaponId)];
   spawner = new Spawner(WIDTH, HEIGHT, WALL_H, getDifficulty());
@@ -737,6 +744,7 @@ function reset(weaponId) {
   chapterQueue = [];
   chapterShow = null;
   shareRoast = null;
+  bossDeathSnapped = false;
   dogVisit = null;
   flowerVisit = null;
   spareVisit = null;
@@ -804,6 +812,15 @@ function settleGame(kind) {
     outcome: runOutcome,
     rounds: roundsCleared,
   });
+  // coach only pre-boss deaths — endless deaths already beat the exam
+  coachAdvice = runOutcome === "death" ? coachLine({ kind: lastHitKind, survived: Math.floor(elapsed) }) : null;
+  if (coachAdvice) {
+    // if the wallet already covers the cheapest upgrade, say so — one clear
+    // next action beats ten stats
+    const buyable = UPGRADES.filter((u) => !upgradeGate(u.id) && upgradeLevel(u.id) < u.max && upgradeCost(u.id) <= getCoins() + runCoins)
+      .sort((a, b) => upgradeCost(a.id) - upgradeCost(b.id))[0];
+    if (buyable) coachAdvice += `(你已经买得起「${buyable.name}」了!)`;
+  }
   shareRoast = pickShareRoast({
     outcome: runOutcome,
     deathKind: player.hp <= 0 ? lastHitKind : null,
@@ -1403,7 +1420,6 @@ function healScale() {
 let titleMenuOpen = false; // ☰ drawer on the title screen
 let bookChar = 0; // 武器图鉴: active character tab
 let bookSel = 0; // 武器图鉴: selected weapon row
-let dailyMode = false;
 const nativeRandom = Math.random.bind(Math);
 
 function mulberry32(seed) {
@@ -1431,8 +1447,14 @@ function dailySeed() {
   return h >>> 0;
 }
 
+let prevDifficultyId = 0; // player's own pick, restored when daily ends
+
 function startDailyChallenge() {
   const seed = dailySeed();
+  // 标准竞技: fixed difficulty for everyone (普通 — no meta, no revives, so
+  // the floor is already high); the player's own setting comes back after
+  prevDifficultyId = getDifficulty().id;
+  setDifficulty(0);
   selectedChar = seed % CHARACTERS.length;
   // daily never hands out a support weapon as the solo starter
   const dailyPool = currentWeaponList()
@@ -1448,6 +1470,7 @@ function exitDailyMode() {
   if (!dailyMode) return;
   dailyMode = false;
   Math.random = nativeRandom;
+  setDifficulty(prevDifficultyId);
 }
 
 function startGame() {
@@ -1490,7 +1513,7 @@ function startGame() {
     floatingTexts.push(new FloatingText(player.x, player.y - 44, `⚖ 契约生效:「${activeContract.name}」`, "#d9c47a"));
   }
   // 重燃决心(消耗品): arm one revive if stocked — 屠杀线没有第二次机会
-  player.revives = getDifficulty().id === 3 || reviveStock() <= 0 ? 0 : 1;
+  player.revives = dailyMode || getDifficulty().id === 3 || reviveStock() <= 0 ? 0 : 1; // 每日零复活
   // 行前整备: shop-bought loadout, granted before the first frame
   for (let i = 0; i < upgradeLevel("gear"); i++) {
     rollEquipmentDrop().apply(player);
@@ -1886,8 +1909,16 @@ function canvasCoords(e) {
   };
 }
 
+// ⚡去变强 on the defeat screen: centered between share (left) and home (right)
+function upgradeJumpRect(w, h) {
+  return { x: w / 2 - 75, y: h - 62, w: 150, h: 44 };
+}
+
 function inRect(p, r) {
-  return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+  // touch slop: phone canvas scale shrinks buttons to ~14pt effective — pad
+  // every hit box (8px x / 4px y, below typical UI gaps so neighbors don't
+  // swallow each other's taps)
+  return p.x >= r.x - 8 && p.x <= r.x + r.w + 8 && p.y >= r.y - 4 && p.y <= r.y + r.h + 4;
 }
 
 function handleCanvasTap(pos) {
@@ -2255,6 +2286,15 @@ function handleCanvasTap(pos) {
       shareRun();
       return; // stay on the card
     }
+    if (coachAdvice && inRect(pos, upgradeJumpRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      exitDailyMode();
+      reset(currentWeaponList()[0].id); // wipe the battlefield behind the shop
+      bgm.pause();
+      bgm.muted = true;
+      state = "shop";
+      return;
+    }
     toCharSelect();
   }
 }
@@ -2276,6 +2316,7 @@ canvas.addEventListener("click", (e) => {
 });
 
 function cycleSpeed() {
+  if (dailyMode) return; // 每日锁 1×:操作难度也是标准化的一部分
   timeScale = timeScale >= 3 ? 1 : timeScale + 1;
 }
 
@@ -3004,7 +3045,7 @@ function update(dt) {
   }
   // 访客事件: after the opening minute, rare one-time drop-ins (never during
   // the boss, never in ?boss debug runs so the test routes stay deterministic)
-  if (state === "playing" && !DEBUG_BOSS && !bossFight && elapsed > 60) {
+  if (state === "playing" && !DEBUG_BOSS && !dailyMode && !bossFight && elapsed > 60) {
     if (!visitorRolls.dog && Math.random() < dt / 150) {
       visitorRolls.dog = true;
       dogVisit = {
@@ -3332,6 +3373,17 @@ function update(dt) {
       lastHitBy = "天意侵蚀Sans";
       lastHitKind = "boss";
     }
+    // 竞技止血 (2026-07-12): stage score/kills/time freeze the frame the boss
+    // dies — the old heart-pickup snapshot left an unbounded farming window
+    // (kill the boss, don't take the heart, grind forever)
+    if (!bossDeathSnapped && bossFight.state === "death") {
+      bossDeathSnapped = true;
+      player.kills += 50; // the boss counts as 50 kills
+      runCoins += Math.round(50 * coinGainMult() * getDifficulty().coinMult); // boss bounty
+      stageClearScore = currentScore();
+      stageClearTime = elapsed;
+      stageClearKills = player.kills;
+    }
     // debug-only: ?boss=weak keeps phase 2 frail as well (the adaptive
     // formula reads BOSS_HP/p1Time, which explodes when phase 1 is weak)
     if (DEBUG_BOSS === "weak" && bossFight && bossFight.boss.maxHp > 600) {
@@ -3409,15 +3461,10 @@ function update(dt) {
         const levels = player.addXp(pu.data.amount);
         if (levels > 0) onLevelUp(levels);
       } else if (pu.kind === "bossheart") {
-        // the judgement is over: freeze the stage result and let the player
-        // choose — leave with the loot, or opt into endless
-        player.kills += 50; // the boss counts as 50 kills
-        runCoins += Math.round(50 * coinGainMult() * getDifficulty().coinMult); // boss bounty
+        // the stage result froze the frame the boss DIED (see the snapshot in
+        // the boss update) — delaying this pickup farms nothing anymore
         bossDefeated = true;
         bossFight = null; // hand the field back to the spawner
-        stageClearScore = currentScore();
-        stageClearTime = elapsed;
-        stageClearKills = player.kills;
         bossClearChoice = 0;
         state = "bossclear"; // world pauses behind the choice
         saveSafeProgressCheckpoint(runCoins);
@@ -5440,6 +5487,7 @@ function draw() {
         ? [{ text: `死于:${lastDeathBy}`, font: "14px monospace", color: "#c95d5d" }]
         : []),
       ...(deathKillerLine ? [{ text: deathKillerLine, font: "13px monospace", color: "#8fa8c9" }] : []),
+      ...(coachAdvice ? [{ text: coachAdvice, font: "bold 13px monospace", color: "#7cf28a" }] : []),
       { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore}`, font: "bold 24px monospace", color: "#ffd166" },
       {
         text: newRecord ? "★ 新纪录！" : `历史最高 ${lastBest}`,
@@ -5498,6 +5546,22 @@ function draw() {
     ]);
     drawShareButton(ctx, WIDTH, HEIGHT);
     drawHomeButton(ctx, WIDTH, HEIGHT);
+    // 去变强: one obvious next action after a defeat — straight to the shop
+    if (coachAdvice) {
+      const b = upgradeJumpRect(WIDTH, HEIGHT);
+      ctx.save();
+      ctx.fillStyle = "#241a10";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = "#ffd166";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = "#ffd166";
+      ctx.font = "bold 15px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("⚡ 去变强", b.x + b.w / 2, b.y + 28);
+      ctx.restore();
+      ctx.textAlign = "left";
+    }
   }
   // UT-style soul shatter: black cover, the soul cracks, pieces fly, fade out
   if (deathShatter && state === "gameover" && deathShatter.t < 2.0) {
