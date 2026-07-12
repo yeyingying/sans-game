@@ -200,9 +200,6 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 44px monospace";
   ctx.fillText("我做了一个Sans割草游戏.", width / 2, height / 2 - 130);
-  ctx.fillStyle = "#7d7690";
-  ctx.font = "14px monospace";
-  ctx.fillText("WASD/方向键移动 · 自动攻击 · 活下去", width / 2, height / 2 - 94);
 
   // the cast, bottom-aligned on a common baseline under the title
   if (portraits && portraits.length) {
@@ -227,9 +224,6 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 22px monospace";
   ctx.fillText("开 始", width / 2, btn.y + 34);
-  ctx.fillStyle = "#7d7690";
-  ctx.font = "12px monospace";
-  ctx.fillText("(或按 空格/回车)", width / 2, btn.y + 76);
 
   // credits button, tucked into the bottom-right corner
   const cb = creditsButtonRect(width, height);
