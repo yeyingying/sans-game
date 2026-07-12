@@ -462,6 +462,12 @@ let pauseTip = null; // 小贴士 picked fresh each time the game pauses
 let coachAdvice = null; // 裂缝外攻略组: the actionable line after a pre-boss death
 let reviveArmed = 0; // revives carried into this run (telemetry baseline)
 let tapFlash = null; // {x,y,w,h,t} white pop on the button a tap landed on
+let gameoverDetail = false; // settlement page 2: unlock feed & build details
+
+// toggle sits above the share/home/upgrade button row
+function gameoverDetailRect(w, h) {
+  return { x: w / 2 - 120, y: h - 104, w: 240, h: 30 };
+}
 let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
 let spareVisit = null; // {type, x, y, t, nearT, state} yellow-name SPARE monster
@@ -806,6 +812,7 @@ function settleGame(kind) {
           ? "retreat" // quit from pause during endless: voluntary extraction
           : "quit"; // quit from pause before the boss (classic GAME OVER card)
   lastDeathBy = player.hp <= 0 ? lastHitBy : null; // only real deaths get a recap
+  gameoverDetail = false; // settlement always opens on the results page
   // narrative: killer-flavored death line + the LOVE judgment for the card;
   // the death streak feeds the savepoint aphorisms of the NEXT run
   if (player.hp <= 0) {
@@ -2320,6 +2327,11 @@ function handleCanvasTap(pos) {
   } else if (state === "chapter") {
     chapterAdvance();
   } else if (state === "gameover") {
+    if (inRect(pos, gameoverDetailRect(WIDTH, HEIGHT))) {
+      gameoverDetail = !gameoverDetail;
+      sfxClick();
+      return;
+    }
     if (inRect(pos, homeButtonRect(WIDTH, HEIGHT))) {
       sfxClick();
       goTitle();
@@ -5526,68 +5538,84 @@ function draw() {
             ? { text: "主动撤离", font: "bold 32px monospace", color: "#8fd6ff" }
             : { text: "GAME OVER", font: "bold 32px monospace", color: "#ff5d73" };
     drawCenterText(ctx, WIDTH, HEIGHT, [
-      title,
-      ...(lastDeathBy && runOutcome !== "retreat"
-        ? [{ text: `死于:${lastDeathBy}`, font: "14px monospace", color: "#c95d5d" }]
-        : []),
-      ...(deathKillerLine ? [{ text: deathKillerLine, font: "13px monospace", color: "#8fa8c9" }] : []),
-      ...(coachAdvice ? [{ text: coachAdvice, font: "bold 13px monospace", color: "#7cf28a" }] : []),
-      { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore}`, font: "bold 24px monospace", color: "#ffd166" },
-      {
-        text: newRecord ? "★ 新纪录！" : `历史最高 ${lastBest}`,
-        font: "14px monospace",
-        color: newRecord ? "#7cf28a" : "#9a93ab",
-      },
-      ...(nearMiss ? [{ text: nearMiss, font: "bold 13px monospace", color: "#ff8a5d" }] : []),
-      ...(endlessResult
+      // 结算两段式(2026-07-12 UX批次): 第一屏只讲"这局怎么样、下一步干嘛",
+      // 解锁流水/构筑详情折到第二屏,别让重要信息淹在流水账里
+      ...(gameoverDetail
         ? [
-            {
-              text: `完成审判 ${endlessResult.rounds} 轮 · 无尽存活 ${endlessResult.time} 秒 · 无尽新增击杀 ${endlessResult.kills}`,
-              font: "14px monospace",
-              color: "#ff8a5d",
-            },
-            {
-              text: `无尽得分 ${endlessResult.score}  历史最佳 ${endlessResult.best}${endlessResult.newBest ? " ★新纪录！" : ""}`,
-              font: "14px monospace",
-              color: endlessResult.newBest ? "#7cf28a" : "#ff8a5d",
-            },
-            {
-              text: `最高审判轮数 ${endlessResult.bestRound}${endlessResult.newBestRound ? " ★新纪录！" : ""}`,
-              font: "14px monospace",
-              color: endlessResult.newBestRound ? "#7cf28a" : "#ff8a5d",
-            },
+            { text: "本 局 收 获", font: "bold 26px monospace", color: "#ffd166" },
+            ...(endlessResult
+              ? [
+                  { text: `完成审判 ${endlessResult.rounds} 轮 · 无尽存活 ${endlessResult.time} 秒 · 新增击杀 ${endlessResult.kills}`, font: "14px monospace", color: "#ff8a5d" },
+                  { text: `无尽得分 ${endlessResult.score}  历史最佳 ${endlessResult.best}${endlessResult.newBest ? " ★新纪录！" : ""}`, font: "14px monospace", color: endlessResult.newBest ? "#7cf28a" : "#ff8a5d" },
+                  { text: `最高审判轮数 ${endlessResult.bestRound}${endlessResult.newBestRound ? " ★新纪录！" : ""}`, font: "14px monospace", color: endlessResult.newBestRound ? "#7cf28a" : "#ff8a5d" },
+                ]
+              : []),
+            ...(nearMiss ? [{ text: nearMiss, font: "bold 13px monospace", color: "#ff8a5d" }] : []),
+            ...(activeContract ? [{ text: `⚖ 契约「${activeContract.name}」`, font: "13px monospace", color: "#d9c47a" }] : []),
+            ...(bestTitle() ? [{ text: `称号:「${bestTitle().name}」`, font: "13px monospace", color: "#c59bff" }] : []),
+            ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),
+            ...lastNewEchoes.map((n) => ({ text: `❀ 回响解锁:「${n}」(标题页❀回响聆听)`, font: "13px monospace", color: "#6bd0ff" })),
+            ...(lastGoldenFlower ? [{ text: "❀ 花田满开——「金色之花」已绽放", font: "bold 13px monospace", color: "#ffd93d" }] : []),
+            ...lastNewQuests.map((n) => ({ text: `📜 悬赏完成:${n}`, font: "13px monospace", color: "#ffd166" })),
+            ...(lastMasteryUp ? [{ text: lastMasteryUp, font: "13px monospace", color: "#7cf28a" }] : []),
+            ...(runOutcome === "victory" && getDifficulty().id < 3
+              ? [{ text: "⚠ 觉得太简单？选人页可切换 狂暴/地狱 难度,金币加成更高", font: "13px monospace", color: "#ff8a5d" }]
+              : []),
+            ...(deathQuote ? [{ text: deathQuote, font: "13px monospace", color: "#8fa8c9" }] : []),
+            { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
           ]
-        : []),
-      {
-        text: `存活时间 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒${bossDefeated ? " · ★击败Boss" : ""}`,
-        font: "16px monospace",
-      },
-      { text: `击杀数 ${player.kills}  最高连杀 ${runMaxStreak}  等级 ${player.level}`, font: "16px monospace" },
-      ...(activeContract ? [{ text: `⚖ 契约「${activeContract.name}」`, font: "13px monospace", color: "#d9c47a" }] : []),
-      { text: `金币 +${lastRunCoins}  (钱包 ${getCoins()} · 标题页可进强化商店)`, font: "14px monospace", color: "#ffd166" },
-      ...(bestTitle() ? [{ text: `称号:「${bestTitle().name}」`, font: "13px monospace", color: "#c59bff" }] : []),
-      ...(runOutcome === "victory" && getDifficulty().id < 3
-        ? [{ text: "⚠ 觉得太简单？选人页可切换 狂暴/地狱 难度,金币加成更高", font: "13px monospace", color: "#ff8a5d" }]
-        : []),
-      ...lastNewTitles.map((n) => ({ text: `★ 新称号解锁:「${n}」`, font: "13px monospace", color: "#7cf28a" })),
-      ...lastNewEchoes.map((n) => ({ text: `❀ 回响解锁:「${n}」(标题页❀回响聆听)`, font: "13px monospace", color: "#6bd0ff" })),
-      ...(lastGoldenFlower ? [{ text: "❀ 花田满开——「金色之花」已绽放", font: "bold 13px monospace", color: "#ffd93d" }] : []),
-      ...lastNewQuests.map((n) => ({ text: `📜 悬赏完成:${n}`, font: "13px monospace", color: "#ffd166" })),
-      ...(lastMasteryUp ? [{ text: lastMasteryUp, font: "13px monospace", color: "#7cf28a" }] : []),
-      ...(loveVerdict?.lines || []).map((t) => ({ text: t, font: "13px monospace", color: "#c59bff" })),
-      ...(deathQuote ? [{ text: deathQuote, font: "13px monospace", color: "#8fa8c9" }] : []),
-      ...(wasDaily
-        ? [
+        : [
+            title,
+            ...(lastDeathBy && runOutcome !== "retreat"
+              ? [{ text: `死于:${lastDeathBy}`, font: "14px monospace", color: "#c95d5d" }]
+              : []),
+            ...(deathKillerLine ? [{ text: deathKillerLine, font: "13px monospace", color: "#8fa8c9" }] : []),
+            ...(coachAdvice ? [{ text: coachAdvice, font: "bold 13px monospace", color: "#7cf28a" }] : []),
+            { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore}`, font: "bold 24px monospace", color: "#ffd166" },
             {
-              text: `✦ 每日挑战 ${todayKey()} · 今日最佳 ${dailyBestToday}${dailyNewBest ? " (新纪录!)" : ""}`,
+              text: newRecord ? "★ 新纪录！" : `历史最高 ${lastBest}`,
               font: "14px monospace",
-              color: "#c59bff",
+              color: newRecord ? "#7cf28a" : "#9a93ab",
             },
-          ]
-        : []),
-      { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
-      { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
+            ...(endlessResult
+              ? [{ text: `完成审判 ${endlessResult.rounds} 轮 · 无尽得分 ${endlessResult.score}${endlessResult.newBest ? " ★新纪录！" : ""}`, font: "14px monospace", color: "#ff8a5d" }]
+              : []),
+            {
+              text: `存活 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒 · 击杀 ${player.kills} · 连杀 ${runMaxStreak} · Lv${player.level}${bossDefeated ? " · ★击败Boss" : ""}`,
+              font: "16px monospace",
+            },
+            { text: `金币 +${lastRunCoins}(钱包 ${getCoins()})`, font: "14px monospace", color: "#ffd166" },
+            ...(loveVerdict?.lines || []).map((t) => ({ text: t, font: "13px monospace", color: "#c59bff" })),
+            ...(wasDaily
+              ? [
+                  {
+                    text: `✦ 每日挑战 ${todayKey()} · 今日最佳 ${dailyBestToday}${dailyNewBest ? " (新纪录!)" : ""}`,
+                    font: "14px monospace",
+                    color: "#c59bff",
+                  },
+                ]
+              : []),
+            { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
+          ]),
     ]);
+    // 收获页切换按钮: closed shows the count so nothing feels hidden
+    {
+      const b = gameoverDetailRect(WIDTH, HEIGHT);
+      const gains =
+        lastNewTitles.length + lastNewEchoes.length + lastNewQuests.length + (lastMasteryUp ? 1 : 0) + (lastGoldenFlower ? 1 : 0);
+      ctx.save();
+      ctx.fillStyle = "#1d1828";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = gains > 0 && !gameoverDetail ? "#7cf28a" : "#5a5468";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = gains > 0 && !gameoverDetail ? "#7cf28a" : "#9a93ab";
+      ctx.font = "bold 13px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(gameoverDetail ? "▾ 返回成绩" : `▸ 本局详情${gains ? ` · 新收获×${gains}` : ""}`, b.x + b.w / 2, b.y + 20);
+      ctx.restore();
+      ctx.textAlign = "left";
+    }
     drawShareButton(ctx, WIDTH, HEIGHT);
     drawHomeButton(ctx, WIDTH, HEIGHT);
     // 去变强: one obvious next action after a defeat — straight to the shop
