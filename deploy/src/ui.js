@@ -1,5 +1,3 @@
-import { charAuTag } from "./narrative.js";
-
 function formatTime(sec) {
   const m = Math.floor(sec / 60)
     .toString()
@@ -1266,15 +1264,6 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
       ctx.restore();
     }
 
-    // B站圈内的时间线称呼,钉在角色名上方(先画,免得污染角色名的字体)
-    const auTag = c.id === "sans" ? null : charAuTag(c.id);
-    if (auTag) {
-      ctx.fillStyle = lock ? "#544d63" : c.color;
-      ctx.font = "11px monospace";
-      ctx.globalAlpha = lock ? 0.7 : 0.9;
-      ctx.fillText(auTag, box.x + box.w / 2, box.y + 210);
-      ctx.globalAlpha = 1;
-    }
     ctx.fillStyle = lock ? "#7d7690" : active ? "#ffffff" : "#c8c2d4";
     ctx.font = "bold 22px monospace";
     ctx.fillText(lock ? `🔒 ${c.name}` : c.name, box.x + box.w / 2, box.y + 228);
