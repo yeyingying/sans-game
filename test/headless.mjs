@@ -193,6 +193,10 @@ function run(seconds, onFrame) {
       N.pickPapyrusLetter("sans").text.includes("帕派瑞斯"),
   );
   check("AU互文: 四角色都有半血认亲台词", ["sans", "ukb", "horror", "hard"].every((c) => typeof N.bossLineFor(c, "half") === "string"));
+  // P0 美术止血: FIGHT/MERCY 改 canvas 绘制,精灵按钮出口应已移除
+  const bossSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/boss.js", import.meta.url), "utf8"));
+  check("FIGHT/MERCY 不再使用贴图按钮", !bossSrc.includes("BTN_FIGHT") && !bossSrc.includes("BTN_MERCY"));
+  check("光炮同屏上限护栏存在", bossSrc.includes('h.kind === "blaster").length >= 6'));
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };

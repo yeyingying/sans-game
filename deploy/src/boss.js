@@ -3,7 +3,7 @@
 // rendering, health bar, subtitles, and the FIGHT / MERCY transition.
 // The boss body itself is pushed into main's `enemies` array so the player's
 // weapons target and damage it; everything else is driven from here.
-import { PROJECTILE_BONE_RED, GB_IDLE, GB_FIRE, WALK_SETS, BTN_FIGHT, BTN_MERCY } from "./sprites.js";
+import { PROJECTILE_BONE_RED, GB_IDLE, GB_FIRE, WALK_SETS } from "./sprites.js";
 import { circleHit } from "./utils.js";
 import { bossLineFor } from "./narrative.js";
 
@@ -167,6 +167,8 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       this.hazards.push({ kind: "wall", x1, y1, x2, y2, dmg: this.scaleDmg(dmg), t: -0.5, life, hitTimer: 0 });
     },
     blaster(bx, by, angle, dmg, life) {
+      // hard cap (P0 美术止血): never more than 6 blasters alive on screen
+      if (this.hazards.filter((h) => h.kind === "blaster").length >= 6) return;
       this.hazards.push({ kind: "blaster", x: bx, y: by, angle, dmg: this.scaleDmg(dmg), t: 0, life, warned: false });
     },
     boom(px, py, r, dmg, delay = 0) {
@@ -203,6 +205,16 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       else if (this.state === "death") this.updateDeath(dt, ctx);
 
       this.updateHazards(dt, ctx);
+
+      // big-move dim (P0 美术止血): while a beam or a big volley is on stage,
+      // the world under it fades so the danger reads. Visual only.
+      {
+        const beams = this.hazards.some((h) => h.kind === "blaster" && h.t > 0.2);
+        const bigBones = this.hazards.filter((h) => h.kind === "bone" && h.size >= 70).length >= 3;
+        const booms = this.hazards.filter((h) => h.kind === "boom").length >= 5;
+        const want = beams || bigBones || booms ? 1 : 0;
+        this.bigMove = (this.bigMove || 0) + ((want - (this.bigMove || 0)) * Math.min(1, dt * 6));
+      }
 
       // phase transitions on hp
       if ((this.state === "fight1" || this.state === "fight2") && boss.hp <= 0) {
@@ -839,7 +851,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           const spin = h.t < 0.2 ? (1 - h.t / 0.2) * Math.PI * 2 : 0;
           c.rotate(h.angle - Math.PI / 2 + spin);
           c.imageSmoothingEnabled = false;
-          const gw = 56;
+          const gw = 44; // head -21% (P0 美术止血)
           c.globalAlpha = Math.min(1, h.t / 0.15);
           c.drawImage(spr, -gw / 2, -(spr.height / spr.width) * gw / 2, gw, (spr.height / spr.width) * gw);
           c.restore();
@@ -860,26 +872,26 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
             // beam: three crisp bands + stepped width pulse + pixel dither on
             // the edges — reads "gaster blaster", not "thick marker stroke"
             const len = 900;
-            const pulse = 4 * Math.round((Math.sin(h.t * 40) + 1)); // 0/4/8, snapped
+            const pulse = 2 * Math.round((Math.sin(h.t * 40) + 1)); // 0/2/4, snapped
             c.save();
             c.translate(h.x, h.y);
             c.rotate(h.angle);
             c.globalAlpha = 0.3;
             c.fillStyle = "#e04545";
-            c.fillRect(0, -(40 + pulse) / 2, len, 40 + pulse);
+            c.fillRect(0, -(28 + pulse) / 2, len, 28 + pulse); // beam -30% wide
             c.globalAlpha = 0.85;
             c.fillStyle = "#ff9a9a";
-            c.fillRect(0, -11, len, 22);
+            c.fillRect(0, -8, len, 16);
             c.globalAlpha = 1;
             c.fillStyle = "#ffffff";
-            c.fillRect(0, -5, len, 10);
+            c.fillRect(0, -3.5, len, 7);
             // muzzle burst + edge dither pixels
             c.fillStyle = "#fff3b0";
-            c.fillRect(-4, -14, 18, 28);
+            c.fillRect(-3, -10, 14, 20);
             c.fillStyle = "#ffdede";
             c.globalAlpha = 0.9;
             for (let dx = 20; dx < len; dx += 24) {
-              const off = ((dx / 24) % 2 ? 1 : -1) * (13 + pulse / 2);
+              const off = ((dx / 24) % 2 ? 1 : -1) * (9 + pulse / 2);
               c.fillRect(dx, off - 2, 4, 4);
             }
             c.restore();
@@ -1027,13 +1039,45 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       }
       // FIGHT / MERCY buttons (1:1 sprites from the reference image)
       if (this.mercyChoice) {
-        const f = fightBtnRect(W, H);
         c.save();
-        c.imageSmoothingEnabled = false;
-        c.drawImage(BTN_FIGHT, f.x, f.y, f.w, f.h);
+        drawUTButton(c, fightBtnRect(W, H), "FIGHT");
         if (!this.mercySmashed) {
+          drawUTButton(c, mercyBtnRect(W, H), "MERCY");
+        } else if (!this._mercyShards) {
+          // MERCY shatters: 8 orange pixel shards — text and border fall as one
           const m = mercyBtnRect(W, H);
-          c.drawImage(BTN_MERCY, m.x, m.y, m.w, m.h);
+          this._mercyShards = [];
+          for (let i = 0; i < 8; i++) {
+            this._mercyShards.push({
+              x: m.x + (i % 4) * (m.w / 4) + 4,
+              y: m.y + (i < 4 ? 0 : m.h / 2),
+              w: m.w / 4 - 6,
+              h: m.h / 2 - 4,
+              vx: (Math.random() - 0.5) * 90,
+              vy: -40 - Math.random() * 70,
+              t: 0,
+              glyph: "MERCY"[Math.min(4, i % 5)],
+            });
+          }
+        }
+        if (this._mercyShards) {
+          for (const sh of this._mercyShards) {
+            sh.t += 1 / 60;
+            sh.x += sh.vx / 60;
+            sh.y += sh.vy / 60;
+            sh.vy += 260 / 60;
+            const a = Math.max(0, 1 - sh.t / 1.4);
+            if (a <= 0) continue;
+            c.globalAlpha = a;
+            c.fillStyle = "#ff8a00";
+            c.fillRect(Math.round(sh.x), Math.round(sh.y), Math.round(sh.w), Math.round(sh.h));
+            c.fillStyle = "#050308";
+            c.fillRect(Math.round(sh.x) + 2, Math.round(sh.y) + 2, Math.round(sh.w) - 4, Math.round(sh.h) - 4);
+            c.fillStyle = "#ff8a00";
+            c.font = "bold 11px monospace";
+            c.fillText(sh.glyph, Math.round(sh.x) + 4, Math.round(sh.y) + Math.round(sh.h) - 4);
+          }
+          c.globalAlpha = 1;
         }
         c.restore();
       }
@@ -1071,11 +1115,30 @@ function inRect(p, r) {
   return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
 }
 
+// UT pixel buttons (P0 美术止血): canvas-drawn, black slab + orange hard
+// border + orange mono bold — no sprites, no rounding, no gradients, no blur
 export function fightBtnRect(W, H) {
-  return { x: W / 2 - 220, y: H / 2 - 40, w: 176, h: 78 };
+  const ph = W >= 1000;
+  const w = ph ? 128 : 144;
+  const h = ph ? 48 : 54;
+  return { x: W / 2 - w - 36, y: H / 2 - h / 2 - 4, w, h };
 }
 export function mercyBtnRect(W, H) {
-  return { x: W / 2 + 44, y: H / 2 - 40, w: 176, h: 83 };
+  const ph = W >= 1000;
+  const w = ph ? 128 : 144;
+  const h = ph ? 48 : 54;
+  return { x: W / 2 + 36, y: H / 2 - h / 2 - 4, w, h };
+}
+function drawUTButton(c, r, label) {
+  c.fillStyle = "#ff8a00"; // hard 4px border: orange slab under black plate
+  c.fillRect(r.x, r.y, r.w, r.h);
+  c.fillStyle = "#050308";
+  c.fillRect(r.x + 4, r.y + 4, r.w - 8, r.h - 8);
+  c.fillStyle = "#ff8a00";
+  c.font = `bold ${r.h >= 54 ? 22 : 20}px monospace`;
+  c.textAlign = "center";
+  c.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 8);
+  c.textAlign = "left";
 }
 
 function drawBoneRed(c, x, y, size, angle) {

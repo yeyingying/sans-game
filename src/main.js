@@ -245,7 +245,8 @@ function usePhoneCanvas() {
   return Math.min(sw, sh) <= 500 && Math.max(sw, sh) <= 950;
 }
 
-if (usePhoneCanvas()) {
+// ?phone: debug-force the phone canvas on desktop (排版/截图验收用)
+if (usePhoneCanvas() || new URLSearchParams(location.search).has("phone")) {
   const sw = window.screen?.width || window.innerWidth;
   const sh = window.screen?.height || window.innerHeight;
   const phoneAspect = Math.max(sw, sh) / Math.max(1, Math.min(sw, sh));
@@ -4945,7 +4946,17 @@ function draw() {
     ctx.textAlign = "left";
   }
 
-  if (bossFight) bossFight.draw(ctx);
+  if (bossFight) {
+    // 大招压暗(P0 美术止血): everything drawn so far (world, weapon fx,
+    // particles) dips while the boss's big move is on stage — the beam and
+    // giant bones are drawn after this layer, so danger stays bright.
+    // Purely visual; damage code never reads this.
+    if (bossFight.bigMove > 0.02) {
+      ctx.fillStyle = `rgba(6, 5, 12, ${0.38 * bossFight.bigMove})`;
+      ctx.fillRect(camX - 24, -24, WIDTH + 48, HEIGHT + 48);
+    }
+    bossFight.draw(ctx);
+  }
 
   ctx.restore(); // back to screen space for the HUD and overlays
 
@@ -5424,7 +5435,7 @@ function draw() {
     if (cc.shake > 0) {
       ctx.translate((Math.random() - 0.5) * cc.shake * 18, (Math.random() - 0.5) * cc.shake * 14);
     }
-    ctx.fillStyle = "rgba(6, 5, 12, 0.9)";
+    ctx.fillStyle = "rgba(4, 3, 9, 0.92)"; // bg dimmed harder (P0 美术止血)
     ctx.fillRect(-24, -24, WIDTH + 48, HEIGHT + 48);
     ctx.textAlign = "center";
     const cx = WIDTH / 2;
@@ -5436,19 +5447,19 @@ function draw() {
     // rotating god-rays build up behind the chest
     const rayAlpha = cc.phase === "spin" ? 0.10 + Math.min(1, cc.t / 1.5) * 0.16 : open ? 0.3 : 0;
     if (rayAlpha > 0) {
-      // pixel sunburst: 12 chains of squares, rotation ticks in 1/48-turn
-      // steps like a music box — no smooth wedges, no gradients
+      // sparse hard-edged gold sparkles instead of a giant sunburst — the
+      // chest is the star, the room stays dark (P0 美术止血)
       ctx.save();
       ctx.translate(cx, cy);
-      const rot = Math.floor(elapsedWall() * (open ? 14 : 8)) * (Math.PI / 48);
       ctx.fillStyle = jackpot === 2 && open ? "#ffd93d" : "#ffd166";
-      for (let i = 0; i < 12; i++) {
-        const a = rot + (i * Math.PI) / 6;
-        for (let rr = 70; rr < 430; rr += 26) {
-          ctx.globalAlpha = rayAlpha * (1 - rr / 470) * 2;
-          const sz = rr < 180 ? 6 : 4;
-          ctx.fillRect(Math.round(Math.cos(a) * rr) - sz / 2, Math.round(Math.sin(a) * rr) - sz / 2, sz, sz);
-        }
+      for (let i = 0; i < 14; i++) {
+        const a = (i * 2.39996) % (Math.PI * 2); // golden-angle spread, static
+        const rr = 90 + ((i * 53) % 160);
+        const tw = (Math.floor(elapsedWall() * 6) + i) % 4; // twinkle steps
+        if (tw === 3) continue;
+        ctx.globalAlpha = rayAlpha * 2.2 * (tw === 1 ? 1 : 0.5);
+        const sz = tw === 1 ? 5 : 3;
+        ctx.fillRect(Math.round(Math.cos(a) * rr) - (sz >> 1), Math.round(Math.sin(a) * rr * 0.72) - (sz >> 1), sz, sz);
       }
       ctx.restore();
     }
@@ -5470,10 +5481,8 @@ function draw() {
     ctx.translate(cx + jitterX, chestY);
     ctx.scale(1 * squash, 1 / squash);
     ctx.imageSmoothingEnabled = false;
-    const S = 5;
+    const S = 9; // chest ~2x bigger: it IS the show (P0 美术止血, no blur glow)
     const LW = 22 * S, LH = 7 * S, BW = 22 * S, BH = 9 * S;
-    ctx.shadowColor = "#ffd166";
-    ctx.shadowBlur = open ? 30 : 10 + (cc.phase === "spin" ? Math.min(1, cc.t / 1.5) * 12 : 0);
     if (open) {
       // light spills out of the mouth: dithered pixel column rising
       const lt = Math.min(1, cc.t / 0.45);
@@ -5547,17 +5556,22 @@ function draw() {
       ctx.font = `bold ${jackpot === 2 ? 36 : jackpot === 1 ? 30 : 24}px monospace`;
       ctx.fillText(jackpot === 2 ? "★ 五 连 大 奖 ★" : jackpot === 1 ? "✦ 三 连 奖 ! ✦" : "战 利 品", cx, cy + 96);
       ctx.restore();
-      const w = 150;
-      const gap = 12;
-      const total = n * w + (n - 1) * gap;
+      const phoneG = WIDTH >= 1000;
+      const w = phoneG ? 200 : 150;
+      const gap = phoneG ? 16 : 12;
+      const perRow = phoneG ? Math.min(3, n) : n; // phone: max 3 per row
       cc.rewards.forEach((rw, i) => {
         // staggered entrance with an overshoot bounce
         const local = Math.max(0, cc.t - 0.1 - i * 0.12);
         if (local <= 0) return;
         const k = Math.min(1, local / 0.3);
         const overshoot = 1 + Math.sin(Math.min(1, k) * Math.PI) * 0.18;
-        const x = cx - total / 2 + i * (w + gap);
-        const y = cy + 120;
+        const row = Math.floor(i / perRow);
+        const inRow = Math.min(perRow, n - row * perRow);
+        const col = i % perRow;
+        const rowTotal = inRow * w + (inRow - 1) * gap;
+        const x = cx - rowTotal / 2 + col * (w + gap);
+        const y = cy + 120 + row * (phoneG ? 104 : 0);
         ctx.save();
         ctx.globalAlpha = k;
         ctx.translate(x + w / 2, y + 42);
@@ -5586,7 +5600,7 @@ function draw() {
       if (cc.t > 0.1 + n * 0.12 + 0.3) {
         ctx.fillStyle = "#9a93ab";
         ctx.font = "13px monospace";
-        ctx.fillText("点击收下,继续战斗", cx, cy + 240);
+        ctx.fillText("点击收下,继续战斗", cx, cy + (WIDTH >= 1000 && cc.rewards.length > 3 ? 350 : 240));
       }
     }
 
@@ -5820,6 +5834,8 @@ window.__dbg = () => ({
   bark: bark ? bark.text : null,
   chapter: chapterShow ? chapterShow.chapter.id : null,
   chaptersQueued: chapterQueue.length,
+  bossBlasters: bossFight ? bossFight.hazards.filter((hz) => hz.kind === "blaster").length : 0,
+  bossBigDim: bossFight ? Math.round((bossFight.bigMove || 0) * 100) / 100 : 0,
   fun: funValue,
   warn: bossWarnActive(),
   choices: choiceOptions.map((o) => o.title),
