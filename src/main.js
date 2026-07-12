@@ -308,13 +308,18 @@ const CHEST_LID = buildPx(
   ],
   CHEST_PAL
 );
+// 开盖帧 = 盖子内侧正对镜头:大面积发亮内衬立在箱口上,一眼即「开」
 const CHEST_LID_OPEN = buildPx(
   [
+    "...kkkkkkkkkkkkkkkk...",
+    "..kgghhhhhhhhhhhhggk..",
+    ".kghhhhhhhhhhhhhhhhgk.",
+    ".kghhhhhhhhhhhhhhhhgk.",
+    ".kghhhhhhhhhhhhhhhhgk.",
+    ".kghhhhhhhhhhhhhhhhgk.",
+    ".kgghhhhhhhhhhhhhhggk.",
     ".kkkkkkkkkkkkkkkkkkkk.",
-    ".kggggggggggggggggggk.",
-    ".khhhhhhhhhhhhhhhhhhk.",
-    ".kGggggggggggggggggGk.",
-    ".kkkkkkkkkkkkkkkkkkkk.",
+    "..kGGGGGGGGGGGGGGGGk..",
   ],
   CHEST_PAL
 );
@@ -5511,13 +5516,14 @@ function draw() {
       // page-flip open (定稿): three stepped frames, zero transforms —
       // closed lid → half-squashed lid → dedicated OPEN-LID art standing
       // flat behind the mouth. Always reads "打开", never "炸飞"。
-      const OH = 5 * S;
-      if (lt < 0.18) {
+      const OH = 9 * S;
+      if (lt < 0.16) {
         ctx.drawImage(CHEST_LID, -LW / 2, -12 - LH + S, LW, LH); // frame 1: still closed
-      } else if (lt < 0.36) {
+      } else if (lt < 0.32) {
         ctx.drawImage(CHEST_LID, -LW / 2, -12 - (LH >> 1) + S, LW, LH >> 1); // frame 2: mid flip
       } else {
-        ctx.drawImage(CHEST_LID_OPEN, -LW / 2, -12 - OH + 2, LW, OH); // frame 3: open, resting behind
+        // frame 3: the whole INNER FACE of the lid stands tall over the box
+        ctx.drawImage(CHEST_LID_OPEN, -LW / 2, -12 - OH + 2, LW, OH);
       }
       ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
       ctx.fillStyle = "#fff3b0"; // glowing mouth strip
