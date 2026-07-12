@@ -454,6 +454,18 @@ check("shop opens", dbg().state === "shop");
 frame();
 tap(84, 560); // back
 check("shop closes", dbg().state === "title");
+tap(71, 565); // ☰ 菜单
+tap(134, 292); // ★ 审判排行榜 (drawer item 5)
+check("leaderboard opens", dbg().state === "leaderboard");
+frame(); // renders the offline notice branch (Pages mirror: no requests)
+tap(84, 560); // back (shared backButtonRect)
+check("leaderboard closes", dbg().state === "title");
+tap(71, 565); // ☰ 菜单
+tap(134, 246); // ☁ 存档码 (drawer item 6, restored)
+check("savecode opens", dbg().state === "savecode");
+frame();
+tap(84, 560); // back
+check("savecode closes", dbg().state === "title");
 frame();
 key(" "); // title -> charselect
 check("charselect", dbg().state === "charselect");
