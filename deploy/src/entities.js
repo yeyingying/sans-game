@@ -1,4 +1,5 @@
 import { clamp } from "./utils.js";
+import { eliteProfileFor } from "./codex.js";
 
 export class Player {
   constructor(x, y) {
@@ -19,12 +20,13 @@ export class Player {
     this.invuln = 0;
     this.activeInvuln = 0; // slam-enhance i-frames: white pulse instead of blink
     this.regen = 0;
+    this.regenPct = 0; // %-of-maxHp regen per second (the scaling regen card)
     this.thorns = 0; // contact damage dealt back to touching enemies
     this.dodge = 0; // chance to ignore a hit, capped at 0.45
     this.dmgReduction = 0; // incoming damage cut, capped at 0.9
     this.dmgAmp = 1; // outgoing weapon damage multiplier
     this.dodged = false; // set by takeDamage when a hit was dodged
-    this.magnetRadius = 60;
+    this.magnetRadius = 140;
     this.kills = 0;
     this.facing = 1;
     this.dir = "down"; // facing for the 4-direction walk animation
@@ -60,7 +62,8 @@ export class Player {
     }
     if (this.invuln > 0) this.invuln -= dt;
     if (this.activeInvuln > 0) this.activeInvuln -= dt;
-    if (this.regen > 0) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
+    const regenTotal = this.regen + this.maxHp * this.regenPct;
+    if (regenTotal > 0) this.hp = Math.min(this.maxHp, this.hp + regenTotal * dt);
   }
 
   takeDamage(amount) {
@@ -83,8 +86,9 @@ export class Player {
       this.xp -= this.xpToNext;
       this.level += 1;
       this.xpToNext = Math.round(this.xpToNext * 1.22 + 6);
-      this.maxHp += 5;
-      this.hp = Math.min(this.maxHp, this.hp + 5);
+      const hpGain = Math.round(5 * (this.hpAmp || 1)); // 决心之心 scales growth
+      this.maxHp += hpGain;
+      this.hp = Math.min(this.maxHp, this.hp + hpGain);
       this.atk += 1;
       levels += 1;
     }
@@ -117,12 +121,17 @@ export class Enemy {
     this.sprite = t.sprite;
     this.x = x;
     this.y = y;
+    this.eliteTier = scale.elite ? Math.max(0, scale.difficultyId || 0) : 0;
+    this.eliteProfile = scale.elite && scale.namedElite
+      ? eliteProfileFor(type, this.eliteTier, scale.eliteProfileKey)
+      : null;
+    const namedEliteHp = this.eliteProfile ? 1 + this.eliteTier * 0.3 : 1;
     this.radius = t.radius * (scale.elite ? 1.6 : 1);
-    this.maxHp = Math.round(t.hp * scale.hpMult * (scale.elite ? 5 : 1));
+    this.maxHp = Math.round(t.hp * scale.hpMult * (scale.elite ? 5 * namedEliteHp : 1));
     this.hp = this.maxHp;
     this.speed = t.speed * scale.speedMult * (scale.elite ? 0.85 : 1);
     this.dmg = Math.round(t.dmg * scale.dmgMult * (scale.elite ? 1.8 : 1));
-    this.xp = Math.round(t.xp * scale.xpMult * (scale.elite ? 6 : 1));
+    this.xp = Math.round(t.xp * scale.xpMult * (scale.elite ? 6 * namedEliteHp : 1));
     this.elite = !!scale.elite;
     this.contactInterval = t.contactInterval;
     this.contactTimer = 0;
@@ -143,7 +152,22 @@ export class Enemy {
     this.mark = null;
     this.strike = null;
     this.rootTimer = 0; // 禁锢: no move, no attack, invulnerability disabled
+    this.rootImmune = 0; // diminishing returns: no new roots while this runs
     this.slowTimer = 0; // 减速: half speed
+    this.dmgAccum = 0; // damage batched into one floating number (main flushes)
+    this.dmgFlushT = 0;
+    this.eliteSkillTimer = this.eliteProfile ? 2.8 + Math.random() * 1.2 : 0;
+    this.eliteCast = null;
+    this.eliteTrail = [];
+  }
+
+  // 禁锢 with diminishing returns: one root per window — while rootImmune
+  // runs (the root itself + 2.5s), fresh roots are shrugged off.
+  applyRoot(sec) {
+    if (this.rootImmune > 0) return false;
+    this.rootTimer = Math.max(this.rootTimer, sec);
+    this.rootImmune = sec + 2.5;
+    return true;
   }
 
   // All damage flows through here so spawn/revive invulnerability works
@@ -153,6 +177,8 @@ export class Enemy {
     if (this.invulnTimer > 0 && this.rootTimer <= 0) return false;
     this.hp -= dmg;
     this.hitFlash = 0.15;
+    this.dmgAccum += dmg;
+    if (this.dmgFlushT <= 0) this.dmgFlushT = 0.3;
     if (this.hp <= 0 && this.lives > 1) {
       this.lives -= 1;
       this.hp = this.maxHp;
@@ -162,6 +188,7 @@ export class Enemy {
   }
 
   update(dt, target) {
+    if (this.rootImmune > 0) this.rootImmune -= dt;
     if (this.rootTimer > 0) {
       // rooted: no movement, no teleport progress; damage-gate timers still tick
       this.rootTimer -= dt;

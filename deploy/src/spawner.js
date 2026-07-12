@@ -1,19 +1,50 @@
 import { Enemy } from "./entities.js";
 import { pickWeighted, randRange } from "./utils.js";
+import { eliteProfilePool } from "./codex.js";
+
+// endless-judgement coin decay by round (1-based).
+// Applied to the DROP CHANCE (not the value) so a 10% round really pays ~10%.
+export function roundCoinFactor(round) {
+  if (round <= 0) return 1; // not in endless
+  if (round === 1) return 0.5;
+  if (round === 2) return 0.25;
+  if (round === 3) return 0.1;
+  return 0; // round 4+: no more coins, score only
+}
 
 export class Spawner {
   // debut times for late-game enemy types; 3 are force-spawned the moment
   // each unlocks so the player clearly sees it enter the game
   static DEBUTS = { tank: 30, red: 60, orange: 105, blue: 120, purple: 150 };
 
-  constructor(width, height, top = 0) {
+  constructor(width, height, top = 0, diff = null) {
     this.width = width;
     this.height = height;
     this.top = top; // wall band at the top: no spawns, players can't enter
+    this.diffHp = diff ? diff.hpMult : 1; // difficulty tier multipliers
+    this.diffDmg = diff ? diff.dmgMult : 1;
+    this.diffXp = diff && diff.xpMult ? diff.xpMult : 1; // fatter kills on higher tiers
+    this.diffId = diff ? diff.id : 0;
+    this.difficultyId = diff ? diff.id : 0;
+    // per-run monster personality: debut times jitter ±20% (earlier on higher
+    // difficulties) and every type gets a run-long flavor multiplier, so no
+    // two runs field the same mix. Daily mode is seeded → same recipe all day.
+    const debutScale = [1, 0.85, 0.7, 0.55][diff ? diff.id : 0] ?? 1;
+    this.debuts = {};
+    for (const [type, start] of Object.entries(Spawner.DEBUTS)) {
+      this.debuts[type] = start * debutScale * randRange(0.8, 1.25);
+    }
+    this.flavor = {};
+    for (const type of ["slime", "bat", "ghost", "tank", "red", "orange", "blue", "purple"]) {
+      this.flavor[type] = randRange(0.6, 1.6);
+    }
     this.elapsed = 0;
     this.spawnTimer = 0;
     this.eliteTimer = 25;
     this.introduced = new Set();
+    this.eliteMult = 1; // 狩猎之契 halves the elite interval
+    this.endless = false; // post-boss endless judgement
+    this.round = 0; // current judgement round (1-based); set by main
   }
 
   // spawn just outside the camera's view (camX = world x of the view's left edge);
@@ -29,25 +60,54 @@ export class Spawner {
   typeWeights() {
     const t = this.elapsed;
     const after = (start, rate, cap) => Math.max(0, Math.min((t - start) / rate, cap));
+    // round 3+: ranged/teleport threats (blue reach, purple strikes) surge
+    const ranged = this.endless && this.round >= 3 ? 2.2 : 1;
+    const fl = this.flavor;
+    const d = this.debuts;
     return [
-      { value: "slime", weight: 50 },
-      { value: "bat", weight: 20 + Math.min(t / 4, 35) },
-      { value: "ghost", weight: 10 + Math.min(t / 6, 30) },
-      { value: "tank", weight: after(30, 3, 28) },
-      { value: "red", weight: after(60, 3, 22) },
-      { value: "orange", weight: after(105, 4, 16) },
-      { value: "blue", weight: after(120, 4, 18) },
-      { value: "purple", weight: after(150, 5, 10) },
+      { value: "slime", weight: 50 * fl.slime },
+      { value: "bat", weight: (20 + Math.min(t / 4, 35)) * fl.bat },
+      { value: "ghost", weight: (10 + Math.min(t / 6, 30)) * fl.ghost },
+      { value: "tank", weight: after(d.tank, 3, 28) * fl.tank },
+      { value: "red", weight: after(d.red, 3, 22) * fl.red },
+      { value: "orange", weight: after(d.orange, 4, 16) * fl.orange },
+      { value: "blue", weight: after(d.blue, 4, 18) * ranged * fl.blue },
+      { value: "purple", weight: after(d.purple, 5, 10) * ranged * fl.purple },
     ];
   }
 
-  scale(elite) {
+  scale(elite, namedElite = false, eliteProfileKey = null) {
     const t = this.elapsed;
+    // linear early; from 3:00 on it compounds so strong builds stay pressured
+    const expBase = this.diffId === 0 ? 1.16 : 1.22; // normal compounds gently
+    let hpMult = t > 180 ? (1 + 180 / 22) * Math.pow(expBase, (t - 180) / 30) : 1 + t / 22;
+    // warm-up minute: lots of frail enemies so the opening feels like mowing.
+    // Normal difficulty starts even softer — a total novice one-shots the
+    // opening wave with any starting weapon (power fantasy first, then teeth)
+    const warmFloor = this.diffId === 0 ? 0.35 : 0.6;
+    // normal eases in over 90s (others 60s): probe data showed a hard wall
+    // right at the 60s ramp-end that killed even maxed-shop bots
+    const warmT = this.diffId === 0 ? 90 : 60;
+    if (t < warmT) hpMult *= warmFloor + (1 - warmFloor) * (t / warmT);
+    // endless judgement rounds: each round adds a pressure the player can
+    // feel, never just a bigger hp sponge (see main.js for round rules)
+    const r = this.endless ? this.round : 0;
+    // R2+: +15% move speed (then +3%/round past R4); speed alone stays
+    // capped for readability — the kill pressure comes from dmg/hp below
+    const rSpeed = r >= 2 ? Math.min(1.15 * (1 + 0.03 * Math.max(0, r - 4)), 1.5) : 1;
+    // R3+: +20% damage, R5+: compounding +12%/round, UNCAPPED — endless must
+    // eventually kill every build, however farmed (2026-07-11 user report)
+    const rDmg = r >= 3 ? 1.2 * Math.pow(1.12, Math.max(0, r - 4)) : 1;
+    // R5+: hp compounds too, uncapped
+    const rHp = r >= 5 ? 1 + 0.15 * (r - 4) : 1;
     return {
-      hpMult: 1 + t / 22,
-      dmgMult: 1 + t / 50,
-      speedMult: 1 + Math.min(t / 90, 0.35),
-      xpMult: 1 + t / 60,
+      hpMult: hpMult * this.diffHp * rHp,
+      dmgMult: (1 + t / (this.diffId === 0 ? 55 : 40)) * this.diffDmg * rDmg,
+      speedMult: (1 + Math.min(t / 90, this.diffId === 0 ? 0.35 : 0.5)) * rSpeed,
+      xpMult: (1 + t / 60) * this.diffXp,
+      difficultyId: this.difficultyId,
+      namedElite,
+      eliteProfileKey,
       elite,
     };
   }
@@ -58,7 +118,7 @@ export class Spawner {
     this.eliteTimer -= dt;
     const spawned = [];
 
-    for (const [type, start] of Object.entries(Spawner.DEBUTS)) {
+    for (const [type, start] of Object.entries(this.debuts)) {
       if (this.elapsed >= start && !this.introduced.has(type)) {
         this.introduced.add(type);
         for (let i = 0; i < 3; i++) {
@@ -68,9 +128,8 @@ export class Spawner {
       }
     }
 
-    // gentler opening: longer gaps during the first minute, old pace after
-    const early = Math.max(0, 1 - this.elapsed / 60); // 1 -> 0 over 60s
-    const interval = Math.max(1.3 - this.elapsed / 40, 0.28) + early * 0.7;
+    // warm-up opening: quick 1.1s spawns of frail enemies (see scale())
+    const interval = Math.max(1.1 - this.elapsed / 45, 0.28);
     if (this.spawnTimer <= 0) {
       this.spawnTimer = interval;
       // batch growth also starts 20s later so minute one stays manageable
@@ -83,10 +142,18 @@ export class Spawner {
     }
 
     if (this.eliteTimer <= 0) {
-      this.eliteTimer = 30;
-      const type = pickWeighted(this.typeWeights());
-      const pos = this.edgePosition(camX);
-      spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true)));
+      // endless: elites arrive faster and in bigger packs each round,
+      // capped so phones don't melt
+      const r = this.endless ? this.round : 0;
+      this.eliteTimer = (this.endless ? Math.max(6, 15 - (r - 1) * 1.5) : 30) * this.eliteMult;
+      const eliteCount = this.endless ? Math.min(2 + Math.floor((r - 1) / 2), 5) : 1;
+      const namedPool = eliteProfilePool(this.difficultyId, this.elapsed);
+      for (let i = 0; i < eliteCount; i++) {
+        const profile = namedPool?.[Math.floor(Math.random() * namedPool.length)] || null;
+        const type = profile?.type || pickWeighted(this.typeWeights());
+        const pos = this.edgePosition(camX);
+        spawned.push(new Enemy(type, pos.x, pos.y, this.scale(true, !!profile, profile?.key)));
+      }
     }
 
     return spawned;

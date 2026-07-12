@@ -8,6 +8,12 @@ export const WEAPONS = {
     desc: "向最近的敌人投出骨头，升级后扇形多发",
     color: "#f2ead8",
     enhance: { desc: "骨头穿透 +2", detail: "重复选择穿透 +1/层" },
+    // evolution: max tier + 3 enhance stacks unlocks the awakened form
+    evolve: {
+      name: "灭骨风暴",
+      desc: "8连赤骨齐射，穿透与攻速全面觉醒",
+      tier: { projectiles: 8, spread: 36, pierce: 6, dmgMult: 3.2, rateMult: 1.4, size: 14 },
+    },
     tiers: [
       { projectiles: 1, spread: 0, pierce: 1, dmgMult: 1.0, rateMult: 1.0, size: 8 },
       { projectiles: 2, spread: 12, pierce: 1, dmgMult: 1.15, rateMult: 1.05, size: 8 },
@@ -23,6 +29,11 @@ export const WEAPONS = {
     desc: "骨头环绕自身旋转，把靠近的敌人撞飞出去",
     color: "#8fd6ff",
     enhance: { desc: "骨环固定大小，击退 +50%", detail: "重复选择击退 +10%/层" },
+    evolve: {
+      name: "白骨领域",
+      desc: "12根巨骨织成绞杀领域，靠近者皆碎",
+      tier: { count: 12, radius: 98, spin: 5.2, dmgMult: 5.0, size: 24 },
+    },
     tiers: [
       { count: 3, radius: 44, spin: 2.6, dmgMult: 1.5, size: 16 },
       { count: 4, radius: 50, spin: 2.9, dmgMult: 1.7, size: 16 },
@@ -38,6 +49,11 @@ export const WEAPONS = {
     desc: "骨弹自动转向，追着敌人打",
     color: "#ff9e6b",
     enhance: { desc: "命中禁锢 0.5 秒", detail: "重复选择 +0.25s/层" },
+    evolve: {
+      name: "万骨归宗",
+      desc: "7发追魂骨弹，转向如影随形",
+      tier: { projectiles: 7, pierce: 5, dmgMult: 3.6, rateMult: 1.15, turn: 9, size: 14 },
+    },
     tiers: [
       { projectiles: 1, pierce: 1, dmgMult: 1.25, rateMult: 0.9, turn: 4.5, size: 9 },
       { projectiles: 2, pierce: 1, dmgMult: 1.35, rateMult: 0.95, turn: 5, size: 9 },
@@ -53,6 +69,11 @@ export const WEAPONS = {
     desc: "抛出骨雷，爆炸造成大范围伤害",
     color: "#ffd166",
     enhance: { desc: "爆炸次数 +2", detail: "重复选择爆炸次数 +1/层" },
+    evolve: {
+      name: "歼灭轰炸",
+      desc: "5连骨雷地毯式覆盖，半径暴涨",
+      tier: { bombs: 5, blast: 150, dmgMult: 5.5, rateMult: 0.65 },
+    },
     tiers: [
       { bombs: 1, blast: 64, dmgMult: 1.8, rateMult: 0.45 },
       { bombs: 1, blast: 76, dmgMult: 2.1, rateMult: 0.5 },
@@ -68,6 +89,11 @@ export const WEAPONS = {
     desc: "笔直飞行，无限穿透路径上所有敌人",
     color: "#c59bff",
     enhance: { desc: "每穿透一个敌人引发小爆炸", detail: "重复选择扩大爆炸范围" },
+    evolve: {
+      name: "审判之枪",
+      desc: "5道巨型骨矛，贯穿一切的白色审判",
+      tier: { projectiles: 5, spread: 24, dmgMult: 4.0, rateMult: 1.0, size: 17 },
+    },
     tiers: [
       { projectiles: 1, spread: 0, dmgMult: 1.1, rateMult: 0.7, size: 10 },
       { projectiles: 1, spread: 0, dmgMult: 1.4, rateMult: 0.75, size: 11 },
@@ -83,6 +109,11 @@ export const WEAPONS = {
     desc: "从地下召唤骨刺刺穿敌人，升级后骨刺和目标更多",
     color: "#d9c47a",
     enhance: { desc: "攻击时在身边召唤骨牢环", detail: "重复选择增加环上骨头数" },
+    evolve: {
+      name: "白骨刑场",
+      desc: "16根骨刺同时贯穿7个目标",
+      tier: { targets: 7, spikes: 16, dmgMult: 4.0, rateMult: 0.75 },
+    },
     tiers: [
       { targets: 1, spikes: 2, dmgMult: 1.4, rateMult: 0.55 },
       { targets: 2, spikes: 3, dmgMult: 1.55, rateMult: 0.55 },
@@ -98,6 +129,11 @@ export const WEAPONS = {
     desc: "低频率召唤旋转一整圈的激光风车，触碰持续掉血",
     color: "#9bd7ff",
     enhance: { desc: "激光待机时 +50% 减伤", detail: "每层 +10%，上限 90%" },
+    evolve: {
+      name: "湮灭风车",
+      desc: "7叶巨型光轮，触者皆熔",
+      tier: { beams: 7, dmgMult: 12, rateMult: 0.36, duration: 3.4, width: 20 },
+    },
     tiers: [
       { beams: 1, dmgMult: 4.5, rateMult: 0.28, duration: 2.6, width: 14 },
       { beams: 2, dmgMult: 5.2, rateMult: 0.28, duration: 2.6, width: 14 },
@@ -113,6 +149,11 @@ export const WEAPONS = {
     desc: "扔出后折返回手，去程回程各伤一次",
     color: "#7ce8a8",
     enhance: { desc: "回程伤害 +100%", detail: "重复选择 +20%/层" },
+    evolve: {
+      name: "无归之镖",
+      desc: "6把巨镖织成往返绞杀网",
+      tier: { boomerangs: 6, dmgMult: 3.2, rateMult: 0.95, size: 16 },
+    },
     tiers: [
       { boomerangs: 1, dmgMult: 1.3, rateMult: 0.8, size: 12 },
       { boomerangs: 2, dmgMult: 1.45, rateMult: 0.8, size: 12 },
@@ -129,6 +170,11 @@ export const WEAPONS = {
     desc: "地下伸出蓝骨伤害并禁锢敌人，升级加目标和禁锢时长",
     color: "#4f9dff",
     enhance: { desc: "攻击附带小爆炸", detail: "爆炸波及的敌人禁锢 0.25s/层" },
+    evolve: {
+      name: "蓝色审判",
+      desc: "蓝骨天降：这次轮到你们不许动了(禁锢4秒)",
+      tier: { targets: 12, root: 4.0, dmgMult: 4.0, rateMult: 0.7 },
+    },
     tiers: [
       { targets: 3, root: 1.0, dmgMult: 1.4, rateMult: 0.5 },
       { targets: 4, root: 1.5, dmgMult: 1.6, rateMult: 0.5 },
@@ -144,6 +190,11 @@ export const WEAPONS = {
     desc: "地下涌出层层骨浪扇形推进，升级加浪数和骨头数",
     color: "#c59bff",
     enhance: { desc: "骨浪附带击退", detail: "重复选择击退 +10%/层" },
+    evolve: {
+      name: "审判长廊",
+      desc: "9波白骨海啸淹没长廊，无处落脚",
+      tier: { waves: 9, bones: 14, dmgMult: 3.2, rateMult: 0.7 },
+    },
     tiers: [
       { waves: 2, bones: 4, dmgMult: 1.2, rateMult: 0.5 },
       { waves: 3, bones: 6, dmgMult: 1.3, rateMult: 0.5 },
@@ -159,6 +210,11 @@ export const WEAPONS = {
     desc: "向固定方向同时射出骨头，每级 +2 根",
     color: "#f2ead8",
     enhance: { desc: "延长敌人的禁锢", detail: "命中禁锢中的敌人 +1s，每层再 +0.5s" },
+    evolve: {
+      name: "业报乱刺·KR",
+      desc: "20根业骨十六向穿刺，伤口不会愈合",
+      tier: { bones: 20, pierce: 5, dmgMult: 3.8, rateMult: 1.35, size: 16 },
+    },
     tiers: [
       { bones: 4, pierce: 2, dmgMult: 1.2, rateMult: 1.1, size: 12 },
       { bones: 6, pierce: 2, dmgMult: 1.4, rateMult: 1.1, size: 12 },
@@ -174,6 +230,11 @@ export const WEAPONS = {
     desc: "骨雷绕身一周后掷向敌人爆炸，升级加骨雷数和爆炸半径",
     color: "#ffd166",
     enhance: { desc: "环绕时周期小爆炸", detail: "每 0.5s 一次，每层提高频率" },
+    evolve: {
+      name: "审判日轮",
+      desc: "9颗骨雷绕身引爆，半径140",
+      tier: { count: 9, blast: 140, dmgMult: 4.5, rateMult: 0.65, size: 24 },
+    },
     tiers: [
       { count: 1, blast: 60, dmgMult: 1.6, rateMult: 0.45, size: 16 },
       { count: 2, blast: 70, dmgMult: 1.8, rateMult: 0.45, size: 16 },
@@ -184,11 +245,19 @@ export const WEAPONS = {
   },
   shield: {
     id: "shield",
+    // reactive-only weapon (damages nothing on its own): never a viable
+    // solo starter, so it is in-run only — the card pool still offers it
+    support: true,
     name: "紫魂护盾",
     tag: "反弹护体",
     desc: "每 4.5 秒开盾，全额反弹伤害并击退，升级加持续时间",
     color: "#9a5df0",
     enhance: { desc: "开盾时狂化", detail: "+100% 移速和回血，每层 +25%" },
+    evolve: {
+      name: "紫魂蛛网",
+      desc: "6秒紫网庇护，反弹一切恶意",
+      tier: { duration: 6.0 },
+    },
     tiers: [
       { duration: 2.0 },
       { duration: 2.5 },
@@ -204,6 +273,11 @@ export const WEAPONS = {
     desc: "骨头从天而降释放紫色音波，伤害并击退，升级加骨数和半径",
     color: "#e08fff",
     enhance: { desc: "巨大骨伤害 +100%", detail: "音波范围不变，每层再 +20%" },
+    evolve: {
+      name: "MEGALOVANIA",
+      desc: "6根天骨奏响灭世强音，半径180音爆",
+      tier: { bones: 6, radius: 180, dmgMult: 8.0, rateMult: 0.65 },
+    },
     tiers: [
       { bones: 1, radius: 70, dmgMult: 3.0, rateMult: 0.45 },
       { bones: 2, radius: 85, dmgMult: 3.4, rateMult: 0.45 },
@@ -219,6 +293,11 @@ export const WEAPONS = {
     desc: "锁链拖敌到面前，途中掉血，到达重击禁锢并小范围爆炸",
     color: "#b8a5d0",
     enhance: { desc: "到达爆炸附带禁锢", detail: "波及的敌人禁锢 0.25s/层" },
+    evolve: {
+      name: "蓝魂操纵",
+      desc: "9条魂链拖拽灵魂，傀儡任凭摆布",
+      tier: { chains: 9, root: 2.5, dmgMult: 5.0, rateMult: 0.65 },
+    },
     tiers: [
       { chains: 1, root: 0.5, dmgMult: 2.0, rateMult: 0.45 },
       { chains: 2, root: 0.75, dmgMult: 2.2, rateMult: 0.45 },
@@ -234,6 +313,11 @@ export const WEAPONS = {
     desc: "瞬间闪射贯穿全屏的激光，一次性伤害并减速，升级加锁定目标数",
     color: "#c95df0",
     enhance: { desc: "减速效果 +100%", detail: "重复选择每层再 +20%" },
+    evolve: {
+      name: "加斯特余响",
+      desc: "9道紫光洪流——来自虚空的注视",
+      tier: { beams: 9, dmgMult: 6.0, width: 26, duration: 0.15, rateMult: 0.5 },
+    },
     tiers: [
       { beams: 1, dmgMult: 2.0, width: 12, duration: 0.15, rateMult: 0.35 },
       { beams: 2, dmgMult: 2.3, width: 13, duration: 0.15, rateMult: 0.35 },
@@ -247,9 +331,14 @@ export const WEAPONS = {
     id: "sweep",
     name: "横扫之骨",
     tag: "近战横扫",
-    desc: "巨骨向最近的敌人扫去，范围伤害并持续推挤，升级加范围和扫击次数",
+    desc: "巨骨扫向最近的敌人，范围伤害并持续推挤，升级加范围次数",
     color: "#ff5d5d",
     enhance: { desc: "击退 +50%", detail: "重复选择 +10%/层" },
+    evolve: {
+      name: "猎杀时刻",
+      desc: "半径170的四连横扫，猎物无处可逃",
+      tier: { radius: 170, swings: 4, dmgMult: 4.2, rateMult: 0.85 },
+    },
     tiers: [
       { radius: 95, swings: 1, dmgMult: 1.5, rateMult: 0.6 },
       { radius: 110, swings: 1, dmgMult: 1.7, rateMult: 0.6 },
@@ -262,9 +351,14 @@ export const WEAPONS = {
     id: "feast",
     name: "噬骨归宗",
     tag: "吸血骨弹",
-    desc: "敌人背后召唤骨头飞回自己，沿途伤敌，回收时 20% 概率回血(每级+10%)",
+    desc: "敌人背后召唤骨头飞回，沿途伤敌，回收时概率回血",
     color: "#ff8f8f",
     enhance: { desc: "回血概率 +10%", detail: "重复选择 +5%/层" },
+    evolve: {
+      name: "雪镇飨宴",
+      desc: "7目标必定吸血——今晚不会挨饿",
+      tier: { targets: 7, bonesPer: 3, healChance: 1.0, dmgMult: 3.2, rateMult: 0.85, size: 14 },
+    },
     tiers: [
       { targets: 2, bonesPer: 1, healChance: 0.2, dmgMult: 1.2, rateMult: 0.6, size: 10 },
       { targets: 3, bonesPer: 1, healChance: 0.3, dmgMult: 1.35, rateMult: 0.6, size: 10 },
@@ -277,9 +371,14 @@ export const WEAPONS = {
     id: "slam",
     name: "重砸",
     tag: "禁锢重击",
-    desc: "在自身周围连续砸击，高伤害并禁锢 0.5 秒，升级加砸击次数和禁锢",
+    desc: "周身连续砸击，高伤害并禁锢，升级加次数和禁锢",
     color: "#d63a3a",
     enhance: { desc: "每砸中一个敌人获得 0.15s 无敌", detail: "重复选择 +0.1s/层，累计上限 1.5s" },
+    evolve: {
+      name: "开颅重锤",
+      desc: "10连重砸+禁锢2.5秒，给他们也开个洞",
+      tier: { smashes: 10, root: 2.5, dmgMult: 5.5, rateMult: 0.6 },
+    },
     tiers: [
       { smashes: 3, root: 0.5, dmgMult: 2.2, rateMult: 0.4 },
       { smashes: 4, root: 0.75, dmgMult: 2.4, rateMult: 0.4 },
@@ -295,6 +394,11 @@ export const WEAPONS = {
     desc: "掷出穿透一切的飞斧，升级加飞斧数量",
     color: "#c7cdd8",
     enhance: { desc: "飞斧变为回旋镖，去而复返", detail: "重复选择 +1 次回旋" },
+    evolve: {
+      name: "千斧断魂",
+      desc: "8把巨斧撕裂全场，伤害翻倍",
+      tier: { count: 8, dmgMult: 4.0, rateMult: 0.95, size: 24 },
+    },
     tiers: [
       { count: 2, dmgMult: 1.5, rateMult: 0.75, size: 14 },
       { count: 3, dmgMult: 1.65, rateMult: 0.75, size: 14 },
@@ -310,6 +414,11 @@ export const WEAPONS = {
     desc: "脚下召出巨骨掀起击退波，升级加波数和巨骨大小",
     color: "#ff5d5d",
     enhance: { desc: "被震波杀死的敌人爆炸", detail: "重复选择扩大爆炸半径" },
+    evolve: {
+      name: "雪镇崩塌",
+      desc: "5波半径200的塌方震荡",
+      tier: { waves: 5, radius: 200, boneSize: 80, dmgMult: 4.5, rateMult: 0.55 },
+    },
     tiers: [
       { waves: 1, radius: 95, boneSize: 40, dmgMult: 1.8, rateMult: 0.35 },
       { waves: 2, radius: 105, boneSize: 46, dmgMult: 2.0, rateMult: 0.35 },
@@ -322,9 +431,14 @@ export const WEAPONS = {
     id: "lasso",
     name: "斧旋捕猎",
     tag: "环绕捕掷",
-    desc: "斧子急速绕身两圈，粘住命中的敌人后连人带斧掷出，升级加斧子大小",
+    desc: "斧子绕身两圈粘住敌人后连人掷出，升级加斧子大小",
     color: "#aab2c2",
     enhance: { desc: "每粘住一个敌人回复 1 血", detail: "重复选择 +1 回血/层" },
+    evolve: {
+      name: "屠夫巨斧",
+      desc: "斧刃尺寸翻倍，绞碎猎物",
+      tier: { size: 52, dmgMult: 5.0, rateMult: 0.55 },
+    },
     tiers: [
       { size: 18, dmgMult: 2.0, rateMult: 0.35 },
       { size: 22, dmgMult: 2.2, rateMult: 0.35 },
@@ -340,6 +454,11 @@ export const WEAPONS = {
     desc: "斧头轻砸后，大斧虚影劈向同处造成大额伤害，升级加砸击次数",
     color: "#e8ecf4",
     enhance: { desc: "每次砸击分裂 2 个额外幻影", detail: "重复选择 +1 幻影" },
+    evolve: {
+      name: "断头幻影",
+      desc: "6连劈斩首风暴",
+      tier: { combos: 6, dmgMult: 2.6, rateMult: 0.75 },
+    },
     tiers: [
       { combos: 1, dmgMult: 1.0, rateMult: 0.5 },
       { combos: 2, dmgMult: 1.1, rateMult: 0.5 },
@@ -355,6 +474,11 @@ export const WEAPONS = {
     desc: "原地重砸一击，随后在四周立起一圈骨头，升级加骨头数量",
     color: "#e8dcc0",
     enhance: { desc: "骨头圈数 +2", detail: "重复选择 +1 圈" },
+    evolve: {
+      name: "白骨猎场",
+      desc: "32根巨骨圈出死亡猎场",
+      tier: { bones: 32, ring: 150, dmgMult: 4.0, rateMult: 0.7 },
+    },
     tiers: [
       { bones: 12, ring: 80, dmgMult: 1.6, rateMult: 0.45 },
       { bones: 14, ring: 85, dmgMult: 1.8, rateMult: 0.45 },
@@ -371,6 +495,11 @@ export const WEAPONS = {
     desc: "向目标突刺并穿透路径，返回原位时爆炸，升级加突刺次数",
     color: "#5db9ff",
     enhance: { desc: "突刺时减伤 +10%", detail: "重复选择 +5%/层" },
+    evolve: {
+      name: "橙魂疾冲",
+      desc: "9连突刺——橙色攻击，永不停步",
+      tier: { dashes: 9, dmgMult: 4.0, rateMult: 0.75 },
+    },
     tiers: [
       { dashes: 1, dmgMult: 1.6, rateMult: 0.5 },
       { dashes: 2, dmgMult: 1.8, rateMult: 0.5 },
@@ -386,6 +515,11 @@ export const WEAPONS = {
     desc: "射出 6 根骨头，悬停后各自裂成子骨，升级加分裂数量",
     color: "#f2ead8",
     enhance: { desc: "子骨再裂出 4 个子子骨", detail: "重复选择增加分裂数量" },
+    evolve: {
+      name: "蓝橙骤雨",
+      desc: "14裂变蓝橙弹幕铺天盖地",
+      tier: { split: 14, dmgMult: 3.0, rateMult: 0.8, size: 14 },
+    },
     tiers: [
       { split: 4, dmgMult: 1.2, rateMult: 0.55, size: 10 },
       { split: 5, dmgMult: 1.35, rateMult: 0.55, size: 10 },
@@ -401,6 +535,11 @@ export const WEAPONS = {
     desc: "在目标身上召唤蓝骨爆炸并环出骨圈，升级加爆炸、目标与骨数",
     color: "#4f9dff",
     enhance: { desc: "骨圈变蓝并禁锢 1 秒", detail: "重复选择禁锢 +0.5s/层" },
+    evolve: {
+      name: "静止蓝罚",
+      desc: "8目标蓝骨降罚+半径100爆环",
+      tier: { targets: 8, blast: 100, ringBones: 14, dmgMult: 3.8, rateMult: 0.75 },
+    },
     tiers: [
       { targets: 3, blast: 40, ringBones: 6, dmgMult: 1.4, rateMult: 0.5 },
       { targets: 3, blast: 48, ringBones: 7, dmgMult: 1.6, rateMult: 0.5 },
@@ -413,9 +552,14 @@ export const WEAPONS = {
     id: "megabone",
     name: "天坠巨骨",
     tag: "坠地分裂",
-    desc: "头顶巨骨砸向地面爆炸，裂成 36 根小骨四射(不索敌)，升级多一圈骨头",
+    desc: "头顶巨骨砸地爆炸，裂成小骨四射，升级多一圈骨头",
     color: "#ffd166",
     enhance: { desc: "碎骨 3 层穿透且不消失", detail: "重复选择穿透 +2/层" },
+    evolve: {
+      name: "终焉之骨",
+      desc: "8环弹幕+半径160巨爆——这是最后一根骨头",
+      tier: { shards: 36, rings: 8, dmgMult: 5.5, rateMult: 0.42, blast: 160 },
+    },
     tiers: [
       { shards: 36, rings: 1, dmgMult: 2.2, rateMult: 0.3, blast: 90 },
       { shards: 36, rings: 2, dmgMult: 2.4, rateMult: 0.3, blast: 96 },
@@ -431,6 +575,11 @@ export const WEAPONS = {
     desc: "缓慢前进的暗蓝光环，触碰持续伤害并禁锢，升级加索敌目标",
     color: "#2f6ea8",
     enhance: { desc: "敌人粘在光球上(上限 5)", detail: "重复选择上限 +3/层" },
+    evolve: {
+      name: "蓝魂引力",
+      desc: "9颗引力光球拖拽灵魂",
+      tier: { orbs: 9, dmgMult: 3.6, rateMult: 0.62 },
+    },
     tiers: [
       { orbs: 1, dmgMult: 1.2, rateMult: 0.4 },
       { orbs: 2, dmgMult: 1.4, rateMult: 0.4 },
@@ -446,6 +595,11 @@ export const WEAPONS = {
     desc: "头顶召唤龙骨炮向目标轰出巨大光束，升级加数量(同向齐射)",
     color: "#fddefe",
     enhance: { desc: "龙骨炮体积 +50%", detail: "重复选择 +20%/层" },
+    evolve: {
+      name: "W.D.加斯特炮阵",
+      desc: "9门龙骨炮齐轰——记得那个被遗忘的人",
+      tier: { count: 9, dmgMult: 8.0, rateMult: 0.65 },
+    },
     tiers: [
       { count: 1, dmgMult: 3.0, rateMult: 0.45 },
       { count: 2, dmgMult: 3.4, rateMult: 0.45 },
@@ -458,9 +612,14 @@ export const WEAPONS = {
     id: "ringlaser",
     name: "环阵闪射",
     tag: "环状激光",
-    desc: "36 根短激光按顺序绕圈依次闪射，命中禁锢 1 秒(不索敌)，升级加激光数",
+    desc: "36 根短激光绕圈依次闪射，命中禁锢，升级加激光数",
     color: "#8fd6ff",
     enhance: { desc: "激光命中处小爆炸", detail: "重复选择扩大爆炸半径" },
+    evolve: {
+      name: "最终审判环",
+      desc: "120道环射光刃，无处可躲",
+      tier: { lasers: 120, dmgMult: 3.0, rateMult: 0.36 },
+    },
     tiers: [
       { lasers: 36, dmgMult: 1.1, rateMult: 0.25 },
       { lasers: 44, dmgMult: 1.25, rateMult: 0.25 },
@@ -476,6 +635,11 @@ export const WEAPONS = {
     desc: "骨桩插地环转，撞击碾过的敌人，升级 +2 根",
     color: "#9be8a8",
     enhance: { desc: "撞击附带击退", detail: "重复选择提高击退力度" },
+    evolve: {
+      name: "白骨丛林",
+      desc: "20根骨桩拔地绞杀",
+      tier: { bones: 20, dmgMult: 4.2, rateMult: 0.7 },
+    },
     tiers: [
       { bones: 4, dmgMult: 1.5, rateMult: 0.5 },
       { bones: 6, dmgMult: 1.7, rateMult: 0.5 },
@@ -540,6 +704,13 @@ export const WEAPON_LIST = WEAPON_LISTS.sans;
 
 export const MAX_TIER = 4;
 
+// 2026-07-11 user tuning: awakened forms hit ~35% harder across the board
+for (const w of Object.values(WEAPONS)) {
+  if (w.evolve && w.evolve.tier && w.evolve.tier.dmgMult) {
+    w.evolve.tier.dmgMult = Math.round(w.evolve.tier.dmgMult * 1.35 * 10) / 10;
+  }
+}
+
 // A weapon the player owns. bonus* fields grow on player level-up:
 // ranged weapons gain range, the orbit weapon gains bones and spin.
 export function createWeaponInstance(id) {
@@ -562,6 +733,7 @@ export function createWeaponInstance(id) {
     shieldT: 0, // remaining shield uptime
     chainTargets: [], // enemies currently being dragged in
     enhance: 0, // stacks of the weapon's exclusive enhancement card
+    evolved: false, // awakened form (max tier + 3 enhance stacks required)
     enhanceTick: 0,
     bonusRange: 0,
     bonusProjectiles: 0,
@@ -574,7 +746,15 @@ export function createWeaponInstance(id) {
 }
 
 export function instTier(inst) {
-  return WEAPONS[inst.id].tiers[inst.tier];
+  const w = WEAPONS[inst.id];
+  // awakened form inherits every Lv5 stat it doesn't explicitly override
+  if (inst.evolved && w.evolve) return { ...w.tiers[w.tiers.length - 1], ...w.evolve.tier };
+  return w.tiers[inst.tier];
+}
+
+// evolution unlock check shared by the card pool
+export function canEvolve(inst) {
+  return !!WEAPONS[inst.id].evolve && !inst.evolved && inst.tier >= MAX_TIER && inst.enhance >= 3;
 }
 
 export function applyLevelUpBonus(inst) {
@@ -605,12 +785,16 @@ export function applyLevelUpBonus(inst) {
 }
 
 export function weaponSummary(player, sep = " · ") {
-  return player.weapons.map((i) => `${WEAPONS[i.id].name} Lv${i.tier + 1}`).join(sep);
+  return player.weapons
+    .map((i) => (i.evolved ? `★${WEAPONS[i.id].evolve.name}` : `${WEAPONS[i.id].name} Lv${i.tier + 1}`))
+    .join(sep);
 }
 
 // all weapon damage funnels through this so 增伤 cards affect everything
 export function weaponDmg(player, mult) {
-  return Math.max(1, Math.round(player.atk * mult * (player.dmgAmp || 1)));
+  // the single damage funnel: in-run amp cards AND the shop's independent
+  // meta multiplier both live here so nothing ever bypasses either
+  return Math.max(1, Math.round(player.atk * mult * (player.dmgAmp || 1) * (player.metaDmg || 1)));
 }
 
 export function findNearestEnemy(x, y, range, enemies) {
@@ -1214,7 +1398,7 @@ function updateInstance(player, inst, dt, world) {
         for (const e of enemies) {
           if (distPointSegment(e.x, e.y, x1, y1, x2, y2) < 11 + e.radius) {
             if (e.takeDamage(dmg)) {
-              e.rootTimer = Math.max(e.rootTimer, 1);
+              e.applyRoot(1);
               if (blastR > 0) {
                 world.spawnBlast({
                   x: e.x,
@@ -1616,7 +1800,7 @@ function updateInstance(player, inst, dt, world) {
         e.x = player.x - (dx / d) * arrive;
         e.y = player.y - (dy / d) * arrive;
         e.takeDamage(weaponDmg(player, tier.dmgMult));
-        e.rootTimer = Math.max(e.rootTimer, tier.root);
+        e.applyRoot(tier.root);
         c.done = true;
       } else {
         e.x += (dx / d) * step;
@@ -1668,8 +1852,10 @@ function updateInstance(player, inst, dt, world) {
 
   if (weapon.id === "bone") {
     const extraPierce = inst.enhance > 0 ? inst.enhance + 1 : 0;
-    for (const s of fireSpread(player, inst, tier, baseAngle, effRange, { pierce: tier.pierce + extraPierce }))
+    for (const s of fireSpread(player, inst, tier, baseAngle, effRange, { pierce: tier.pierce + extraPierce })) {
+      if (inst.evolved) s.red = true; // awakened bones burn red
       world.spawnProjectile(s);
+    }
   } else if (weapon.id === "homing") {
     const rootOnHit = inst.enhance > 0 ? 0.5 + 0.25 * (inst.enhance - 1) : 0;
     for (const s of fireSpread(player, inst, tier, baseAngle, effRange, { turn: tier.turn, rootOnHit })) {
@@ -1900,7 +2086,7 @@ function updateInstance(player, inst, dt, world) {
     const dmg = weaponDmg(player, tier.dmgMult);
     const count = tier.smashes + extraAmmo;
     // fists only reach so far — cap the strike range near the player
-    const SLAM_RANGE = 100;
+    const SLAM_RANGE = 120;
     const picks = enemies
       .map((e) => ({ e, d: Math.hypot(e.x - player.x, e.y - player.y) }))
       .filter((o) => o.d <= SLAM_RANGE)
@@ -1925,7 +2111,7 @@ function updateInstance(player, inst, dt, world) {
     }
   } else if (weapon.id === "axes") {
     const dmg = weaponDmg(player, tier.dmgMult);
-    const count = tier.count + extraAmmo;
+    const count = Math.min(tier.count + extraAmmo, inst.evolved ? 9 : 5); // axe cap lifts when awakened
     const spreadRad = 0.5 + count * 0.07;
     for (let i = 0; i < count; i++) {
       const t = count === 1 ? 0 : i / (count - 1) - 0.5;
@@ -1954,6 +2140,8 @@ function updateInstance(player, inst, dt, world) {
         shot.decel = (speed0 * speed0) / (2 * effRange * 1.4);
         shot.maxRange = Infinity;
         shot.bounces = inst.enhance - 1;
+        // 3+ stacks: pause in front of the body on each return, then relaunch
+        shot.frontHover = inst.enhance > 2;
       }
       world.spawnProjectile(shot);
     }
@@ -2102,8 +2290,26 @@ export function updateWeapons(player, dt, world) {
     }
   }
   // boomerang flight: decelerate outward, then fly back to the player
+  const relaunch = (p) => {
+    p.returning = false;
+    const t = findNearestEnemy(player.x, player.y, 500, world.enemies);
+    const ang = t ? Math.atan2(t.y - player.y, t.x - player.x) : Math.atan2(p.vy, p.vx);
+    p.dirX = Math.cos(ang);
+    p.dirY = Math.sin(ang);
+    p.vx = p.dirX * p.speed0;
+    p.vy = p.dirY * p.speed0;
+    p.hitSet.clear();
+  };
   for (const p of world.projectiles) {
     if (!p.boom) continue;
+    // paused in front of the body, then thrown out again
+    if (p.hoverTimer > 0) {
+      p.hoverTimer -= dt;
+      p.vx = 0;
+      p.vy = 0;
+      if (p.hoverTimer <= 0) relaunch(p);
+      continue;
+    }
     if (!p.returning) {
       p.vx -= p.dirX * p.decel * dt;
       p.vy -= p.dirY * p.decel * dt;
@@ -2116,20 +2322,15 @@ export function updateWeapons(player, dt, world) {
       const dx = player.x - p.x;
       const dy = player.y - p.y;
       const d = Math.hypot(dx, dy) || 1;
+      // front-hover axes stop ~44px short of the body instead of touching it
+      const arrive = p.frontHover ? 44 : player.radius + 12;
       p.vx = (dx / d) * p.speed0;
       p.vy = (dy / d) * p.speed0;
-      if (d < player.radius + 12) {
+      if (d < arrive) {
         if (p.bounces > 0) {
-          // relaunch toward the nearest enemy for another pass
           p.bounces -= 1;
-          p.returning = false;
-          const t = findNearestEnemy(player.x, player.y, 500, world.enemies);
-          const ang = t ? Math.atan2(t.y - player.y, t.x - player.x) : Math.atan2(p.vy, p.vx);
-          p.dirX = Math.cos(ang);
-          p.dirY = Math.sin(ang);
-          p.vx = p.dirX * p.speed0;
-          p.vy = p.dirY * p.speed0;
-          p.hitSet.clear();
+          if (p.frontHover) p.hoverTimer = 0.18; // pause in front, then relaunch
+          else relaunch(p);
         } else {
           p.pierce = 0; // caught
         }
