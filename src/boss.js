@@ -11,6 +11,10 @@ export const BOSS_APPEAR_TIME = 300; // 5 minutes
 const BOSS_HP = 50000; // phase 1
 const P1_SECONDS = 45; // phase 1 target duration against YOUR real dps
 const P2_SECONDS = 75; // phase 2 is tuned to last ~this long for YOUR build
+// pool ceiling: sanity guard only, NOT a balance knob — the old 1.5M cap let
+// multi-evolved endgame builds (几十万 dps) melt the boss in seconds again
+// (2026-07-12 user:「武器非常多等级又刷上去了,一下就秒掉」)
+const HP_CAP = 100000000;
 const STRIKE_DMG = 200; // intro slam (reducible)
 
 function dist(ax, ay, bx, by) {
@@ -288,7 +292,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
             if (boss.hp < boss.maxHp * 0.05) boss.hp = boss.maxHp * 0.05;
           } else {
             const dps = this._p1Dealt / this.p1Time;
-            const target = Math.round(Math.min(1500000, Math.max(p1Floor, dps * P1_SECONDS)));
+            const target = Math.round(Math.min(HP_CAP, Math.max(p1Floor, dps * P1_SECONDS)));
             const remainingWanted = target - this._p1Dealt;
             if (remainingWanted > boss.hp) {
               boss.maxHp = Math.max(boss.maxHp, target);
@@ -306,7 +310,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         this._p2Dealt = (this._p2Dealt || 0) + Math.max(0, (this._p2LastHp ?? boss.maxHp) - boss.hp);
         if (this.p2Time >= 1) {
           const dps = this._p2Dealt / this.p2Time;
-          const target = Math.round(Math.min(1500000, Math.max(p2Floor, dps * P2_SECONDS)));
+          const target = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * P2_SECONDS)));
           const remainingWanted = target - this._p2Dealt;
           if (remainingWanted > boss.hp) {
             boss.maxHp = Math.max(boss.maxHp, target);
@@ -564,7 +568,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           this.mercySmashed = false;
           const p1Time = Math.max(10, this.p1Time || 60);
           const dps = (this.p1MaxHp || BOSS_HP) / p1Time; // real phase-1 pool, post-scaling
-          const p2hp = Math.round(Math.min(1500000, Math.max(p2Floor, dps * P2_SECONDS)));
+          const p2hp = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * P2_SECONDS)));
           boss.maxHp = p2hp;
           boss.hp = p2hp;
           this.homeX = ctx.camX + this.WIDTH * 0.72;
