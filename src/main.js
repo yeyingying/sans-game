@@ -5498,16 +5498,19 @@ function draw() {
         }
       }
       ctx.restore();
+      // the lid swings BACK on its hinge (classic front-view chest open):
+      // drawn behind the base, vertically foreshortened as it tilts away,
+      // bottom edge hidden by the rim — reads "打开", not "炸飞"
+      const bk = 1 + 2.70158 * Math.pow(lt - 1, 3) + 1.70158 * Math.pow(lt - 1, 2); // easeOutBack
+      const lidSy = Math.max(0.4, 1 - 0.58 * bk); // tilt-away foreshortening
+      ctx.save();
+      ctx.translate(0, -12); // the base's mouth line = hinge
+      ctx.scale(1, lidSy);
+      ctx.drawImage(CHEST_LID, -LW / 2, -LH, LW, LH);
+      ctx.restore();
       ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
       ctx.fillStyle = "#fff3b0"; // glowing mouth strip
       ctx.fillRect(-BW / 2 + 2 * S, -12, BW - 4 * S, S);
-      // the lid flies up and spins away
-      ctx.save();
-      ctx.translate(0, -12 - LH - lt * 150);
-      ctx.rotate(lt * 1.8);
-      ctx.globalAlpha = 1 - lt * 0.8;
-      ctx.drawImage(CHEST_LID, -LW / 2, 0, LW, LH);
-      ctx.restore();
     } else {
       ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
       ctx.drawImage(CHEST_LID, -LW / 2, -12 - LH + S, LW, LH);
