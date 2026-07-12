@@ -9,6 +9,7 @@ import { bossLineFor } from "./narrative.js";
 
 export const BOSS_APPEAR_TIME = 300; // 5 minutes
 const BOSS_HP = 50000; // phase 1
+const P1_SECONDS = 45; // phase 1 target duration against YOUR real dps
 const P2_SECONDS = 75; // phase 2 is tuned to last ~this long for YOUR build
 const STRIKE_DMG = 200; // intro slam (reducible)
 
@@ -274,32 +275,28 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           const line = bossLineFor(this.character, "half");
           if (line) this.subtitleShow(line, 3.2);
         }
-        // adaptive phase 1 (user request 2026-07-10): a few seconds in, resize
-        // the HP pool to the player's REAL dps so the phase lasts ~45s — the
-        // boss must be beatable but a struggle. Weak debug bosses skip this.
-        // 2026-07-12「一下就把他秒掉了」: endgame builds burned the whole
-        // starting pool before the 2.5s sample existed — until the rescale
-        // runs, hp floors at 5% so there is always a sample to measure
-        if (!this._p1Scaled && boss.maxHp > 1000 && boss.hp < boss.maxHp * 0.05) {
-          boss.hp = boss.maxHp * 0.05;
-        }
-        if (
-          !this._p1Scaled &&
-          boss.maxHp > 1000 &&
-          (this.p1Time >= 6 ||
-            (this.p1Time >= 2.5 && boss.hp < boss.maxHp * 0.45) ||
-            // nuked to the floor already: rescale NOW off the short sample
-            (this.p1Time >= 1.2 && boss.hp <= boss.maxHp * 0.06))
-        ) {
-          this._p1Scaled = true;
-          const dealt = boss.maxHp - boss.hp;
-          const dps = dealt / Math.max(this.p1Time, 1);
-          const target = Math.round(Math.min(1500000, Math.max(p1Floor, dps * 45)));
-          if (target > boss.maxHp) {
-            boss.hp += target - boss.maxHp;
-            boss.maxHp = target;
+        // adaptive phase 1, CONTINUOUS (2026-07-12「至少要让boss坚持久一点」):
+        // one-shot sampling kept losing the race against endgame builds — now
+        // every frame tracks real cumulative damage and keeps the pool sized
+        // to "~P1_SECONDS of your actual dps". The pool only grows, never
+        // shrinks; death lands naturally around the target duration however
+        // absurd the build. Weak debug dummies (≤1000 hp) skip everything.
+        if (boss.maxHp > 1000) {
+          this._p1Dealt = (this._p1Dealt || 0) + Math.max(0, (this._p1LastHp ?? boss.maxHp) - boss.hp);
+          if (this.p1Time < 1.2) {
+            // sampling window: unkillable floor so a measurement always exists
+            if (boss.hp < boss.maxHp * 0.05) boss.hp = boss.maxHp * 0.05;
+          } else {
+            const dps = this._p1Dealt / this.p1Time;
+            const target = Math.round(Math.min(1500000, Math.max(p1Floor, dps * P1_SECONDS)));
+            const remainingWanted = target - this._p1Dealt;
+            if (remainingWanted > boss.hp) {
+              boss.maxHp = Math.max(boss.maxHp, target);
+              boss.hp = Math.min(boss.maxHp, remainingWanted);
+            }
+            this.p1MaxHp = Math.max(this.p1MaxHp || 0, boss.maxHp);
           }
-          this.p1MaxHp = boss.maxHp;
+          this._p1LastHp = boss.hp;
         }
       }
       const prevX = boss.x;
