@@ -9,8 +9,8 @@ import { bossLineFor } from "./narrative.js";
 
 export const BOSS_APPEAR_TIME = 300; // 5 minutes
 const BOSS_HP = 50000; // phase 1
-const P1_SECONDS = 45; // phase 1 duration for a NORMAL build (band ceiling)
-const P2_SECONDS = 75; // phase 2 duration for a NORMAL build (band ceiling)
+const P1_SECONDS = 38; // phase 1 duration for a NORMAL build (band ceiling)
+const P2_SECONDS = 58; // phase 2 duration for a NORMAL build (band ceiling)
 // 区间制自适应(2026-07-12 评审): 固定时长会抹掉“变强的反馈”——DPS翻倍
 // Boss 也永远打一样久。改为时长随强度滑落: 普通构筑打满全程, 强构筑明显
 // 更快(10倍输出≈快44%), 但下限兜底, 永远不会一秒融化。
@@ -163,7 +163,8 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       });
     },
     wall(x1, y1, x2, y2, dmg, life) {
-      this.hazards.push({ kind: "wall", x1, y1, x2, y2, dmg: this.scaleDmg(dmg), t: 0, life, hitTimer: 0 });
+      // t starts negative: 0.5s of dashed-line warning before the bones exist
+      this.hazards.push({ kind: "wall", x1, y1, x2, y2, dmg: this.scaleDmg(dmg), t: -0.5, life, hitTimer: 0 });
     },
     blaster(bx, by, angle, dmg, life) {
       this.hazards.push({ kind: "blaster", x: bx, y: by, angle, dmg: this.scaleDmg(dmg), t: 0, life, warned: false });
@@ -171,8 +172,9 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     boom(px, py, r, dmg, delay = 0) {
       this.hazards.push({ kind: "boom", x: px, y: py, r, dmg: this.scaleDmg(dmg), t: -delay, life: 0.4, hit: false });
     },
-    homingBone(bx, by, dmg) {
-      this.hazards.push({ kind: "homing", x: bx, y: by, vx: 0, vy: 0, dmg: this.scaleDmg(dmg), hp: 200, t: 0, life: 5, hit: 0 });
+    homingBone(bx, by, dmg, delay = 0) {
+      // negative t = held in formation (visible, dimmed, harmless), then flies
+      this.hazards.push({ kind: "homing", x: bx, y: by, vx: 0, vy: 0, dmg: this.scaleDmg(dmg), hp: 200, t: -delay, life: 5, hit: 0 });
     },
 
     // ----- main update ------------------------------------------------------
@@ -266,6 +268,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     startFight(phase) {
       this.phase = phase;
       this.state = phase === 1 ? "fight1" : "fight2";
+      this._barPct = 1; // display bar resets per phase, then only ever falls
       boss.invulnTimer = 0;
       this.attackTimer = 1.2;
       this.t = 0;
@@ -437,6 +440,10 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           }
         });
         this.stillTimer = 0;
+      } else if (d < 90) {
+        // 2: crouch — dash through the player, then blink back
+        // (P0 评审修复: 原来排在 d<150 之后,贴身永远进骨墙分支,冲刺不可达)
+        this.windup("crouch", () => this.dashAttack(ctx));
       } else if (approaching) {
         // 3: palm-thrust — bone wall between boss and player
         this.windup("lunge", () => {
@@ -451,9 +458,6 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           const a = Math.atan2(player.y - boss.y, player.x - boss.x);
           this.blaster(boss.x - Math.cos(a) * 30, boss.y - Math.sin(a) * 30, a, 1, 1.4);
         });
-      } else if (d < 90) {
-        // 2: crouch — dash through the player, then blink back
-        this.windup("crouch", () => this.dashAttack(ctx));
       } else {
         // 1: hop-slam — bone on each of the 4 sides of the player
         this.windup("hop", () => {
@@ -484,7 +488,14 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
 
     pickAttackP2(ctx) {
       const { player } = ctx;
-      const roll = Math.floor(Math.random() * 5);
+      // 技能袋(P0 评审): 五招洗牌轮转,禁止连抽同招 — 有限随机导演,
+      // 一场必见全部招式,不再出现连刷三次召唤的场次
+      if (!this._p2Bag || !this._p2Bag.length) {
+        this._p2Bag = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
+        if (this._p2Bag[0] === this._p2Last) this._p2Bag.push(this._p2Bag.shift());
+      }
+      const roll = this._p2Bag.shift();
+      this._p2Last = roll;
       const gestureFor = { 0: "lunge", 1: "channel", 2: "hop", 3: "recoil", 4: "channel" }[roll];
       this.windup(gestureFor, () => this.fireAttackP2(ctx, roll));
     },
@@ -497,8 +508,11 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         const wx = leftSide ? ctx.camX + this.WIDTH * 0.72 : ctx.camX + this.WIDTH * 0.28;
         this.wall(wx, this.WALL_H, wx, this.HEIGHT, 20, 10);
       } else if (roll === 1) {
-        // 2: summon 30 random monsters (no xp)
-        ctx.summon(30);
+        // 2: summon 30 monsters in THREE waves off a visible channel —
+        // reads as the boss's own skill, not "the game spawned more mobs"
+        this.hazards.push({ kind: "summon", t: -0.25, life: 0.05, n: 10 });
+        this.hazards.push({ kind: "summon", t: -0.75, life: 0.05, n: 10 });
+        this.hazards.push({ kind: "summon", t: -1.25, life: 0.05, n: 10 });
       } else if (roll === 2) {
         // 3: 5 giant ground bones, 200 dmg + 50 explosion
         for (let i = 0; i < 5; i++) {
@@ -507,9 +521,15 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           this.bone(bx, by, 200, 0.4 + i * 0.1, { size: 70, blast: 90, blastDmg: 50 });
         }
       } else if (roll === 3) {
-        // 4: 10 homing bones behind the boss, fly at the player
+        // 4: 10 homing bones — fan up behind the boss, pause, then release in
+        // a 2/3/5 rhythm (P0 评审: 一招要可读,不是十个追踪物)
+        const away = Math.atan2(boss.y - player.y, boss.x - player.x);
         for (let i = 0; i < 10; i++) {
-          this.homingBone(boss.x - 20 + (Math.random() - 0.5) * 40, boss.y + (Math.random() - 0.5) * 40, 150);
+          const spread = away + ((i - 4.5) / 9) * Math.PI * 0.9;
+          const hx = boss.x + Math.cos(spread) * 46;
+          const hy = boss.y + Math.sin(spread) * 46;
+          const delay = i < 2 ? 0.4 : i < 5 ? 0.85 : 1.3;
+          this.homingBone(hx, hy, 150, delay);
         }
       } else {
         // 5: 10 random explosions around the boss (near player)
@@ -667,7 +687,14 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
               player.takeDamage(h.dmg);
             }
           }
+        } else if (h.kind === "summon") {
+          if (h.t >= 0 && !h.done) {
+            h.done = true;
+            ctx.summon(h.n);
+            this.burst(boss.x, boss.y - 10, 12);
+          }
         } else if (h.kind === "wall") {
+          if (h.t < 0) continue; // warning phase: no wall, no damage yet
           h.hitTimer -= dt;
           if (h.hitTimer <= 0 && segHitsPlayer(h, player, 12)) {
             h.hitTimer = 0.4;
@@ -686,6 +713,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
             }
           }
         } else if (h.kind === "homing") {
+          if (h.t < 0) continue; // held in formation: no tracking, no contact
           const a = Math.atan2(player.y - h.y, player.x - h.x);
           const sp = 150;
           h.vx = Math.cos(a) * sp;
@@ -748,7 +776,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           if (h.t < 0) {
             // telegraph: hard-blinking pixel ring (crisp on/off, no sine mush)
             const blink = (((h.t * 8) % 1) + 1) % 1 < 0.5;
-            pxRing(c, h.x, h.y, h.size * 0.5 * (1.3 - app), "#e04545", blink ? 0.8 : 0.3, 3);
+            pxRing(c, h.x, h.y, h.size * 0.5 * (1.3 - app), this.phase === 2 ? "#c95df0" : "#e04545", blink ? 0.8 : 0.3, 3);
             c.globalAlpha = 0.35;
             drawBoneRed(c, h.x, h.y, h.size * 0.5, -Math.PI / 2);
           } else {
@@ -765,7 +793,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         } else if (h.kind === "boom") {
           if (h.t < 0) {
             const blink = (((h.t * 8) % 1) + 1) % 1 < 0.5;
-            pxRing(c, h.x, h.y, h.r, "#ff5d5d", blink ? 0.7 : 0.3, 4);
+            pxRing(c, h.x, h.y, h.r, this.phase === 2 ? "#c95df0" : "#ff5d5d", blink ? 0.7 : 0.3, 4);
             pxBang(c, h.x, h.y, blink ? 0.9 : 0.4);
           } else {
             const k = h.t / h.life;
@@ -781,10 +809,27 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           }
         } else if (h.kind === "wall") {
           const n = Math.max(2, Math.round(dist(h.x1, h.y1, h.x2, h.y2) / 20));
-          for (let i = 0; i <= n; i++) {
-            const bx = h.x1 + ((h.x2 - h.x1) * i) / n;
-            const by = h.y1 + ((h.y2 - h.y1) * i) / n;
-            drawBoneRed(c, bx, by, 22, Math.atan2(h.y2 - h.y1, h.x2 - h.x1) + Math.PI / 2);
+          if (h.t < 0) {
+            // telegraph: blinking dashed pixel line + ghost bones at both ends
+            const blink = (((h.t * 8) % 1) + 1) % 1 < 0.5;
+            c.save();
+            c.globalAlpha = blink ? 0.85 : 0.35;
+            c.fillStyle = this.phase === 2 ? "#c95df0" : "#e04545";
+            for (let i = 0; i <= n * 2; i += 2) {
+              const bx = h.x1 + ((h.x2 - h.x1) * i) / (n * 2);
+              const by = h.y1 + ((h.y2 - h.y1) * i) / (n * 2);
+              c.fillRect(Math.round(bx) - 2, Math.round(by) - 2, 4, 4);
+            }
+            c.globalAlpha = 0.4;
+            drawBoneRed(c, h.x1, h.y1, 22, Math.atan2(h.y2 - h.y1, h.x2 - h.x1) + Math.PI / 2);
+            drawBoneRed(c, h.x2, h.y2, 22, Math.atan2(h.y2 - h.y1, h.x2 - h.x1) + Math.PI / 2);
+            c.restore();
+          } else {
+            for (let i = 0; i <= n; i++) {
+              const bx = h.x1 + ((h.x2 - h.x1) * i) / n;
+              const by = h.y1 + ((h.y2 - h.y1) * i) / n;
+              drawBoneRed(c, bx, by, 22, Math.atan2(h.y2 - h.y1, h.x2 - h.x1) + Math.PI / 2);
+            }
           }
         } else if (h.kind === "blaster") {
           const spr = h.t > 0.45 ? GB_FIRE : GB_IDLE;
@@ -840,7 +885,26 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
             c.restore();
           }
         } else if (h.kind === "homing") {
-          drawBoneRed(c, h.x, h.y, 16, Math.atan2(h.vy, h.vx) + Math.PI / 2);
+          if (h.t < 0) {
+            c.save();
+            c.globalAlpha = 0.45 + 0.3 * ((((h.t * 8) % 1) + 1) % 1 < 0.5 ? 1 : 0);
+            drawBoneRed(c, h.x, h.y, 16, -Math.PI / 2);
+            c.restore();
+          } else {
+            drawBoneRed(c, h.x, h.y, 16, Math.atan2(h.vy, h.vx) + Math.PI / 2);
+          }
+        } else if (h.kind === "summon") {
+          // channel cue: red squares rise off the boss while the rift charges
+          if (h.t < 0) {
+            c.save();
+            c.fillStyle = "#c95df0";
+            for (let i = 0; i < 5; i++) {
+              const yy = boss.y - 24 - ((-h.t * 90 + i * 14) % 60);
+              c.globalAlpha = 0.7 - (boss.y - 24 - yy) / 80;
+              c.fillRect(Math.round(boss.x - 16 + i * 8) - 2, Math.round(yy), 4, 4);
+            }
+            c.restore();
+          }
         }
       }
 
@@ -878,6 +942,19 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           c.fillRect(d.x, d.y, 3, 3);
         }
         c.restore();
+      }
+
+      // phase-2 identity: purple-red shard ring orbits the corrupted body
+      if (this.state === "fight2") {
+        const rot = Math.floor(this.t * 10) * (Math.PI / 24); // stepped spin
+        for (let i = 0; i < 5; i++) {
+          const a = rot + (i * Math.PI * 2) / 5;
+          c.save();
+          c.globalAlpha = 0.8;
+          c.fillStyle = i % 2 ? "#c95df0" : "#ff5d5d";
+          c.fillRect(Math.round(boss.x + Math.cos(a) * 30) - 2, Math.round(boss.y - 8 + Math.sin(a) * 22) - 2, 4, 4);
+          c.restore();
+        }
       }
 
       // boss body (unless fully dead)
@@ -925,7 +1002,11 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         c.fillRect(bx - 3, by - 3, bw + 6, 20); // crisp outer frame
         c.fillStyle = "#1a0c0c";
         c.fillRect(bx - 1, by - 1, bw + 2, 16);
-        const pct = Math.max(0, boss.hp / boss.maxHp);
+        // 反“系统作弊感”(P0 评审): 内部血池弹性,但玩家看到的血条
+        // 单调只降不升 — 补血/扩池永远不体现为血条回升或比例倒退
+        const rawPct = Math.max(0, boss.hp / boss.maxHp);
+        this._barPct = Math.min(this._barPct ?? rawPct, rawPct);
+        const pct = this._barPct;
         c.fillStyle = "#e04545";
         c.fillRect(bx, by, bw * pct, 14);
         c.fillStyle = "#ff8a8a"; // pixel highlight row
