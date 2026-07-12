@@ -5505,26 +5505,38 @@ function draw() {
     const S = 9; // chest ~2x bigger: it IS the show (P0 美术止血, no blur glow)
     const LW = 22 * S, LH = 7 * S, BW = 22 * S, BH = 9 * S;
     if (open) {
-      // LIGHT PILLAR: a solid beam punches out of the mouth with overshoot,
-      // then settles into a stepped pulse — the money shot of the ceremony
       const lt = Math.min(1, cc.t / 0.45);
-      {
-        const pk = Math.min(1, cc.t / 0.3);
+      // 层次修正: 开盖(最远) → 光柱(从箱口内冲出,压在盖子前) →
+      // 箱体(最前,遮住光柱根部)——光是从箱子里出来的,不是背后
+      // ① the open lid, furthest back
+      const OH = 9 * S;
+      if (lt < 0.16) {
+        ctx.drawImage(CHEST_LID, -LW / 2, -12 - LH + S, LW, LH); // frame 1: still closed
+      } else if (lt < 0.32) {
+        ctx.drawImage(CHEST_LID, -LW / 2, -12 - (LH >> 1) + S, LW, LH >> 1); // frame 2: mid flip
+      } else {
+        ctx.drawImage(CHEST_LID_OPEN, -LW / 2, -12 - OH + 2, LW, OH); // frame 3: inner face
+      }
+      // ② LIGHT PILLAR: rooted INSIDE the box (bottom sinks 3S below the
+      // mouth so the base plate covers it), blasting up IN FRONT of the lid
+      if (lt >= 0.16) {
+        const pk = Math.min(1, Math.max(0, cc.t - 0.1) / 0.3);
         const shoot = 1 + 2.70158 * Math.pow(pk - 1, 3) + 1.70158 * Math.pow(pk - 1, 2); // easeOutBack
         const pillarH = (jackpot === 2 ? 400 : jackpot === 1 ? 330 : 260) * Math.max(0, shoot);
         const breathe = S * ((Math.floor(elapsedWall() * 8) % 2) ? 1 : 0); // stepped pulse
         const wCore = 4 * S + breathe;
         const wMid = 8 * S + breathe;
         const wOut = 12 * S;
+        const rootY = -12 + 3 * S; // inside the box mouth
         ctx.save();
         ctx.globalAlpha = 0.22;
         ctx.fillStyle = "#ffd166";
-        ctx.fillRect(-wOut / 2, -12 - pillarH, wOut, pillarH);
+        ctx.fillRect(-wOut / 2, rootY - pillarH, wOut, pillarH);
         ctx.globalAlpha = 0.5;
-        ctx.fillRect(-wMid / 2, -12 - pillarH * 0.92, wMid, pillarH * 0.92);
+        ctx.fillRect(-wMid / 2, rootY - pillarH * 0.92, wMid, pillarH * 0.92);
         ctx.globalAlpha = 0.95;
         ctx.fillStyle = "#fff3b0";
-        ctx.fillRect(-wCore / 2, -12 - pillarH * 0.85, wCore, pillarH * 0.85);
+        ctx.fillRect(-wCore / 2, rootY - pillarH * 0.85, wCore, pillarH * 0.85);
         // rising motes inside the beam
         ctx.fillStyle = "#ffffff";
         for (let i = 0; i < 6; i++) {
@@ -5534,18 +5546,7 @@ function draw() {
         }
         ctx.restore();
       }
-      // page-flip open (定稿): three stepped frames, zero transforms —
-      // closed lid → half-squashed lid → dedicated OPEN-LID art standing
-      // flat behind the mouth. Always reads "打开", never "炸飞"。
-      const OH = 9 * S;
-      if (lt < 0.16) {
-        ctx.drawImage(CHEST_LID, -LW / 2, -12 - LH + S, LW, LH); // frame 1: still closed
-      } else if (lt < 0.32) {
-        ctx.drawImage(CHEST_LID, -LW / 2, -12 - (LH >> 1) + S, LW, LH >> 1); // frame 2: mid flip
-      } else {
-        // frame 3: the whole INNER FACE of the lid stands tall over the box
-        ctx.drawImage(CHEST_LID_OPEN, -LW / 2, -12 - OH + 2, LW, OH);
-      }
+      // ③ the base in front — its rim eats the pillar's root
       ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
       ctx.fillStyle = "#fff3b0"; // glowing mouth strip
       ctx.fillRect(-BW / 2 + 2 * S, -12, BW - 4 * S, S);
