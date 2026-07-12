@@ -5517,9 +5517,46 @@ function draw() {
       } else {
         ctx.drawImage(CHEST_LID_OPEN, -LW / 2, -12 - OH + 2, LW, OH); // frame 3: inner face
       }
-      // ② LIGHT PILLAR: rooted INSIDE the box (bottom sinks 3S below the
-      // mouth so the base plate covers it), blasting up IN FRONT of the lid
-      if (lt >= 0.16) {
+      // ② tier centerpiece — 光柱是五连专属;三连=四芒星闪;单奖=金光一噗
+      if (jackpot === 0 && lt >= 0.16 && cc.t < 0.7) {
+        // 单奖: a quick golden puff out of the mouth, done in half a beat
+        const pt2 = Math.min(1, (cc.t - 0.16) / 0.5);
+        ctx.save();
+        ctx.fillStyle = "#ffd166";
+        for (let i = 0; i < 6; i++) {
+          const yy = -18 - pt2 * (26 + i * 9) - (i % 2) * 4;
+          const xx = ((i % 3) - 1) * 12 + (i > 2 ? 5 : -3);
+          ctx.globalAlpha = (1 - pt2) * (i < 2 ? 1 : 0.7);
+          const sz2 = i < 2 ? 6 : 4;
+          ctx.fillRect(Math.round(xx) - sz2 / 2, Math.round(yy), sz2, sz2);
+        }
+        ctx.restore();
+      }
+      if (jackpot === 1 && lt >= 0.16 && cc.t < 0.8) {
+        // 三连: a four-point treasure glint snapping open at the mouth
+        const st2 = Math.min(1, (cc.t - 0.16) / 0.4);
+        const len2 = Math.round((26 + 128 * st2) / 4) * 4;
+        const fade = 1 - st2 * st2;
+        ctx.save();
+        ctx.translate(0, -18);
+        for (const [rot, scale2, col] of [
+          [0, 1, "#fff3b0"],
+          [Math.PI / 4, 0.55, "#ffd166"],
+        ]) {
+          ctx.save();
+          ctx.rotate(rot);
+          ctx.globalAlpha = fade * (rot === 0 ? 0.95 : 0.6);
+          ctx.fillStyle = col;
+          const L2 = Math.round(len2 * scale2);
+          ctx.fillRect(-3, -L2 / 2, 6, L2);
+          ctx.fillRect(-L2 / 2, -3, L2, 6);
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+      // 五连专属 LIGHT PILLAR: rooted INSIDE the box (bottom sinks 3S below
+      // the mouth so the base plate covers it), blasting up IN FRONT of the lid
+      if (jackpot === 2 && lt >= 0.16) {
         const pk = Math.min(1, Math.max(0, cc.t - 0.1) / 0.3);
         const shoot = 1 + 2.70158 * Math.pow(pk - 1, 3) + 1.70158 * Math.pow(pk - 1, 2); // easeOutBack
         // 三档演出: 单奖利落 / 三连更粗更高 / 五连全场戏
