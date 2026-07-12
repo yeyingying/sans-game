@@ -260,19 +260,29 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
     ctx.fill();
   }
   if (menuOpen) {
+    // grouped drawer: 成长(spend/earn) low near the thumb, 收藏(browse) above;
+    // 排行榜 left the drawer — it is a primary button now. Header slots are
+    // not clickable (main.js targets carry null at the same indices).
     const items = [
       { label: `强化商店 · ⓖ ${coins}`, color: "#ffd166" },
-      { label: `图鉴 ${codexPct}%`, color: "#7ea8ff" },
-      { label: `❀ 回响 ${echoCount}`, color: "#6bd0ff" },
       { label: `📜 悬赏 ${questDone}`, color: "#ffd166" },
       { label: "⚔ 武器图鉴", color: "#c8c2d4" },
-      { label: "★ 审判排行榜", color: "#ff8a5d" },
-      // 存档码 lost its slot when the leaderboard moved in — restored as #7,
-      // cross-device saves must never be UI-orphaned
+      { label: "成 长", header: true },
+      { label: `图鉴 ${codexPct}%`, color: "#7ea8ff" },
+      { label: `❀ 回响 ${echoCount}`, color: "#6bd0ff" },
       { label: "☁ 存档码", color: "#8fd6ff" },
+      { label: "收 藏", header: true },
     ];
     items.forEach((it, i) => {
       const r = titleMenuItemRect(i, width, height);
+      if (it.header) {
+        ctx.fillStyle = "#5a5468";
+        ctx.font = "bold 12px monospace";
+        ctx.textAlign = "left";
+        ctx.fillText(`— ${it.label} —`, r.x + 6, r.y + r.h - 8);
+        ctx.textAlign = "center";
+        return;
+      }
       ctx.fillStyle = "rgba(20, 16, 30, 0.97)";
       ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = it.color;
@@ -293,8 +303,8 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.lineWidth = 2;
   ctx.strokeRect(db.x, db.y, db.w, db.h);
   ctx.fillStyle = "#c59bff";
-  ctx.font = "bold 14px monospace";
-  ctx.fillText("✦ 每日挑战", db.x + db.w / 2, db.y + 22);
+  ctx.font = "bold 15px monospace";
+  ctx.fillText("✦ 每日挑战", db.x + db.w / 2, db.y + db.h / 2 + 5);
 
   const rb = leaderboardButtonRect(width, height);
   ctx.fillStyle = "#261b16";
@@ -303,8 +313,8 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.lineWidth = 2;
   ctx.strokeRect(rb.x, rb.y, rb.w, rb.h);
   ctx.fillStyle = "#ff8a5d";
-  ctx.font = "bold 14px monospace";
-  ctx.fillText("★ 排行榜", rb.x + rb.w / 2, rb.y + 22);
+  ctx.font = "bold 15px monospace";
+  ctx.fillText("★ 排行榜", rb.x + rb.w / 2, rb.y + rb.h / 2 + 5);
   ctx.restore();
 }
 
@@ -731,12 +741,14 @@ export function codexButtonRect(width, height) {
   return { x: 216, y: height - 52, w: 110, h: 34 };
 }
 
+// 三主键(2026-07-12 UX批次): 开始/每日/排行榜是仅有的三个主行动,
+// 并排立在屏幕中央;其余一切收进 ☰ 分组抽屉
 export function dailyButtonRect(width, height) {
-  return { x: 136, y: height - 52, w: 170, h: 34 };
+  return { x: width / 2 - 165, y: height / 2 + 132, w: 150, h: 40 };
 }
 
 export function leaderboardButtonRect(width, height) {
-  return { x: 316, y: height - 52, w: 150, h: 34 };
+  return { x: width / 2 + 15, y: height / 2 + 132, w: 150, h: 40 };
 }
 
 // ---- boss-clear choice screen ------------------------------------------------
@@ -1503,27 +1515,30 @@ export function drawHud(ctx, width, player, elapsed, weaponLabel, healFlash = 0)
   ctx.save();
   ctx.imageSmoothingEnabled = false;
 
-  // HP bar
-  const hpBarW = 220;
+  // HP bar — 加大 20%(手机上血条是保命信息,得一眼看到)
+  const hpBarW = 264;
+  const hpBarH = 22;
   ctx.fillStyle = "#241f2b";
-  ctx.fillRect(16, 16, hpBarW, 18);
+  ctx.fillRect(16, 16, hpBarW, hpBarH);
   const hpPct = Math.max(0, player.hp / player.maxHp);
   ctx.fillStyle = hpPct > 0.3 ? "#ff5d73" : "#ff2d2d";
-  ctx.fillRect(18, 18, (hpBarW - 4) * hpPct, 14);
+  ctx.fillRect(18, 18, (hpBarW - 4) * hpPct, hpBarH - 4);
   if (healFlash > 0) {
     // brief whitening when healed
     ctx.save();
     ctx.globalAlpha = Math.min(healFlash / 0.45, 1) * 0.65;
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(18, 18, (hpBarW - 4) * hpPct, 14);
+    ctx.fillRect(18, 18, (hpBarW - 4) * hpPct, hpBarH - 4);
     ctx.restore();
   }
-  ctx.strokeStyle = "#f2ead8";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(16, 16, hpBarW, 18);
+  // 残血呼吸: below 25% the frame pulses red, matching the heartbeat sfx
+  const lowHp = hpPct > 0 && hpPct < 0.25;
+  ctx.strokeStyle = lowHp ? `rgba(255, 45, 45, ${0.6 + 0.4 * Math.sin(performance.now() / 160)})` : "#f2ead8";
+  ctx.lineWidth = lowHp ? 3 : 2;
+  ctx.strokeRect(16, 16, hpBarW, hpBarH);
   ctx.fillStyle = "#f2ead8";
-  ctx.font = "12px monospace";
-  ctx.fillText(`HP ${Math.max(0, Math.ceil(player.hp))}/${player.maxHp}`, 22, 30);
+  ctx.font = "bold 13px monospace";
+  ctx.fillText(`HP ${Math.max(0, Math.ceil(player.hp))}/${player.maxHp}`, 22, 32);
 
   // XP bar
   const xpBarW = width - 32;

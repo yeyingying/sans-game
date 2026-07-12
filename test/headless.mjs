@@ -422,7 +422,7 @@ function tap(x, y) {
     fn({ clientX: x, clientY: y, isPrimary: true, button: 0, preventDefault: () => {} });
 }
 tap(71, 565); // ☰ 菜单
-tap(134, 338); // ⚔ 武器图鉴 (drawer item 4)
+tap(134, 430); // ⚔ 武器图鉴 (成长组 item 2)
 check("weapon book opens", dbg().state === "weaponbook");
 frame(); // render list + detail table (catches formatting errors)
 key("ArrowRight"); // switch character tab
@@ -431,37 +431,37 @@ frame();
 tap(84, 560); // back
 check("weapon book closes", dbg().state === "title");
 tap(71, 565); // ☰ 菜单
-tap(134, 476); // 图鉴 (drawer item 1)
+tap(134, 338); // 图鉴 (收藏组 item 4)
 check("codex opens", dbg().state === "codex");
 frame(); // draws the codex screen (catches reference errors)
 tap(84, 560); // back
 check("codex closes", dbg().state === "title");
 tap(71, 565); // ☰ 菜单
-tap(134, 384); // 📜 悬赏 (drawer item 3)
+tap(134, 476); // 📜 悬赏 (成长组 item 1)
 check("quests screen opens", dbg().state === "quests");
 frame(); // render it once
 tap(84, 560); // back
 check("quests screen closes", dbg().state === "title");
 tap(71, 565); // ☰ 菜单
-tap(134, 430); // ❀ 回响 (drawer item 2)
+tap(134, 292); // ❀ 回响 (收藏组 item 5)
 check("echo field opens", dbg().state === "echoes");
 frame(); // render the flower field once
 tap(84, 560); // back
 check("echo field closes", dbg().state === "title");
 tap(71, 565); // ☰ 菜单
-tap(134, 522); // 强化商店 (drawer item 0)
+tap(134, 522); // 强化商店 (成长组 item 0)
 check("shop opens", dbg().state === "shop");
 frame();
 tap(84, 560); // back
 check("shop closes", dbg().state === "title");
 tap(71, 565); // ☰ 菜单
-tap(134, 292); // ★ 审判排行榜 (drawer item 5)
+tap(570, 452); // ★ 排行榜 (标题页三主键之一)
 check("leaderboard opens", dbg().state === "leaderboard");
 frame(); // renders the offline notice branch (Pages mirror: no requests)
 tap(84, 560); // back (shared backButtonRect)
 check("leaderboard closes", dbg().state === "title");
 tap(71, 565); // ☰ 菜单
-tap(134, 246); // ☁ 存档码 (drawer item 6, restored)
+tap(134, 246); // ☁ 存档码 (收藏组 item 6)
 check("savecode opens", dbg().state === "savecode");
 frame();
 tap(84, 560); // back
@@ -557,7 +557,7 @@ if (MODE === "normal") {
   // 🏠 direct home from the settlement card
   tap(861, 560); // home button (bottom-right)
   check("home button returns to title", dbg().state === "title");
-  tap(221, 565); // ✦ 每日挑战 button
+  tap(390, 452); // ✦ 每日挑战 (标题页三主键之一)
   check("daily intro shows first", dbg().state === "dailyintro", dbg().state);
   frame(); // render the intro screen once (catches reference errors)
   tap(610, 371); // 开始挑战

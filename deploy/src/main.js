@@ -1648,7 +1648,7 @@ function buildChoicePool() {
         const gain = Math.max(4, Math.round(player.atk * 0.08));
         return {
           title: `攻击力 +${gain}`,
-          desc: "所有武器伤害提升(随攻击成长)",
+          desc: `所有武器伤害提升(随攻击成长)\n当前 ${player.atk} → ${player.atk + gain}`,
           color: "#ff6b6b",
           apply: () => {
             player.atk += gain;
@@ -1665,7 +1665,7 @@ function buildChoicePool() {
         const gain = Math.max(25, Math.round(player.maxHp * 0.08));
         return {
           title: `生命上限 +${gain}`,
-          desc: `上限提升 8%(保底25) 并回复等量生命`,
+          desc: `上限提升 8%(保底25) 并回复等量生命\n当前 ${player.maxHp} → ${player.maxHp + gain}`,
           color: "#ff8fc7",
           apply: () => {
             player.maxHp += gain;
@@ -1679,7 +1679,7 @@ function buildChoicePool() {
       weight: 12,
       make: () => ({
         title: "移动速度 +18",
-        desc: "跑得更快，风筝更稳",
+        desc: `跑得更快，风筝更稳\n当前 ${Math.round(player.moveSpeed)} → ${Math.round(player.moveSpeed) + 18}`,
         color: "#8fd6ff",
         apply: () => {
           player.moveSpeed += 18;
@@ -1691,7 +1691,7 @@ function buildChoicePool() {
       weight: 12,
       make: () => ({
         title: "攻速 +10%",
-        desc: "所有武器攻击更快",
+        desc: `所有武器攻击更快\n当前 ${player.fireRate.toFixed(2)} → ${(player.fireRate * 1.1).toFixed(2)}`,
         color: "#5ee6e6",
         apply: () => {
           player.fireRate *= 1.1;
@@ -1992,11 +1992,11 @@ function handleCanvasTap(pos) {
   }
   if (state === "title") {
     if (titleMenuOpen) {
-      const targets = ["shop", "codex", "echoes", "quests", "weaponbook", "leaderboard", "savecode"];
+      // null slots are the 成长/收藏 group headers — drawn, never clickable
+      const targets = ["shop", "quests", "weaponbook", null, "codex", "echoes", "savecode", null];
       for (let i = 0; i < targets.length; i++) {
-        if (inRect(pos, titleMenuItemRect(i, WIDTH, HEIGHT))) {
+        if (targets[i] && inRect(pos, titleMenuItemRect(i, WIDTH, HEIGHT))) {
           state = targets[i];
-          if (state === "leaderboard") loadLeaderboard();
           titleMenuOpen = false;
           sfxClick();
           return;
