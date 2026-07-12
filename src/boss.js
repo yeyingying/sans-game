@@ -9,8 +9,15 @@ import { bossLineFor } from "./narrative.js";
 
 export const BOSS_APPEAR_TIME = 300; // 5 minutes
 const BOSS_HP = 50000; // phase 1
-const P1_SECONDS = 45; // phase 1 target duration against YOUR real dps
-const P2_SECONDS = 75; // phase 2 is tuned to last ~this long for YOUR build
+const P1_SECONDS = 45; // phase 1 duration for a NORMAL build (band ceiling)
+const P2_SECONDS = 75; // phase 2 duration for a NORMAL build (band ceiling)
+// 区间制自适应(2026-07-12 评审): 固定时长会抹掉“变强的反馈”——DPS翻倍
+// Boss 也永远打一样久。改为时长随强度滑落: 普通构筑打满全程, 强构筑明显
+// 更快(10倍输出≈快44%), 但下限兜底, 永远不会一秒融化。
+const REF_DPS = 20000; // “普通构筑”的锚点输出
+function fightSeconds(base, minS, dps) {
+  return Math.max(minS, Math.min(base, base * Math.pow(REF_DPS / Math.max(dps, 1), 0.25)));
+}
 // pool ceiling: sanity guard only, NOT a balance knob — the old 1.5M cap let
 // multi-evolved endgame builds (几十万 dps) melt the boss in seconds again
 // (2026-07-12 user:「武器非常多等级又刷上去了,一下就秒掉」)
@@ -315,7 +322,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
             if (boss.hp < boss.maxHp * 0.05) boss.hp = boss.maxHp * 0.05;
           } else {
             const dps = this._p1Dealt / this.p1Time;
-            const target = Math.round(Math.min(HP_CAP, Math.max(p1Floor, dps * P1_SECONDS)));
+            const target = Math.round(Math.min(HP_CAP, Math.max(p1Floor, dps * fightSeconds(P1_SECONDS, 20, dps))));
             const remainingWanted = target - this._p1Dealt;
             if (remainingWanted > boss.hp) {
               boss.maxHp = Math.max(boss.maxHp, target);
@@ -333,7 +340,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         this._p2Dealt = (this._p2Dealt || 0) + Math.max(0, (this._p2LastHp ?? boss.maxHp) - boss.hp);
         if (this.p2Time >= 1) {
           const dps = this._p2Dealt / this.p2Time;
-          const target = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * P2_SECONDS)));
+          const target = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * fightSeconds(P2_SECONDS, 32, dps))));
           const remainingWanted = target - this._p2Dealt;
           if (remainingWanted > boss.hp) {
             boss.maxHp = Math.max(boss.maxHp, target);
@@ -591,7 +598,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           this.mercySmashed = false;
           const p1Time = Math.max(10, this.p1Time || 60);
           const dps = (this.p1MaxHp || BOSS_HP) / p1Time; // real phase-1 pool, post-scaling
-          const p2hp = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * P2_SECONDS)));
+          const p2hp = Math.round(Math.min(HP_CAP, Math.max(p2Floor, dps * fightSeconds(P2_SECONDS, 32, dps))));
           boss.maxHp = p2hp;
           boss.hp = p2hp;
           this.homeX = ctx.camX + this.WIDTH * 0.72;

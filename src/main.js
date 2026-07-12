@@ -518,6 +518,12 @@ let gameoverDetail = false; // settlement page 2: unlock feed & build details
 function gameoverDetailRect(w, h) {
   return { x: w / 2 - 120, y: h - 104, w: 240, h: 30 };
 }
+
+// the ONE primary action on the settlement screen (2026-07-12 评审:
+// 结算页只保留一个主行动) — big, gold, thumb-sized
+function restartButtonRect(w, h) {
+  return { x: w / 2 - 130, y: h - 164, w: 260, h: 48 };
+}
 let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
 let spareVisit = null; // {type, x, y, t, nearT, state} yellow-name SPARE monster
@@ -2382,6 +2388,11 @@ function handleCanvasTap(pos) {
     if (inRect(pos, gameoverDetailRect(WIDTH, HEIGHT))) {
       gameoverDetail = !gameoverDetail;
       sfxClick();
+      return;
+    }
+    if (inRect(pos, restartButtonRect(WIDTH, HEIGHT))) {
+      sfxClick();
+      toCharSelect();
       return;
     }
     if (inRect(pos, homeButtonRect(WIDTH, HEIGHT))) {
@@ -5662,9 +5673,24 @@ function draw() {
                   },
                 ]
               : []),
-            { text: "▸ 点击任意处,再来一局", font: "16px monospace", color: "#ffd166" },
           ]),
     ]);
+    // primary action: one big gold button — everything else is secondary
+    {
+      const b = restartButtonRect(WIDTH, HEIGHT);
+      ctx.save();
+      ctx.fillStyle = "#2e2748";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = "#ffd166";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = "#ffd166";
+      ctx.font = "bold 20px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("⟳ 再 来 一 局", b.x + b.w / 2, b.y + 31);
+      ctx.restore();
+      ctx.textAlign = "left";
+    }
     // 收获页切换按钮: closed shows the count so nothing feels hidden
     {
       const b = gameoverDetailRect(WIDTH, HEIGHT);
