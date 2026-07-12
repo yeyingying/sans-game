@@ -122,7 +122,7 @@ import {
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
-import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js";
+import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js";
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
@@ -831,6 +831,7 @@ function settleGame(kind) {
   // down, the stage score is frozen at the moment the heart was taken
   lastScore = bossDefeated ? stageClearScore : currentScore();
   if (bossDefeated) finishRankedRun({ mode: dailyMode ? "daily" : runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: dailyMode || runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
+  else cancelRankedRun(); // died/quit before the boss: the run never boards
   lastBest = bestScoreOf(player.character);
   newRecord = lastScore > lastBest;
   if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
@@ -1546,6 +1547,7 @@ function startGame() {
   bgm.src = track; // reload also resets playback to the start
   bgm.volume = 0; // fades up during the intro
   bgmPlay();
+  cancelRankedRun(); // drop any stale unsettled ranked handle before a new run
   funValue = 1 + Math.floor(Math.random() * 100); // fresh FUN roll each run
   // savepoint aphorism: typed out as the black intro lifts (UT save-star vibe)
   savepointNote = {
@@ -1908,7 +1910,7 @@ function handleCanvasTap(pos) {
   }
   if (state === "title") {
     if (titleMenuOpen) {
-      const targets = ["shop", "codex", "echoes", "quests", "weaponbook", "leaderboard"];
+      const targets = ["shop", "codex", "echoes", "quests", "weaponbook", "leaderboard", "savecode"];
       for (let i = 0; i < targets.length; i++) {
         if (inRect(pos, titleMenuItemRect(i, WIDTH, HEIGHT))) {
           state = targets[i];

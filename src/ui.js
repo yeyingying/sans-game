@@ -267,6 +267,9 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
       { label: `📜 悬赏 ${questDone}`, color: "#ffd166" },
       { label: "⚔ 武器图鉴", color: "#c8c2d4" },
       { label: "★ 审判排行榜", color: "#ff8a5d" },
+      // 存档码 lost its slot when the leaderboard moved in — restored as #7,
+      // cross-device saves must never be UI-orphaned
+      { label: "☁ 存档码", color: "#8fd6ff" },
     ];
     items.forEach((it, i) => {
       const r = titleMenuItemRect(i, width, height);

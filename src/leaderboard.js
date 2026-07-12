@@ -1,5 +1,6 @@
 const API = "https://api.sansgecao.com/v1";
-const CHARACTER_NAMES = { sans: "传说之下", ukb: "终极神烦", horror: "恐怖传说", hard: "困难模式" };
+// names must mirror weapon.js CHARACTERS — the board and the game must agree
+const CHARACTER_NAMES = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式" };
 export const leaderboardOnline = typeof location !== "undefined" && /(^|\.)sansgecao\.com$/.test(location.hostname || "");
 let me = null, run = null, timer = null, result = "", rows = [], mode = "normal", character = "", boardDate = "";
 async function call(path, options={}) { const r=await fetch(API+path,{credentials:"include",...options,headers:{"content-type":"application/json",...(options.headers||{})}}); const data=await r.json(); if(!r.ok)throw new Error(data.error||"网络错误"); return data; }
@@ -7,7 +8,12 @@ export async function initLeaderboard(){if(!leaderboardOnline)return;try{me=(awa
 export function leaderboardProfile(){return me;}
 export async function renameLeaderboard(){if(!leaderboardOnline)return;const name=prompt("输入新昵称（2-8字；改名后7天内不可再次修改）",me?.nickname||"");if(!name)return;try{me=(await call("/me/name",{method:"POST",body:JSON.stringify({nickname:name})})).player;result="改名成功";}catch(e){result=e.message;}}
 export async function loadLeaderboard(nextMode=mode,nextChar=character){mode=nextMode;character=nextChar;try{const data=await call(`/leaderboard?mode=${mode}${character?`&character=${character}`:""}`);rows=data.rows;boardDate=data.date||"";result="";}catch(e){result=e.message;}}
-export async function beginRankedRun(data,getStats){if(!leaderboardOnline||data.debug)return;try{run=await call("/runs",{method:"POST",body:JSON.stringify(data)});clearInterval(timer);timer=setInterval(()=>checkpointRankedRun(getStats),30000);}catch{run=null;}}
+// one server run per game: applyChoice fires this every card, so the guard
+// keeps the first registration (its started_at anchors the anti-cheat clock)
+export async function beginRankedRun(data,getStats){if(!leaderboardOnline||data.debug||run)return;try{run=await call("/runs",{method:"POST",body:JSON.stringify(data)});clearInterval(timer);timer=setInterval(()=>checkpointRankedRun(getStats),30000);}catch{run=null;}}
+// abandoned runs (death before the boss, back to title) never settle — drop
+// the handle so the next game can register cleanly
+export function cancelRankedRun(){clearInterval(timer);timer=null;run=null;}
 export async function checkpointRankedRun(getStats){if(!run)return;try{await call(`/runs/${run.runId}/checkpoint`,{method:"POST",body:JSON.stringify({...getStats(),token:run.token})});}catch{}}
 export async function finishRankedRun(data){if(!run)return;clearInterval(timer);try{const x=await call(`/runs/${run.runId}/settle`,{method:"POST",body:JSON.stringify({...data,token:run.token})});result=`全球第 ${x.rank} 名 · ${x.score} 分`; }catch(e){result=e.message;}finally{run=null;}}
 export function drawLeaderboard(ctx,w,h){ctx.save();ctx.fillStyle="#0a0810";ctx.fillRect(0,0,w,h);ctx.textAlign="center";ctx.fillStyle="#ffd166";ctx.font="bold 30px monospace";ctx.fillText("审 判 排 行 榜",w/2,48);ctx.fillStyle="#8fd6ff";ctx.font="14px monospace";ctx.fillText(`${me?.nickname||"游客加载中"} · 点击顶部昵称改名`,w/2,76);ctx.fillStyle="#c8c2d4";const subtitle=mode==="normal"?"普通榜：Boss 通关分（按分数）":mode==="endless"?"无尽榜：完成轮数优先，其次分数":`每日挑战榜 · ${boardDate||"今天"}`;ctx.fillText(subtitle,w/2,105);ctx.textAlign="left";rows.slice(0,10).forEach((r,i)=>{ctx.fillStyle=i<3?"#ffd166":"#c8c2d4";const charName=CHARACTER_NAMES[r.character]||r.character;ctx.fillText(`${String(i+1).padStart(2," ")}  ${r.nickname.padEnd(10,"　")} ${charName.padEnd(6,"　")} 难度${r.difficulty}  ${mode==="endless"?`${r.rounds}轮  `:""}${r.score}分`,135,145+i*34)});const left={x:24,y:h-62,w:190,h:40},back={x:w-154,y:h-62,w:130,h:40};ctx.textAlign="center";ctx.fillStyle="#1d1828";ctx.fillRect(left.x,left.y,left.w,left.h);ctx.strokeStyle="#8fd6ff";ctx.lineWidth=2;ctx.strokeRect(left.x,left.y,left.w,left.h);ctx.fillStyle="#8fd6ff";ctx.font="bold 14px monospace";ctx.fillText("切换榜单",left.x+left.w/2,left.y+26);ctx.fillStyle="#241f2b";ctx.fillRect(back.x,back.y,back.w,back.h);ctx.strokeStyle="#ffd166";ctx.strokeRect(back.x,back.y,back.w,back.h);ctx.fillStyle="#ffd166";ctx.fillText("← 返回",back.x+back.w/2,back.y+26);if(result){ctx.fillStyle="#9a93ab";ctx.font="12px monospace";ctx.fillText(result,w/2,h-24)}ctx.restore();}
