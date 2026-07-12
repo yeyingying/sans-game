@@ -308,6 +308,16 @@ const CHEST_LID = buildPx(
   ],
   CHEST_PAL
 );
+const CHEST_LID_OPEN = buildPx(
+  [
+    ".kkkkkkkkkkkkkkkkkkkk.",
+    ".kggggggggggggggggggk.",
+    ".khhhhhhhhhhhhhhhhhhk.",
+    ".kGggggggggggggggggGk.",
+    ".kkkkkkkkkkkkkkkkkkkk.",
+  ],
+  CHEST_PAL
+);
 const CHEST_BASE = buildPx(
   [
     ".kkkkkkkkkkkkkkkkkkkk.",
@@ -5498,16 +5508,17 @@ function draw() {
         }
       }
       ctx.restore();
-      // the lid swings BACK on its hinge (classic front-view chest open):
-      // drawn behind the base, vertically foreshortened as it tilts away,
-      // bottom edge hidden by the rim — reads "打开", not "炸飞"
-      const bk = 1 + 2.70158 * Math.pow(lt - 1, 3) + 1.70158 * Math.pow(lt - 1, 2); // easeOutBack
-      const lidSy = Math.max(0.4, 1 - 0.58 * bk); // tilt-away foreshortening
-      ctx.save();
-      ctx.translate(0, -12); // the base's mouth line = hinge
-      ctx.scale(1, lidSy);
-      ctx.drawImage(CHEST_LID, -LW / 2, -LH, LW, LH);
-      ctx.restore();
+      // page-flip open (定稿): three stepped frames, zero transforms —
+      // closed lid → half-squashed lid → dedicated OPEN-LID art standing
+      // flat behind the mouth. Always reads "打开", never "炸飞"。
+      const OH = 5 * S;
+      if (lt < 0.18) {
+        ctx.drawImage(CHEST_LID, -LW / 2, -12 - LH + S, LW, LH); // frame 1: still closed
+      } else if (lt < 0.36) {
+        ctx.drawImage(CHEST_LID, -LW / 2, -12 - (LH >> 1) + S, LW, LH >> 1); // frame 2: mid flip
+      } else {
+        ctx.drawImage(CHEST_LID_OPEN, -LW / 2, -12 - OH + 2, LW, OH); // frame 3: open, resting behind
+      }
       ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
       ctx.fillStyle = "#fff3b0"; // glowing mouth strip
       ctx.fillRect(-BW / 2 + 2 * S, -12, BW - 4 * S, S);

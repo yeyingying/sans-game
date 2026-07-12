@@ -13,7 +13,7 @@ import { pickWeighted } from "./utils.js";
 export const EQUIPMENT_TYPES = [
   {
     id: "atk",
-    label: "+ATK",
+    label: "攻击 +2",
     color: "#ff6b6b",
     sprite: PICKUP_ATK,
     weight: 30,
@@ -23,7 +23,7 @@ export const EQUIPMENT_TYPES = [
   },
   {
     id: "range",
-    label: "+RANGE",
+    label: "射程+12 弹速+18",
     color: "#ffd166",
     sprite: PICKUP_RANGE,
     weight: 24,
@@ -34,7 +34,7 @@ export const EQUIPMENT_TYPES = [
   },
   {
     id: "rapid",
-    label: "+SPEED",
+    label: "攻速 +0.1",
     color: "#7cf28a",
     sprite: PICKUP_RAPID,
     weight: 22,
@@ -44,7 +44,7 @@ export const EQUIPMENT_TYPES = [
   },
   {
     id: "boots",
-    label: "+MOVE",
+    label: "移速 +10",
     color: "#8fd6ff",
     sprite: PICKUP_SPEED,
     weight: 16,
@@ -54,7 +54,7 @@ export const EQUIPMENT_TYPES = [
   },
   {
     id: "heart",
-    label: "+HP",
+    label: "生命上限 +12",
     color: "#ff8fc7",
     sprite: PICKUP_HEART,
     weight: 20,
@@ -65,7 +65,7 @@ export const EQUIPMENT_TYPES = [
   },
   {
     id: "core",
-    label: "WEAPON UP!",
+    label: "随机武器品阶 +1",
     color: "#7ea8ff",
     sprite: PICKUP_CORE,
     weight: 2, // rarer than before (was 6)
