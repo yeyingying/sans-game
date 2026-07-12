@@ -21,6 +21,29 @@ function dist(ax, ay, bx, by) {
   return Math.hypot(ax - bx, ay - by);
 }
 
+// ---- pixel-art helpers (2026-07-12 美术重做): no smooth arcs, no shadowBlur —
+// telegraphs and blasts are built from chunky snapped squares, matching the
+// champion-sprite pixel discipline
+function pxRing(c, x, y, r, color, alpha, chunk = 4) {
+  const steps = Math.max(12, Math.round((r * 6.28) / (chunk * 2.2)));
+  c.save();
+  c.globalAlpha = alpha;
+  c.fillStyle = color;
+  for (let i = 0; i < steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    c.fillRect(Math.round(x + Math.cos(a) * r) - (chunk >> 1), Math.round(y + Math.sin(a) * r) - (chunk >> 1), chunk, chunk);
+  }
+  c.restore();
+}
+function pxBang(c, x, y, alpha) {
+  c.save();
+  c.globalAlpha = alpha;
+  c.fillStyle = "#ffdf5d";
+  c.fillRect(Math.round(x) - 2, Math.round(y) - 11, 4, 12);
+  c.fillRect(Math.round(x) - 2, Math.round(y) + 5, 4, 4);
+  c.restore();
+}
+
 // a minimal boss "enemy" so weapons can target and damage it
 export function makeBossEnemy(x, y) {
   return {
@@ -716,13 +739,9 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           const app = h.t < 0 ? 1 + h.t / 0.35 : 1;
           c.save();
           if (h.t < 0) {
-            // telegraph: pulsing warning ring
-            c.strokeStyle = "#e04545";
-            c.globalAlpha = 0.35 + 0.3 * Math.sin(h.t * 30);
-            c.lineWidth = 2;
-            c.beginPath();
-            c.arc(h.x, h.y, h.size * 0.5 * (1.3 - app), 0, Math.PI * 2);
-            c.stroke();
+            // telegraph: hard-blinking pixel ring (crisp on/off, no sine mush)
+            const blink = (((h.t * 8) % 1) + 1) % 1 < 0.5;
+            pxRing(c, h.x, h.y, h.size * 0.5 * (1.3 - app), "#e04545", blink ? 0.8 : 0.3, 3);
             c.globalAlpha = 0.35;
             drawBoneRed(c, h.x, h.y, h.size * 0.5, -Math.PI / 2);
           } else {
@@ -732,33 +751,26 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
             c.globalAlpha = Math.max(0, 1 - k);
             drawBoneRed(c, h.x, h.y - h.size * 0.15 * pop, h.size * pop, -Math.PI / 2);
             if (h.t < 0.22) {
-              c.strokeStyle = "#ff7a7a";
-              c.lineWidth = 3;
-              c.globalAlpha = (1 - h.t / 0.22) * 0.8;
-              c.beginPath();
-              c.arc(h.x, h.y, h.size * (0.4 + h.t * 6), 0, Math.PI * 2);
-              c.stroke();
+              pxRing(c, h.x, h.y, h.size * (0.4 + h.t * 6), "#ff9a9a", (1 - h.t / 0.22) * 0.8, 3);
             }
           }
           c.restore();
         } else if (h.kind === "boom") {
           if (h.t < 0) {
-            c.save();
-            c.globalAlpha = 0.4;
-            c.strokeStyle = "#ff5d5d";
-            c.beginPath();
-            c.arc(h.x, h.y, h.r, 0, Math.PI * 2);
-            c.stroke();
-            c.restore();
+            const blink = (((h.t * 8) % 1) + 1) % 1 < 0.5;
+            pxRing(c, h.x, h.y, h.r, "#ff5d5d", blink ? 0.7 : 0.3, 4);
+            pxBang(c, h.x, h.y, blink ? 0.9 : 0.4);
           } else {
             const k = h.t / h.life;
+            // chunky core flash, then two staggered pixel shockwaves
             c.save();
-            c.globalAlpha = (1 - k) * 0.8;
-            c.fillStyle = "#e04545";
-            c.beginPath();
-            c.arc(h.x, h.y, h.r * (0.5 + k * 0.6), 0, Math.PI * 2);
-            c.fill();
+            c.globalAlpha = 1 - k;
+            c.fillStyle = k < 0.3 ? "#fff3b0" : "#ff8a5d";
+            const cs = Math.max(4, (Math.round((h.r * 0.5 * (1 - k)) / 4) << 2));
+            c.fillRect(Math.round(h.x - cs / 2), Math.round(h.y - cs / 2), cs, cs);
             c.restore();
+            pxRing(c, h.x, h.y, h.r * (0.45 + k * 0.6), "#e04545", (1 - k) * 0.9, 4);
+            pxRing(c, h.x, h.y, h.r * (0.2 + k * 0.75), "#ff9a9a", (1 - k) * 0.6, 3);
           }
         } else if (h.kind === "wall") {
           const n = Math.max(2, Math.round(dist(h.x1, h.y1, h.x2, h.y2) / 20));
@@ -780,33 +792,44 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           c.drawImage(spr, -gw / 2, -(spr.height / spr.width) * gw / 2, gw, (spr.height / spr.width) * gw);
           c.restore();
           if (h.t > 0.2 && h.t <= 0.45) {
-            // charging: red orb growing at the mouth
+            // charging: pixel diamond snaps bigger in steps, blinking hot
             const ck = (h.t - 0.2) / 0.25;
             const mx = h.x + Math.cos(h.angle) * 26;
             const my = h.y + Math.sin(h.angle) * 26;
             c.save();
-            c.fillStyle = "#ff5d5d";
-            c.shadowColor = "#ff2d2d";
-            c.shadowBlur = 16;
-            c.globalAlpha = 0.55 + ck * 0.4;
-            c.beginPath();
-            c.arc(mx, my, 3 + ck * 11, 0, Math.PI * 2);
-            c.fill();
+            c.translate(Math.round(mx), Math.round(my));
+            c.rotate(Math.PI / 4);
+            const s2 = 4 + Math.round(ck * 4) * 4;
+            c.fillStyle = ((h.t * 12) % 1) < 0.5 ? "#ffffff" : "#ff5d5d";
+            c.fillRect(-s2 / 2, -s2 / 2, s2, s2);
             c.restore();
           }
           if (h.t > 0.45) {
+            // beam: three crisp bands + stepped width pulse + pixel dither on
+            // the edges — reads "gaster blaster", not "thick marker stroke"
             const len = 900;
+            const pulse = 4 * Math.round((Math.sin(h.t * 40) + 1)); // 0/4/8, snapped
             c.save();
-            c.globalAlpha = 0.8;
-            c.strokeStyle = "#ff9a9a";
-            c.lineWidth = 40;
-            c.beginPath();
-            c.moveTo(h.x, h.y);
-            c.lineTo(h.x + Math.cos(h.angle) * len, h.y + Math.sin(h.angle) * len);
-            c.stroke();
-            c.strokeStyle = "#ffffff";
-            c.lineWidth = 16;
-            c.stroke();
+            c.translate(h.x, h.y);
+            c.rotate(h.angle);
+            c.globalAlpha = 0.3;
+            c.fillStyle = "#e04545";
+            c.fillRect(0, -(40 + pulse) / 2, len, 40 + pulse);
+            c.globalAlpha = 0.85;
+            c.fillStyle = "#ff9a9a";
+            c.fillRect(0, -11, len, 22);
+            c.globalAlpha = 1;
+            c.fillStyle = "#ffffff";
+            c.fillRect(0, -5, len, 10);
+            // muzzle burst + edge dither pixels
+            c.fillStyle = "#fff3b0";
+            c.fillRect(-4, -14, 18, 28);
+            c.fillStyle = "#ffdede";
+            c.globalAlpha = 0.9;
+            for (let dx = 20; dx < len; dx += 24) {
+              const off = ((dx / 24) % 2 ? 1 : -1) * (13 + pulse / 2);
+              c.fillRect(dx, off - 2, 4, 4);
+            }
             c.restore();
           }
         } else if (h.kind === "homing") {
@@ -820,12 +843,10 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         for (const tr of h.trail) {
           const a = Math.max(0, 1 - tr.t / 0.3);
           if (a <= 0) continue;
+          // ghost of the boss sprite itself — pixel silhouettes, no blur blob
           c.save();
-          c.globalAlpha = a * 0.4;
-          c.shadowColor = "#ff2d2d";
-          c.shadowBlur = 10;
-          c.fillStyle = "#8e2323";
-          c.fillRect(tr.x - 9, tr.y - 18, 18, 36);
+          c.globalAlpha = a * 0.35;
+          drawBossBody(c, tr.x, tr.y, 0, true, { animT: 0, faceDir: this.faceDir, moving: false, hitFlash: 0 });
           c.restore();
         }
       }
@@ -892,14 +913,18 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         c.font = "bold 15px monospace";
         const name = this.phase === 2 ? "天意侵蚀Sans · 二阶" : "天意侵蚀Sans";
         c.fillText(name, W / 2, by - 8);
-        c.fillStyle = "#3a1414";
-        c.fillRect(bx, by, bw, 14);
+        // framed, segmented, top-lit — UT boss bar discipline
+        c.fillStyle = "#f2ead8";
+        c.fillRect(bx - 3, by - 3, bw + 6, 20); // crisp outer frame
+        c.fillStyle = "#1a0c0c";
+        c.fillRect(bx - 1, by - 1, bw + 2, 16);
         const pct = Math.max(0, boss.hp / boss.maxHp);
         c.fillStyle = "#e04545";
         c.fillRect(bx, by, bw * pct, 14);
-        c.strokeStyle = "#ff9a9a";
-        c.lineWidth = 2;
-        c.strokeRect(bx, by, bw, 14);
+        c.fillStyle = "#ff8a8a"; // pixel highlight row
+        c.fillRect(bx, by, bw * pct, 3);
+        c.fillStyle = "rgba(20, 8, 8, 0.55)"; // 10% segment ticks
+        for (let i = 1; i < 10; i++) c.fillRect(bx + Math.round((bw * i) / 10) - 1, by, 2, 14);
         c.restore();
       }
       // subtitle

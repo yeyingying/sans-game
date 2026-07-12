@@ -272,6 +272,56 @@ const ENEMY_SPRITES = {
   blue: tintSprite(ENEMY_WOSHUA, "#5aa8e0", 0.3),
   purple: tintSprite(ENEMY_ICECAP, "#9a86e8", 0.3),
 };
+// ---- 谜之宝箱像素贴图(2026-07-12 美术重做,champion_sprites 同工艺) --------
+function buildPx(rows, palette) {
+  const h = rows.length;
+  const w = Math.max(...rows.map((r) => r.length));
+  const cv = document.createElement("canvas");
+  cv.width = w;
+  cv.height = h;
+  const g = cv.getContext("2d");
+  if (g && g.fillRect) {
+    rows.forEach((row, y) => {
+      [...row].forEach((chx, x) => {
+        const col = palette[chx];
+        if (col) {
+          g.fillStyle = col;
+          g.fillRect(x, y, 1, 1);
+        }
+      });
+    });
+  }
+  return cv;
+}
+const CHEST_PAL = { k: "#14101c", G: "#a8741a", g: "#ffd166", l: "#e0a45c", w: "#8a5527", d: "#5c3517", h: "#fff3b0" };
+// 盖(22×7)与箱体(22×9)分开建,开箱动画直接拿盖子飞
+const CHEST_LID = buildPx(
+  [
+    ".......kkkkkkkk.......",
+    "....kkkggggggggkkk....",
+    "..kkgggllllllllgggkk..",
+    ".kgggllwwwwwwwwllgggk.",
+    ".kggwwwwwwwwwwwwwwggk.",
+    ".kGgggggggggggggggggk.",
+    ".kkkkkkkkkkkkkkkkkkkk.",
+  ],
+  CHEST_PAL
+);
+const CHEST_BASE = buildPx(
+  [
+    ".kkkkkkkkkkkkkkkkkkkk.",
+    ".kGggggggggggggggggGk.",
+    ".kdwwwwwwwGGwwwwwwwdk.",
+    ".kdwwwwwwGkkGwwwwwwdk.",
+    ".kdwwwwwwwGkGwwwwwwdk.",
+    ".kdwwwwwwwGGwwwwwwwdk.",
+    ".kdwwwwwwwwwwwwwwwwdk.",
+    ".kGggggggggggggggggGk.",
+    ".kkkkkkkkkkkkkkkkkkkk.",
+  ],
+  CHEST_PAL
+);
+
 const CHOICE_INTERVAL = 15;
 const WALL_H = 100; // top wall band: huge columns, no spawns, out of bounds
 // portraits for the character-select screen (front-facing stand frame)
@@ -1600,13 +1650,15 @@ function startGame() {
     player.weapons[0].tier = 4;
     player.weapons[0].enhance = 3;
   }
-  if (DEBUG_CHEST !== null) {
-    introBlack = 0;
-    openChest(parseInt(DEBUG_CHEST, 10) || 0); // ?chest / ?chest=3 / ?chest=5
-  }
   timeScale = 1;
   state = "playing";
   introBlack = 1.5; // brief black screen while the battle music fades in
+  if (DEBUG_CHEST !== null) {
+    // debug ceremony must OPEN AFTER the state stomp above, or "chest" gets
+    // overwritten back to "playing" and the ceremony never shows
+    introBlack = 0;
+    openChest(parseInt(DEBUG_CHEST, 10) || 0); // ?chest / ?chest=3 / ?chest=5
+  }
   // hard-stop the menu theme so it never overlaps the battle track
   menuBgm.pause();
   menuBgm.muted = true; // iOS ignores volume writes — mute is the real switch
@@ -3759,16 +3811,14 @@ function draw() {
       continue;
     }
     if (pu.kind === "chest") {
-      // little gold chest: body, lid seam, keyhole — pulsing glow
+      // little pixel chest (lid + base sprites), gentle beacon glow
       ctx.save();
       ctx.shadowColor = "#ffd166";
       ctx.shadowBlur = 8 + 4 * Math.sin(elapsed * 5);
-      ctx.fillStyle = "#a97b1e";
-      ctx.fillRect(pu.x - 8, pu.y - 6, 16, 12);
-      ctx.fillStyle = "#ffd166";
-      ctx.fillRect(pu.x - 8, pu.y - 6, 16, 5);
-      ctx.fillStyle = "#241f2b";
-      ctx.fillRect(pu.x - 1.5, pu.y - 2, 3, 4);
+      ctx.imageSmoothingEnabled = false;
+      const bob = Math.round(Math.sin(elapsed * 3) * 1.5);
+      ctx.drawImage(CHEST_LID, pu.x - 11, pu.y - 12 + bob, 22, 7);
+      ctx.drawImage(CHEST_BASE, pu.x - 11, pu.y - 6 + bob, 22, 9);
       ctx.restore();
       continue;
     }
@@ -5357,18 +5407,19 @@ function draw() {
     // rotating god-rays build up behind the chest
     const rayAlpha = cc.phase === "spin" ? 0.10 + Math.min(1, cc.t / 1.5) * 0.16 : open ? 0.3 : 0;
     if (rayAlpha > 0) {
+      // pixel sunburst: 12 chains of squares, rotation ticks in 1/48-turn
+      // steps like a music box — no smooth wedges, no gradients
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(elapsedWall() * (open ? 0.9 : 0.5));
-      ctx.fillStyle = jackpot === 2 && open ? "rgba(255, 217, 61, ALPHA)".replace("ALPHA", rayAlpha) : `rgba(255, 209, 102, ${rayAlpha})`;
-      for (let i = 0; i < 8; i++) {
-        ctx.rotate(Math.PI / 4);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(430, -46);
-        ctx.lineTo(430, 46);
-        ctx.closePath();
-        ctx.fill();
+      const rot = Math.floor(elapsedWall() * (open ? 14 : 8)) * (Math.PI / 48);
+      ctx.fillStyle = jackpot === 2 && open ? "#ffd93d" : "#ffd166";
+      for (let i = 0; i < 12; i++) {
+        const a = rot + (i * Math.PI) / 6;
+        for (let rr = 70; rr < 430; rr += 26) {
+          ctx.globalAlpha = rayAlpha * (1 - rr / 470) * 2;
+          const sz = rr < 180 ? 6 : 4;
+          ctx.fillRect(Math.round(Math.cos(a) * rr) - sz / 2, Math.round(Math.sin(a) * rr) - sz / 2, sz, sz);
+        }
       }
       ctx.restore();
     }
@@ -5389,39 +5440,50 @@ function draw() {
     ctx.save();
     ctx.translate(cx + jitterX, chestY);
     ctx.scale(1 * squash, 1 / squash);
+    ctx.imageSmoothingEnabled = false;
+    const S = 5;
+    const LW = 22 * S, LH = 7 * S, BW = 22 * S, BH = 9 * S;
     ctx.shadowColor = "#ffd166";
-    ctx.shadowBlur = open ? 34 : 14 + (cc.phase === "spin" ? Math.min(1, cc.t / 1.5) * 12 : 0);
-    ctx.fillStyle = "#a97b1e";
-    ctx.fillRect(-44, -20, 88, 52);
+    ctx.shadowBlur = open ? 30 : 10 + (cc.phase === "spin" ? Math.min(1, cc.t / 1.5) * 12 : 0);
     if (open) {
-      // the lid flies up and spins away
+      // light spills out of the mouth: dithered pixel column rising
       const lt = Math.min(1, cc.t / 0.45);
       ctx.save();
-      ctx.translate(0, -44 - lt * 150);
+      ctx.shadowBlur = 0;
+      for (let row = 0; row < 9; row++) {
+        const ry = -14 - row * 12 - lt * 8;
+        ctx.globalAlpha = 0.5 * (1 - row / 9) * lt;
+        ctx.fillStyle = row < 2 ? "#fff3b0" : "#ffd166";
+        const wRow = BW - 24 - row * 8;
+        for (let px2 = -wRow / 2; px2 < wRow / 2; px2 += 10) {
+          ctx.fillRect(Math.round(px2 + ((row % 2) * 5)), Math.round(ry), 5, 5);
+        }
+      }
+      ctx.restore();
+      ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
+      ctx.fillStyle = "#fff3b0"; // glowing mouth strip
+      ctx.fillRect(-BW / 2 + 2 * S, -12, BW - 4 * S, S);
+      // the lid flies up and spins away
+      ctx.save();
+      ctx.translate(0, -12 - LH - lt * 150);
       ctx.rotate(lt * 1.8);
       ctx.globalAlpha = 1 - lt * 0.8;
-      ctx.fillStyle = "#ffd166";
-      ctx.fillRect(-44, 0, 88, 24);
+      ctx.drawImage(CHEST_LID, -LW / 2, 0, LW, LH);
       ctx.restore();
-      // glowing mouth
-      ctx.fillStyle = "#fff3b0";
-      ctx.fillRect(-40, -22, 80, 10);
     } else {
-      ctx.fillStyle = "#ffd166";
-      ctx.fillRect(-44, -20, 88, 24);
+      ctx.drawImage(CHEST_BASE, -BW / 2, -12, BW, BH);
+      ctx.drawImage(CHEST_LID, -LW / 2, -12 - LH + S, LW, LH);
     }
-    ctx.fillStyle = "#241f2b";
-    ctx.fillRect(-5, 2, 10, 14);
     ctx.restore();
 
     // golden fountain
     for (const sp of cc.sparks) {
+      // axis-aligned snapped squares — confetti reads pixel, not glitter soup
       ctx.save();
       ctx.globalAlpha = Math.max(0, 1 - sp.t / sp.life);
-      ctx.translate(sp.x, sp.y);
-      ctx.rotate(sp.spin);
       ctx.fillStyle = sp.color;
-      ctx.fillRect(-sp.size / 2, -sp.size / 2, sp.size, sp.size);
+      const ss = Math.max(2, Math.round(sp.size / 2) * 2);
+      ctx.fillRect(Math.round(sp.x) - ss / 2, Math.round(sp.y) - ss / 2, ss, ss);
       ctx.restore();
     }
 
@@ -5436,9 +5498,9 @@ function draw() {
       const p = Math.min(1, cc.t / 1.5);
       ctx.save();
       ctx.font = `bold ${Math.round(48 + p * 18)}px monospace`;
+      ctx.fillStyle = "#14101c"; // pixel drop shadow, no blur
+      ctx.fillText(icons[idx], cx + 3, cy + 135);
       ctx.fillStyle = colors[idx];
-      ctx.shadowColor = colors[idx];
-      ctx.shadowBlur = 10 + p * 14;
       ctx.fillText(icons[idx], cx, cy + 132);
       ctx.restore();
       ctx.fillStyle = "#9a93ab";
@@ -5472,18 +5534,23 @@ function draw() {
         ctx.translate(x + w / 2, y + 42);
         ctx.scale(k * overshoot, k * overshoot);
         ctx.translate(-(w / 2), -42);
-        ctx.fillStyle = "#1d1828";
+        // double pixel frame: dark slab, inner plate, 2px color band
+        ctx.fillStyle = "#0c0914";
         ctx.fillRect(0, 0, w, 84);
-        ctx.strokeStyle = rw.color;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0, 0, w, 84);
-        ctx.shadowColor = rw.color;
-        ctx.shadowBlur = 8;
+        ctx.fillStyle = "#1d1828";
+        ctx.fillRect(3, 3, w - 6, 78);
         ctx.fillStyle = rw.color;
+        ctx.fillRect(3, 3, w - 6, 2);
+        ctx.fillRect(3, 79, w - 6, 2);
+        ctx.fillRect(3, 3, 2, 78);
+        ctx.fillRect(w - 5, 3, 2, 78);
+        ctx.fillStyle = "#14101c"; // icon pixel drop shadow
         ctx.font = "bold 30px monospace";
+        ctx.fillText(rw.icon, w / 2 + 2, 42);
+        ctx.fillStyle = rw.color;
         ctx.fillText(rw.icon, w / 2, 40);
-        ctx.shadowBlur = 0;
         ctx.font = "bold 12px monospace";
+        ctx.fillStyle = "#f2ead8";
         ctx.fillText(rw.label, w / 2, 68);
         ctx.restore();
       });
