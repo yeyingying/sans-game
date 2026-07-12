@@ -124,6 +124,8 @@ import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
 import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js";
 
+import { utPrompt, utNotice } from "./dialog.js";
+
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
 const GAME_VERSION = "s1-20260712";
 import {
@@ -459,6 +461,7 @@ let shareRoast = null; // 裂缝外锐评 line for the share card
 let pauseTip = null; // 小贴士 picked fresh each time the game pauses
 let coachAdvice = null; // 裂缝外攻略组: the actionable line after a pre-boss death
 let reviveArmed = 0; // revives carried into this run (telemetry baseline)
+let tapFlash = null; // {x,y,w,h,t} white pop on the button a tap landed on
 let dogVisit = null; // {x, y, vx, coined} the annoying dog crossing the field
 let flowerVisit = null; // {x, y, t, line, heard} a talking echo flower
 let spareVisit = null; // {type, x, y, t, nearT, state} yellow-name SPARE monster
@@ -1028,24 +1031,33 @@ function exportSaveCode() {
     try {
       navigator.clipboard && navigator.clipboard.writeText(code);
     } catch (e) {}
-    window.prompt("存档码已生成(已尝试复制到剪贴板)——全选复制保存:", code);
+    utPrompt({
+      title: "* 存档码已生成",
+      hint: "已尝试自动复制;也可点「📋 复制」或手动全选。\n在任何设备的「☁ 存档码」里导入即可恢复全部进度。",
+      value: code,
+      maxLength: 1000000,
+      copy: true,
+    });
   } catch (e) {}
 }
 
-function importSaveCode() {
+async function importSaveCode() {
+  const code = await utPrompt({
+    title: "* 导入存档码",
+    hint: "粘贴完整存档码。\n⚠ 将覆盖本机全部进度,导入前建议先导出备份。",
+    value: "",
+    maxLength: 1000000,
+  });
+  if (!code) return;
   try {
-    const code = window.prompt("粘贴存档码(将覆盖本机全部进度):", "");
-    if (!code) return;
     const raw = code.trim().replace(/^SANS1\./, "");
     const data = JSON.parse(decodeURIComponent(escape(atob(raw))));
     if (!data || typeof data !== "object") throw new Error("bad");
     for (const [k, v] of Object.entries(data)) localStorage.setItem(k, String(v));
-    window.alert("导入成功,即将刷新加载新存档");
+    await utNotice({ title: "* 导入成功", hint: "即将刷新,加载新存档。" });
     location.reload();
   } catch (e) {
-    try {
-      window.alert("存档码无效,请检查是否完整粘贴");
-    } catch (e2) {}
+    utNotice({ title: "* 存档码无效", hint: "请检查是否完整粘贴(应以 SANS1. 开头)。" });
   }
 }
 
@@ -1946,7 +1958,11 @@ function inRect(p, r) {
   // touch slop: phone canvas scale shrinks buttons to ~14pt effective — pad
   // every hit box (8px x / 4px y, below typical UI gaps so neighbors don't
   // swallow each other's taps)
-  return p.x >= r.x - 8 && p.x <= r.x + r.w + 8 && p.y >= r.y - 4 && p.y <= r.y + r.h + 4;
+  const hit = p.x >= r.x - 8 && p.x <= r.x + r.w + 8 && p.y >= r.y - 4 && p.y <= r.y + r.h + 4;
+  // press feedback: whatever button a tap lands on flashes for a beat, so
+  // "did I hit it?" never needs a second (accidental) tap
+  if (hit) tapFlash = { x: r.x, y: r.y, w: r.w, h: r.h, t: 0.16 };
+  return hit;
 }
 
 function handleCanvasTap(pos) {
@@ -5632,6 +5648,15 @@ function draw() {
       { text: "点击画面 或 按空格 返回", font: "14px monospace", color: "#ffd166" },
     ]);
   }
+
+  // press feedback: topmost layer, every screen — the tapped button pops white
+  if (tapFlash) {
+    ctx.save();
+    ctx.globalAlpha = (tapFlash.t / 0.16) * 0.35;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(tapFlash.x - 2, tapFlash.y - 2, tapFlash.w + 4, tapFlash.h + 4);
+    ctx.restore();
+  }
 }
 
 // debug probe (dev only)
@@ -5717,6 +5742,7 @@ function loop(now) {
   if (deathShatter && state === "gameover") deathShatter.t += dt;
   if (chapterShow && state === "chapter") chapterShow.t += dt;
   if (shopMsg && (shopMsg.t -= dt) <= 0) shopMsg = null;
+  if (tapFlash && (tapFlash.t -= dt) <= 0) tapFlash = null;
   if (state === "chest" && chestCeremony) {
     const cc = chestCeremony;
     cc.t += dt;
