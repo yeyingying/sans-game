@@ -5595,7 +5595,7 @@ function draw() {
                   },
                 ]
               : []),
-            { text: "点击画面 或 按空格 返回角色选择", font: "16px monospace", color: "#ffd166" },
+            { text: "▸ 点击任意处,再来一局", font: "16px monospace", color: "#ffd166" },
           ]),
     ]);
     // 收获页切换按钮: closed shows the count so nothing feels hidden

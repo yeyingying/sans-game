@@ -770,7 +770,6 @@ export function drawBossClearScreen(ctx, width, height, selected) {
   ctx.fillText("你击败了天意侵蚀Sans", width / 2, height / 2 - 58);
   ctx.fillStyle = "#9a93ab";
   ctx.font = "13px monospace";
-  ctx.fillText("←→ 选择 · Enter/空格 确认 · 或直接点击", width / 2, height / 2 - 30);
 
   const buttons = [
     { rect: bossClearLeaveRect(width, height), label: "带着战利品离开", color: "#7cf28a" },
@@ -855,7 +854,6 @@ export function drawRoundClearScreen(ctx, width, height, round, selected, pendin
   ctx.fillText(`本轮待结算金币 ⓖ ${pendingCoins} —— 选择后保住`, width / 2, height / 2 - 60);
   ctx.fillStyle = "#9a93ab";
   ctx.font = "13px monospace";
-  ctx.fillText("←→ 选择 · Enter/空格 确认 · 或直接点击", width / 2, height / 2 - 32);
 
   const buttons = [
     { rect: bossClearLeaveRect(width, height), label: "撤离并结算", color: "#7cf28a" },
@@ -1253,7 +1251,7 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.fillText("我做了一个Sans割草游戏.", width / 2, 66);
   ctx.fillStyle = "#f2ead8";
   ctx.font = "14px monospace";
-  ctx.fillText(`选择你的角色 (←→/1-${characters.length} 或点击 · 空格/确定继续)`, width / 2, 100);
+  ctx.fillText("选择你的角色", width / 2, 100);
 
   for (let i = 0; i < characters.length; i++) {
     const c = characters[i];
@@ -1365,7 +1363,7 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
   ctx.fillText(charName ? `${charName} 的武器库` : "我做了一个Sans割草游戏.", width / 2, 62);
   ctx.fillStyle = "#f2ead8";
   ctx.font = "14px monospace";
-  ctx.fillText(`选择你的初始武器 (↑↓←→/1-${weapons.length} 或点击 · 空格开始 · Esc返回)`, width / 2, 98);
+  ctx.fillText("选择你的初始武器", width / 2, 98);
 
   for (let i = 0; i < weapons.length; i++) {
     const w = weapons[i];
@@ -1464,7 +1462,7 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   ctx.fillText("强 化 时 间 !", width / 2, height / 2 - 130);
   ctx.fillStyle = "#f2ead8";
   ctx.font = "14px monospace";
-  ctx.fillText("选择一项强化 · 按 1/2/3 或点击 (游戏已暂停)", width / 2, height / 2 - 102);
+  ctx.fillText("选择一项强化", width / 2, height / 2 - 102);
 
   for (let i = 0; i < options.length; i++) {
     const opt = options[i];
