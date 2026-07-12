@@ -152,6 +152,8 @@ import {
   pickShareRoast,
   codexNote,
   pickPauseTip,
+  pickRelic,
+  SIX_SOULS_LINE,
   codexCheck,
   FUN_GLITCH_SAVEPOINT,
   GASTER_GHOST_LINE,
@@ -549,7 +551,7 @@ let visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter
 let shopMsg = null; // {text, t} UT-style denial line in the shop
 let hotdogStock = 0; // 🌭 chest hot dogs: auto-eaten at low HP, run-scoped
 let hotdogCd = 0; // one dog per second, not a chug
-let vacuumTimer = 0; // 蜘蛛收网: brief global-magnet pull
+let relics = {}; // 六魂遗物: run-scoped mechanic passives, chest-exclusive
 // FUN value, UT-style: rolled per run, silently decides ultra-rare events
 // (66 = glitched savepoint, 61-63 = ghost codex entry, 100 = flower warning)
 let funValue = 1 + Math.floor(Math.random() * 100);
@@ -842,7 +844,8 @@ function reset(weaponId) {
   letterVisit = null;
   hotdogStock = 0;
   hotdogCd = 0;
-  vacuumTimer = 0;
+  relics = {};
+  Enemy.eliteAmp = 1;
   visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false };
   nextWarnBeep = bossWarnAt();
 }
@@ -1272,10 +1275,35 @@ function rollChestRewards() {
         candyBanner = { text: "* 三根热狗揣进口袋。残血时会自动想起它们。", t: 3 };
       }});
     } else if (pick < 67) {
-      rewards.push({ label: "蜘蛛收网", color: "#c59bff", icon: "🕸", apply: () => {
-        vacuumTimer = 0.9; // 全场掉落物一秒吸尽 — VS吸尘器的爽点
-        candyBanner = { text: "* 蜘蛛收网。今天的收成,一粒不剩。", t: 2.5 };
-      }});
+      // 六魂遗物: 机制型独特物件 — rogue-like 的 item 心跳,卡池永远给不了
+      const relic = pickRelic(relics);
+      if (relic) {
+        rewards.push({ label: `${relic.name}·${relic.soul}`, color: relic.color, icon: "◈", apply: () => {
+          relics[relic.id] = true;
+          if (relic.id === "patience") player.invulnMult = 1.25;
+          sfxEquip();
+          candyBanner = { text: `${relic.line}(${relic.desc})`, t: 3.2 };
+          if (Object.keys(relics).length >= 6) {
+            // 六魂共鸣: the collection closes with one full-screen judgment
+            let reaped = 0;
+            for (const e of enemies) {
+              if (!e.elite && !e.boss && e.hp > 0) {
+                e.hp = 0;
+                reaped++;
+              }
+            }
+            killFlash = 0.35;
+            sfxFanfare();
+            candyBanner = { text: SIX_SOULS_LINE, t: 4 };
+          }
+        }});
+      } else {
+        // all six collected: the souls send coins instead
+        const v = Math.max(1, Math.round(30 * coinGainMult() * getDifficulty().coinMult * Math.max(currentCoinFactor(), endlessRound > 0 ? 0 : 1)));
+        rewards.push({ label: `金币雨 ×${v}`, color: "#ffd166", icon: "ⓖ", apply: () => {
+          if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
+        }});
+      }
     } else if (pick < 81) {
       // 觉醒骨: 宝箱的圣杯 — 三层逻辑永无死槽
       rewards.push({ label: "觉醒骨", color: "#ffd93d", icon: "✦", apply: () => {
@@ -1572,7 +1600,7 @@ function currentCoinFactor() {
 // round 3+ (and the silence pact): healing and regeneration are halved
 function healScale() {
   const endlessCut = endlessRound >= 6 ? 0.25 : endlessRound >= 3 ? 0.5 : 1;
-  return endlessCut * (activeContract?.id === "silence" ? 0.5 : 1);
+  return endlessCut * (activeContract?.id === "silence" ? 0.5 : 1) * (relics.kind ? 1.15 : 1); // 平底锅
 }
 
 // ---- daily challenge -------------------------------------------------------
@@ -3218,8 +3246,11 @@ function update(dt) {
 
   if (candyBanner && (candyBanner.t -= dt) <= 0) candyBanner = null;
   if (bark && (bark.t -= dt) <= 0) bark = null;
-  if (vacuumTimer > 0) vacuumTimer -= dt;
   if (hotdogCd > 0) hotdogCd -= dt;
+  // 六魂遗物 per-frame effects (拳套/舞鞋/弹壳; 丝带在授予时设置, 锅在 healScale, 笔记本在拾取)
+  player.relicAmp = relics.brave && streak >= 10 ? 1.08 : 1;
+  player.relicDodge = relics.integrity && player.moving ? 0.04 : 0;
+  Enemy.eliteAmp = relics.justice ? 1.1 : 1;
   // 🌭 无时限储备: at low HP a pocketed hot dog eats itself (one per second)
   if (hotdogStock > 0 && hotdogCd <= 0 && player.hp > 0 && player.hp < player.maxHp * 0.35) {
     hotdogStock -= 1;
@@ -3645,12 +3676,12 @@ function update(dt) {
   }
 
   for (const pu of pickups) {
-    pu.update(dt, player, vacuumTimer > 0 ? 100000 : player.magnetRadius);
+    pu.update(dt, player, player.magnetRadius);
     if (circleHit(pu.x, pu.y, pu.radius, player.x, player.y, player.radius)) {
       pu.collected = true;
       if (pu.kind === "xp") {
         sfxPickup();
-        const levels = player.addXp(pu.data.amount);
+        const levels = player.addXp(Math.round(pu.data.amount * (relics.persev ? 1.08 : 1)));
         if (levels > 0) onLevelUp(levels);
       } else if (pu.kind === "bossheart") {
         // the stage result froze the frame the boss DIED (see the snapshot in
@@ -5394,6 +5425,7 @@ function draw() {
       `荆棘 ${player.thorns}  磁吸 ${Math.round(player.magnetRadius)}`,
       `射程 ${Math.round(player.range)}  等级 ${player.level}`,
       `复活可用 ${player.revives}`,
+      ...(Object.keys(relics).length ? [`六魂遗物 ${Object.keys(relics).length}/6`] : []),
     ].forEach((line, i) => ctx.fillText(line, px0 + 14, py0 + 50 + i * 24));
     const qx0 = WIDTH - 276;
     ctx.fillStyle = "rgba(10, 8, 16, 0.85)";

@@ -69,7 +69,8 @@ export class Player {
   takeDamage(amount) {
     this.dodged = false;
     if (this.invuln > 0) return false;
-    if (this.dodge > 0 && Math.random() < this.dodge) {
+    const dodgeCh = this.dodge + (this.relicDodge || 0); // 舞鞋: 移动中+4%
+    if (dodgeCh > 0 && Math.random() < dodgeCh) {
       this.dodged = true;
       return false;
     }
@@ -77,7 +78,7 @@ export class Player {
     const dealt = Math.max(1, Math.round(amount * (1 - reduction)));
     this.hp -= dealt;
     this.damageTaken = (this.damageTaken || 0) + dealt; // per-run balance telemetry
-    this.invuln = 0.6;
+    this.invuln = 0.6 * (this.invulnMult || 1); // 丝带: 受击无敌+25%
     return true;
   }
 
@@ -177,6 +178,7 @@ export class Enemy {
   takeDamage(dmg) {
     // rooted enemies lose their invulnerability
     if (this.invulnTimer > 0 && this.rootTimer <= 0) return false;
+    if (this.elite && Enemy.eliteAmp > 1) dmg = Math.round(dmg * Enemy.eliteAmp); // 弹壳遗物
     this.hp -= dmg;
     this.hitFlash = 0.15;
     this.dmgAccum += dmg;

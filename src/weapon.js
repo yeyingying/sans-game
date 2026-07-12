@@ -794,7 +794,7 @@ export function weaponSummary(player, sep = " · ") {
 export function weaponDmg(player, mult) {
   // the single damage funnel: in-run amp cards AND the shop's independent
   // meta multiplier both live here so nothing ever bypasses either
-  return Math.max(1, Math.round(player.atk * mult * (player.dmgAmp || 1) * (player.metaDmg || 1)));
+  return Math.max(1, Math.round(player.atk * mult * (player.dmgAmp || 1) * (player.metaDmg || 1) * (player.relicAmp || 1)));
 }
 
 export function findNearestEnemy(x, y, range, enemies) {

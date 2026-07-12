@@ -765,3 +765,21 @@ const FLOWER_LINES = [
 export function pickFlowerLine() {
   return pickFrom(FLOWER_LINES);
 }
+
+// ---- 六魂遗物: 宝箱专属机制物件(数值朴素是UT本命梗——玩具刀攻击+3) ------
+
+export const RELICS = [
+  { id: "patience", name: "褪色丝带", soul: "耐心", color: "#7fd8e8", desc: "受击无敌时间 +25%", line: "* 系上它的人,总能等到下一个机会。" },
+  { id: "brave", name: "拳套", soul: "勇气", color: "#ff8a3d", desc: "连杀≥10 时伤害 +8%", line: "* 出拳之前,先相信自己打得中。" },
+  { id: "integrity", name: "芭蕾舞鞋", soul: "正直", color: "#5db9ff", desc: "移动中闪避 +4%", line: "* 舞步不会说谎。" },
+  { id: "persev", name: "旧笔记本", soul: "坚毅", color: "#c59bff", desc: "经验获取 +8%", line: "* 记下来的,就不会白走。" },
+  { id: "kind", name: "平底锅", soul: "善良", color: "#7cf28a", desc: "治疗效果 +15%", line: "* 用它做的饭,格外顶饿。" },
+  { id: "justice", name: "左轮空弹壳", soul: "正义", color: "#ffd93d", desc: "对精英伤害 +10%", line: "* 正义,专门瞄准大个子。" },
+];
+
+export function pickRelic(owned) {
+  const pool = RELICS.filter((r) => !owned[r.id]);
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+}
+
+export const SIX_SOULS_LINE = "* 六魂共鸣!!人类的决心汇成一道审判,横扫了整个房间。";

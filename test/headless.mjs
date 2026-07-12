@@ -186,6 +186,13 @@ function run(seconds, onFrame) {
       N.pickShareRoast({ outcome: "death", kills: 500, survived: 900, rounds: 8 }).includes("投稿"),
   );
   check(
+    "六魂遗物: 6件唯一, pickRelic 跳过已拥有, 集齐返回null",
+    N.RELICS.length === 6 &&
+      new Set(N.RELICS.map((r) => r.id)).size === 6 &&
+      N.pickRelic({ patience: true }).id !== "patience" &&
+      N.pickRelic(Object.fromEntries(N.RELICS.map((r) => [r.id, true]))) === null,
+  );
+  check(
     "帕子的信: 恐传收空信不回血, 其余附赠意大利面",
     N.pickPapyrusLetter("horror").heal === false &&
       N.pickPapyrusLetter("horror").text.includes("他还好吗") &&
