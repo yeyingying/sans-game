@@ -547,6 +547,9 @@ let temVisit = null; // {x, y, t} hOI!!!
 let letterVisit = null; // {x, y, t} 帕子的信 — walk over it to read
 let visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false }; // once each per run
 let shopMsg = null; // {text, t} UT-style denial line in the shop
+let hotdogStock = 0; // 🌭 chest hot dogs: auto-eaten at low HP, run-scoped
+let hotdogCd = 0; // one dog per second, not a chug
+let vacuumTimer = 0; // 蜘蛛收网: brief global-magnet pull
 // FUN value, UT-style: rolled per run, silently decides ultra-rare events
 // (66 = glitched savepoint, 61-63 = ghost codex entry, 100 = flower warning)
 let funValue = 1 + Math.floor(Math.random() * 100);
@@ -837,6 +840,9 @@ function reset(weaponId) {
   spareVisit = null;
   temVisit = null;
   letterVisit = null;
+  hotdogStock = 0;
+  hotdogCd = 0;
+  vacuumTimer = 0;
   visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false };
   nextWarnBeep = bossWarnAt();
 }
@@ -1231,6 +1237,9 @@ function rollContracts() {
 
 // ---- 谜之宝箱: Vampire-Survivors-style slot ceremony ------------------------
 // 1 reward (70%) / 3 rewards (25%) / 5 rewards (5%) — the jackpot is the hook
+// 宝箱内容 v2(2026-07-12 终版): 卡池复读全部清除 — 每一格都是卡片给不了
+// 的东西:永久(派/觉醒骨)、即时爆发(审判/收网)、无时限储备(热狗)、经济。
+// 无任何倒计时奖励(用户裁定:临时buff是弱多巴胺)。
 function rollChestRewards() {
   const r = Math.random();
   let count = r < 0.05 ? 5 : r < 0.3 ? 3 : 1;
@@ -1238,28 +1247,62 @@ function rollChestRewards() {
   const rewards = [];
   for (let i = 0; i < count; i++) {
     const pick = Math.random() * 100;
-    if (pick < 40 && currentCoinFactor() > 0) {
-      const v = Math.max(1, Math.round((12 + Math.random() * 23) * coinGainMult() * getDifficulty().coinMult * currentCoinFactor()));
-      rewards.push({ label: `金币 ×${v}`, color: "#ffd166", icon: "ⓖ", apply: () => {
-        if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
+    if (pick < 22) {
+      rewards.push({ label: "羊妈的派", color: "#ff8fc7", icon: "🥧", apply: () => {
+        player.maxHp += 15; // 永久上限,然后全回复 — 一大口家的味道
+        player.hp = player.maxHp;
+        healFlash = 0.6;
+        candyBanner = { text: "* 黄油太妃派。有家的味道。生命上限 +15!", t: 3 };
       }});
-    } else if (pick < 65) {
-      const type = rollEquipmentDrop();
-      rewards.push({ label: type.label, color: type.color, icon: "◆", apply: () => type.apply(player) });
-    } else if (pick < 80) {
-      rewards.push({ label: "紧急修复 35%", color: "#7cf28a", icon: "♥", apply: () => {
-        player.hp = Math.min(player.maxHp, player.hp + Math.round(player.maxHp * 0.35 * healScale()));
+    } else if (pick < 40) {
+      rewards.push({ label: "骨白审判", color: "#f2ead8", icon: "☠", apply: () => {
+        let reaped = 0;
+        for (const e of enemies) {
+          if (!e.elite && !e.boss && e.hp > 0) {
+            e.hp = 0; // 走正常死亡管线:掉落/击杀/连杀全都算
+            reaped++;
+          }
+        }
+        killFlash = 0.3;
+        candyBanner = { text: `* 骨白审判降下。${reaped} 个身影同时化尘。`, t: 3 };
       }});
-    } else if (pick < 95) {
-      rewards.push({ label: "武器品阶 +1", color: "#7ea8ff", icon: "▲", apply: () => {
+    } else if (pick < 55) {
+      rewards.push({ label: "热狗 ×3('dogs)", color: "#ffb066", icon: "🌭", apply: () => {
+        hotdogStock = Math.min(9, hotdogStock + 3); // 残血自动吃,用完为止
+        candyBanner = { text: "* 三根热狗揣进口袋。残血时会自动想起它们。", t: 3 };
+      }});
+    } else if (pick < 67) {
+      rewards.push({ label: "蜘蛛收网", color: "#c59bff", icon: "🕸", apply: () => {
+        vacuumTimer = 0.9; // 全场掉落物一秒吸尽 — VS吸尘器的爽点
+        candyBanner = { text: "* 蜘蛛收网。今天的收成,一粒不剩。", t: 2.5 };
+      }});
+    } else if (pick < 81) {
+      // 觉醒骨: 宝箱的圣杯 — 三层逻辑永无死槽
+      rewards.push({ label: "觉醒骨", color: "#ffd93d", icon: "✦", apply: () => {
+        const ready = player.weapons.find((w) => canEvolve(w));
+        if (ready) {
+          ready.evolved = true; // 已攒够条件的武器当场觉醒 — 质变时刻
+          const w = WEAPONS[ready.id];
+          killFlash = 0.35;
+          sfxFanfare();
+          candyBanner = { text: `* 觉醒骨共鸣!${w.name} 觉醒为 ${w.evolve.name}!!`, t: 3.5 };
+          return;
+        }
         const up = player.weapons.filter((w) => w.tier < 4);
-        if (up.length) up[Math.floor(Math.random() * up.length)].tier += 1;
-        else player.atk += 3;
+        if (up.length) {
+          const inst = up[Math.floor(Math.random() * up.length)];
+          inst.tier = Math.min(4, inst.tier + 2); // 跳级,比卡片高一档
+          candyBanner = { text: `* 觉醒骨低鸣。${WEAPONS[inst.id].name} 品阶连跳!`, t: 3 };
+        } else {
+          const ws = player.weapons;
+          if (ws.length) ws[Math.floor(Math.random() * ws.length)].enhance += 2;
+          candyBanner = { text: "* 觉醒骨化作纯粹的力量,融入了武器。", t: 3 };
+        }
       }});
     } else {
-      rewards.push({ label: "专属强化 +1", color: "#c59bff", icon: "★", apply: () => {
-        const ws = player.weapons;
-        if (ws.length) ws[Math.floor(Math.random() * ws.length)].enhance += 1;
+      const v = Math.max(1, Math.round((25 + Math.random() * 20) * coinGainMult() * getDifficulty().coinMult * Math.max(currentCoinFactor(), endlessRound > 0 ? 0 : 1)));
+      rewards.push({ label: `金币雨 ×${v}`, color: "#ffd166", icon: "ⓖ", apply: () => {
+        if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
       }});
     }
   }
@@ -1318,6 +1361,7 @@ function chestAdvance() {
     chestCeremony.phase = "reveal";
     chestCeremony.t = 0;
     const jackpot = chestCeremony.rewards.length >= 5 ? 2 : chestCeremony.rewards.length >= 3 ? 1 : 0;
+    chestCeremony.freeze = jackpot === 2 ? 0.35 : 0; // 大奖定帧: 全场屏息一拍
     // the burst: white flash, shake, and a golden fountain sized to the prize
     chestCeremony.flash = 0.22;
     chestCeremony.shake = jackpot === 2 ? 0.8 : jackpot === 1 ? 0.5 : 0.3;
@@ -2660,7 +2704,7 @@ function spawnDrops(enemy) {
   // can't be defeated by Math.max(1) rounding on tiny values.
   const coinFactor = currentCoinFactor();
   if (coinFactor > 0 && (enemy.elite || Math.random() < 0.13) && Math.random() < coinFactor) {
-    const base = (enemy.championProfile ? 6 + (enemy.championRound || 1) : enemy.elite ? 3 + eliteTier : 1) *
+    const base = (enemy.championProfile ? 6 + (enemy.championRound || 1) : enemy.elite ? 4 + eliteTier : 1) * // 精英+1补偿宝箱币收紧
       (1 + Math.floor(elapsed / 150));
     const contractCoin = (activeContract?.id === "greed" ? 1.5 : 1) * (enemy.elite && activeContract?.id === "hunt" ? 3 : 1);
     const value = Math.max(1, Math.round(base * coinGainMult() * getDifficulty().coinMult * contractCoin));
@@ -3174,6 +3218,18 @@ function update(dt) {
 
   if (candyBanner && (candyBanner.t -= dt) <= 0) candyBanner = null;
   if (bark && (bark.t -= dt) <= 0) bark = null;
+  if (vacuumTimer > 0) vacuumTimer -= dt;
+  if (hotdogCd > 0) hotdogCd -= dt;
+  // 🌭 无时限储备: at low HP a pocketed hot dog eats itself (one per second)
+  if (hotdogStock > 0 && hotdogCd <= 0 && player.hp > 0 && player.hp < player.maxHp * 0.35) {
+    hotdogStock -= 1;
+    hotdogCd = 1;
+    const dogHeal = Math.round(player.maxHp * 0.25 * healScale());
+    player.hp = Math.min(player.maxHp, player.hp + dogHeal);
+    healFlash = 0.45;
+    sfxCandy();
+    candyBanner = { text: `* 你想起了口袋里的热狗。HP 回复 ${dogHeal}!(还剩 ${hotdogStock} 根)`, t: 2.2 };
+  }
   if (savepointNote && introBlack <= 0) {
     savepointNote.t += dt; // typewriter reveal + hold, then let the run breathe
     if (savepointNote.t > savepointNote.text.length / 24 + 4.2) savepointNote = null;
@@ -3545,11 +3601,12 @@ function update(dt) {
       // 谜之宝箱: champions always carry one, elites sometimes — but in
       // endless the chests dry up round by round just like the coins do,
       // otherwise the elite flood becomes an infinite power faucet
+      // 频率对齐标杆(VS≈每3-4分钟一箱): 22%→12%,无尽R1 1→0.75
       const chestFactor =
-        endlessRound === 0 ? 1 : endlessRound === 1 ? 1 : endlessRound === 2 ? 0.5 : endlessRound === 3 ? 0.25 : 0;
+        endlessRound === 0 ? 1 : endlessRound === 1 ? 0.75 : endlessRound === 2 ? 0.5 : endlessRound === 3 ? 0.25 : 0;
       const chestChance = e.roundBoss || e.championProfile
         ? endlessRound <= 3 ? 1 : 0.4 // deep-round champions: trophy, not salary
-        : 0.22 * chestFactor;
+        : 0.12 * chestFactor;
       if (Math.random() < chestChance) {
         pickups.push(new Pickup(e.x, e.y, "chest", {}));
       }
@@ -3588,7 +3645,7 @@ function update(dt) {
   }
 
   for (const pu of pickups) {
-    pu.update(dt, player, player.magnetRadius);
+    pu.update(dt, player, vacuumTimer > 0 ? 100000 : player.magnetRadius);
     if (circleHit(pu.x, pu.y, pu.radius, player.x, player.y, player.radius)) {
       pu.collected = true;
       if (pu.kind === "xp") {
@@ -5115,7 +5172,7 @@ function draw() {
     ctx.textAlign = "left";
   }
 
-  drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player), healFlash);
+  drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player) + (hotdogStock > 0 ? `  🌭×${hotdogStock}` : ""), healFlash);
   // run coins, top-right under the kill counter
   if (state === "playing" || state === "paused" || state === "choice") {
     ctx.save();
@@ -5496,7 +5553,20 @@ function draw() {
     let jitterX = 0;
     if (cc.phase === "spin") {
       const p = Math.min(1, cc.t / 1.5);
-      jitterX = Math.sin(cc.t * 46) * 2.6 * p; // rattling harder and harder
+      // 悬念递进(老虎机技术): 奖越大颤得越狠 — 玩家会学会读这个信号
+      const tierAmp = n >= 5 ? 1.9 : n >= 3 ? 1.35 : 1;
+      jitterX = Math.sin(cc.t * 46) * 2.6 * p * tierAmp;
+      if (n >= 5 && p > 0.5) {
+        // 五连后半段: 彩色微光在箱角踏格闪烁 — "这次不对劲!"
+        const flick = ["#ff8fc7", "#7cf28a", "#8fd6ff", "#ffd93d"][Math.floor(elapsedWall() * 10) % 4];
+        ctx.save();
+        ctx.fillStyle = flick;
+        ctx.globalAlpha = 0.9;
+        const fx2 = cx + (Math.floor(elapsedWall() * 10) % 2 ? 62 : -62);
+        ctx.fillRect(fx2 - 3, chestY - 40, 6, 6);
+        ctx.fillRect(cx - (fx2 - cx) - 3, chestY + 18, 6, 6);
+        ctx.restore();
+      }
     }
     ctx.save();
     ctx.translate(cx + jitterX, chestY);
@@ -5997,7 +6067,11 @@ function loop(now) {
   if (tapFlash && (tapFlash.t -= dt) <= 0) tapFlash = null;
   if (state === "chest" && chestCeremony) {
     const cc = chestCeremony;
-    cc.t += dt;
+    if (cc.phase === "reveal" && cc.freeze > 0) {
+      cc.freeze -= dt; // held breath: clock stopped, glow held, then the burst
+    } else {
+      cc.t += dt;
+    }
     if (cc.shake > 0) cc.shake = Math.max(0, cc.shake - dt * 2.2);
     if (cc.flash > 0) cc.flash -= dt;
     const sparkFloor = HEIGHT / 2 - 110 + 46; // the chest's foot line
