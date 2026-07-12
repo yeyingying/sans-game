@@ -10,10 +10,11 @@ const CHARACTER_NAMES = { sans: "传说之下", ukb: "因果报应", horror: "�
 const CHARACTER_COLORS = { sans: "#7ea8ff", ukb: "#c59bff", horror: "#ff5d5d", hard: "#5db9ff" };
 const DIFF_NAMES = ["普通", "狂暴", "地狱", "屠杀"];
 const DIFF_COLORS = ["#c8c2d4", "#ff8a5d", "#ff5d73", "#c59bff"];
+// 三个榜衡量三种实力,明说,不假装是同一种(2026-07-12 评审)
 const MODES = [
-  { id: "normal", label: "普通榜", hint: "Boss 通关分 · 按分数排序" },
-  { id: "endless", label: "无尽榜", hint: "完成轮数优先 · 同轮比无尽分" },
-  { id: "daily", label: "每日榜", hint: "今日同一种子 · 每天 0 点重开" },
+  { id: "normal", label: "通关榜", hint: "养成榜:局外强化与构筑成果一起算数" },
+  { id: "endless", label: "无尽榜", hint: "后期构筑与生存能力 · 轮数优先" },
+  { id: "daily", label: "每日榜", hint: "全员同一起跑线 · 禁局外强化 · 纯竞技" },
 ];
 const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard"];
 
@@ -153,7 +154,7 @@ function tabRect(i, w) {
   return { x: x0 + i * (bw + gap), y: isPhone(w) ? 88 : 96, w: bw, h: 34 * m };
 }
 function filterToggleRect(w) {
-  return { x: w / 2 - 210, y: 170, w: 420, h: 54 }; // phone only
+  return { x: w / 2 - 210, y: 186, w: 420, h: 54 }; // phone only
 }
 function charChipRect(i, w) {
   const ph = isPhone(w);
@@ -161,7 +162,7 @@ function charChipRect(i, w) {
   const cw = 88 * m;
   const gap = 8 * m;
   const x0 = w / 2 - (5 * cw + 4 * gap) / 2;
-  return { x: x0 + i * (cw + gap), y: ph ? 238 : 138, w: cw, h: 28 * m };
+  return { x: x0 + i * (cw + gap), y: ph ? 250 : 138, w: cw, h: 28 * m };
 }
 function diffChipRect(i, w) {
   const ph = isPhone(w);
@@ -169,7 +170,7 @@ function diffChipRect(i, w) {
   const cw = 72 * m;
   const gap = 8 * m;
   const x0 = w / 2 - (5 * cw + 4 * gap) / 2;
-  return { x: x0 + i * (cw + gap), y: ph ? 302 : 172, w: cw, h: 28 * m };
+  return { x: x0 + i * (cw + gap), y: ph ? 314 : 172, w: cw, h: 28 * m };
 }
 function renameRect(w) {
   const ph = isPhone(w);
@@ -247,6 +248,11 @@ export function drawLeaderboard(ctx, w, h) {
     const fLabel = `筛选:${character ? CHARACTER_NAMES[character] : "全部角色"} · ${
       mode === "daily" ? "每日固定" : difficulty === "" ? "全难度" : DIFF_NAMES[+difficulty]
     } ${filtersOpen ? "▴" : "▾"}`;
+    // 榜单定位一句话,手机也要说清这榜衡量什么
+    ctx.fillStyle = "#7d7690";
+    ctx.font = "16px monospace";
+    const modeInfo = MODES.find((m2) => m2.id === mode);
+    ctx.fillText(`${modeInfo.hint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 176);
     button(ctx, filterToggleRect(w), fLabel, "#c8c2d4", filtersOpen);
     if (filtersOpen) {
       CHAR_FILTERS.forEach((c, i) =>
@@ -256,9 +262,9 @@ export function drawLeaderboard(ctx, w, h) {
         DIFF_FILTERS.forEach((d, i) =>
           button(ctx, diffChipRect(i, w), d === "" ? "全难度" : DIFF_NAMES[+d], d === "" ? "#f2ead8" : DIFF_COLORS[+d], d === difficulty)
         );
-      listTop = 396;
+      listTop = 404;
     } else {
-      listTop = 262;
+      listTop = 278;
     }
   } else {
     CHAR_FILTERS.forEach((c, i) =>

@@ -5163,6 +5163,24 @@ function draw() {
       titleMenuOpen,
       questView().some((q) => !q.done) // gold dot: bounties waiting
     );
+    // 主线目标(2026-07-12 评审「玩家要知道现在最值得做什么」): one line,
+    // evolves with account progress — everything else serves these three
+    {
+      const st = getStats();
+      const goal =
+        st.bossKills === 0
+          ? "当前目标:通关普通难度——在 5:00 活到 Boss 出现并击败它"
+          : st.diffCleared < 3
+            ? `当前目标:挑战${DIFFICULTIES[Math.min(3, (st.diffCleared ?? 0) + 1)].name}难度,解锁新角色`
+            : "当前目标:冲击排行榜名次与无尽轮数";
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#d9c47a";
+      ctx.font = "13px monospace";
+      ctx.fillText(`★ ${goal}`, WIDTH / 2, HEIGHT / 2 + 200);
+      ctx.restore();
+      ctx.textAlign = "left";
+    }
   } else if (state === "shop") {
     drawShopScreen(
       ctx,
