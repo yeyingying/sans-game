@@ -1945,6 +1945,13 @@ function handleCanvasTap(pos) {
     }
     return;
   }
+  if (state === "leaderboard") {
+    if (leaderboardTap(pos.x, pos.y, WIDTH, HEIGHT) === "back") {
+      state = "title";
+      sfxClick();
+    }
+    return;
+  }
   if (state === "quests") {
     if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
       state = "title";
@@ -2293,7 +2300,7 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (state === "leaderboard") {
-    if (leaderboardTap(pos.x, pos.y, WIDTH, HEIGHT) === "back") state = "title";
+    if (k === "escape") state = "title";
     return;
   }
   if (state === "credits") {
