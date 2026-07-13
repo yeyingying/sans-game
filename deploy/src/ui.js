@@ -1392,6 +1392,9 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
     if (lock) {
       ctx.fillStyle = "#d9c47a";
       fitFill(lock.hint, box.y + 262);
+      // 种草入口: 选中后再点一次卡片可预览武器库
+      ctx.fillStyle = active ? "#c8c2d4" : "#6f6880";
+      fitFill(active ? "再点一次 → 预览武器库" : (c.tags || []).join(" · "), box.y + 284);
     } else {
       ctx.fillStyle = active ? "#b9b2c9" : "#6f6880";
       fitFill((c.tags || []).join(" · "), box.y + 262);
@@ -1459,7 +1462,8 @@ export function confirmButtonRect(width, height) {
 }
 
 // locks: {slotIndex: {hint, progress}} — present only for locked weapon slots
-export function drawWeaponSelect(ctx, width, height, weapons, selected, charName = "", locks = {}) {
+// charPrice: 角色未解锁时的买断价——武器库开放预览,确认键变成购买
+export function drawWeaponSelect(ctx, width, height, weapons, selected, charName = "", locks = {}, charPrice = null) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.82)";
   ctx.fillRect(0, 0, width, height);
@@ -1468,9 +1472,9 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 32px monospace";
   ctx.fillText(charName ? `${charName} 的武器库` : "我做了一个Sans割草游戏.", width / 2, 62);
-  ctx.fillStyle = "#f2ead8";
+  ctx.fillStyle = charPrice ? "#d9c47a" : "#f2ead8";
   ctx.font = "14px monospace";
-  ctx.fillText("选择你的初始武器", width / 2, 98);
+  ctx.fillText(charPrice ? "预览中——解锁后即可带它们开局" : "选择你的初始武器", width / 2, 98);
 
   for (let i = 0; i < weapons.length; i++) {
     const w = weapons[i];
@@ -1534,7 +1538,7 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
     }
   }
 
-  // confirm button
+  // confirm button — 预览模式下是购买按钮
   const btn = confirmButtonRect(width, height);
   ctx.fillStyle = "#2e2748";
   ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
@@ -1543,7 +1547,8 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
-  ctx.fillText("确 定", width / 2, btn.y + 29);
+  if (charPrice) drawIconLabel(ctx, ICONS.coin, `${charPrice} 解锁`, width / 2, btn.y + 31, 18, 6);
+  else ctx.fillText("确 定", width / 2, btn.y + 29);
   drawBackButton(ctx, width, height);
   ctx.restore();
 }

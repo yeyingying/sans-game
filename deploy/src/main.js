@@ -2631,6 +2631,14 @@ function handleCanvasTap(pos) {
     }
     for (let i = 0; i < CHARACTERS.length; i++) {
       if (inRect(pos, charBoxRect(i, WIDTH, HEIGHT, CHARACTERS.length))) {
+        // 锁定角色: 已选中时再点卡片 = 预览武器库(种草入口,买前先看货)
+        if (selectedChar === i && charLocksNow()[CHARACTERS[i].id]) {
+          selectedWeapon = 0;
+          state = "select";
+          rollContracts();
+          sfxClick();
+          return;
+        }
         selectedChar = i;
         sfxClick();
         return;
@@ -2675,6 +2683,7 @@ function handleCanvasTap(pos) {
       }
     }
     if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) {
+      if (tryBuySelectedChar()) return; // 预览模式: 确认键=在武器库里直接买断
       if (weaponLocks()[selectedWeapon]) {
         sfxHurt();
         return;
@@ -2899,6 +2908,7 @@ window.addEventListener("keydown", (e) => {
     else if (k === "arrowleft" || k === "arrowright") selectedWeapon = (selectedWeapon + 4) % n;
     else if (k >= "1" && k <= String(n)) selectedWeapon = Number(k) - 1;
     else if (k === " " || k === "enter") {
+      if (tryBuySelectedChar()) return; // 预览模式: 确认键=在武器库里直接买断
       if (weaponLocks()[selectedWeapon]) {
         sfxHurt(); // locked weapon can't start a run
         return;
@@ -5698,7 +5708,16 @@ function draw() {
       )
     );
   } else if (state === "select") {
-    drawWeaponSelect(ctx, WIDTH, HEIGHT, currentWeaponList(), selectedWeapon, currentCharacter().name, weaponLocks());
+    drawWeaponSelect(
+      ctx,
+      WIDTH,
+      HEIGHT,
+      currentWeaponList(),
+      selectedWeapon,
+      currentCharacter().name,
+      weaponLocks(),
+      charLocksNow()[currentCharacter().id] ? 10000 : null // 预览模式: 确认键=买断
+    );
     if (CONTRACTS_ENABLED) drawContractChips(ctx, WIDTH, HEIGHT, offeredContracts, selectedContract);
   } else if (state === "paused") {
     drawCenterText(
