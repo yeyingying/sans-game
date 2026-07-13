@@ -5848,9 +5848,9 @@ function draw() {
       ],
       -110
     );
-    for (const [rect, label, color] of [
-      [bossClearLeaveRect(WIDTH, HEIGHT), "导出存档码", "#7cf28a"],
-      [bossClearContinueRect(WIDTH, HEIGHT), "📥 导入存档码", "#8fd6ff"],
+    for (const [rect, icon, label, color] of [
+      [bossClearLeaveRect(WIDTH, HEIGHT), ICONS.share, "导出存档码", "#7cf28a"],
+      [bossClearContinueRect(WIDTH, HEIGHT), ICONS.save, "导入存档码", "#8fd6ff"],
     ]) {
       ctx.save();
       ctx.fillStyle = "#1d1828";
@@ -5861,7 +5861,7 @@ function draw() {
       ctx.fillStyle = color;
       ctx.font = "bold 16px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(label, rect.x + rect.w / 2, rect.y + 36);
+      drawIconLabel(ctx, icon, label, rect.x + rect.w / 2, rect.y + rect.h / 2 + 7, 16, 6);
       ctx.restore();
     }
     ctx.textAlign = "left";

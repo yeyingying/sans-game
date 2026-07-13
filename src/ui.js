@@ -688,14 +688,14 @@ export function echoButtonRect(width, height) {
   return { x: 516, y: height - 52, w: 130, h: 34 };
 }
 
-// 回响花田: 5x2 grid of echo flowers
+// 回响花田: 8列×3行(23朵)——6列4行会溢出画布底并被返回按钮压住
 export function echoFlowerRect(i, width, height) {
-  const w = 146;
+  const w = 106;
   const h = 124;
-  const gap = 10;
-  const col = i % 6;
-  const row = Math.floor(i / 6);
-  const total = 6 * w + 5 * gap;
+  const gap = 8;
+  const col = i % 8;
+  const row = Math.floor(i / 8);
+  const total = 8 * w + 7 * gap;
   return { x: width / 2 - total / 2 + col * (w + gap), y: 112 + row * (h + gap), w, h };
 }
 
@@ -711,7 +711,7 @@ export function drawEchoField(ctx, width, height, entries, count) {
   drawIconLabel(ctx, ICONS.flower, "回 响", width / 2, 52, 24, 8);
   ctx.fillStyle = "#9ab8d0";
   ctx.font = "13px monospace";
-  ctx.fillText(`审判廊的回声花,记得每一次轮回 · 已聆听 ${count}/${entries.length} · 后八朵是四条时间线的残响`, width / 2, 82);
+  ctx.fillText(`审判廊的回声花,记得每一次轮回 · 已聆听 ${count}/${entries.length}`, width / 2, 82);
   ctx.imageSmoothingEnabled = false;
   entries.forEach((e, i) => {
     const box = echoFlowerRect(i, width, height);
@@ -731,12 +731,18 @@ export function drawEchoField(ctx, width, height, entries, count) {
     }
     ctx.drawImage(spr, box.x + box.w / 2 - size / 2, box.y + 68 - size, size, (spr.height / spr.width) * size);
     ctx.restore();
+    const fitEcho = (text, cy, px) => {
+      ctx.font = `${px >= 12 ? "bold " : ""}${px}px monospace`;
+      while (px > 7 && ctx.measureText(text).width > box.w - 8) {
+        px -= 1;
+        ctx.font = `${px >= 12 ? "bold " : ""}${px}px monospace`;
+      }
+      ctx.fillText(text, box.x + box.w / 2, cy);
+    };
     ctx.fillStyle = e.unlocked ? "#e8f4ff" : "#5c6478";
-    ctx.font = "bold 12px monospace";
-    ctx.fillText(e.unlocked ? `「${e.title}」` : "???", box.x + box.w / 2, box.y + 92);
+    fitEcho(e.unlocked ? `「${e.title}」` : "???", box.y + 92, 12);
     ctx.fillStyle = e.unlocked ? e.color || "#6bd0ff" : "#4a5164";
-    ctx.font = "9px monospace";
-    ctx.fillText(e.unlocked ? "点击聆听" : e.hint, box.x + box.w / 2, box.y + 110);
+    fitEcho(e.unlocked ? "点击聆听" : e.hint, box.y + 110, 9);
   });
   drawBackButton(ctx, width, height);
   ctx.restore();
@@ -947,7 +953,9 @@ export function codexEntryRect(i, width) {
 }
 
 export function codexPageRect(direction, width) {
-  return { x: width / 2 + (direction < 0 ? -176 : 144), y: 51, w: 32, h: 24 };
+  const w = T(40, 52);
+  const h = T(30, 44);
+  return { x: width / 2 + (direction < 0 ? -176 - (w - 32) : 144), y: T(48, 42), w, h };
 }
 
 // Keep the index at a stable 8x2 on phone landscape. Later monster batches
@@ -979,7 +987,7 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
       ctx.strokeRect(b.x, b.y, b.w, b.h);
       ctx.fillStyle = "#f2ead8";
       ctx.font = "bold 18px monospace";
-      ctx.fillText(direction < 0 ? "‹" : "›", b.x + b.w / 2, b.y + 19);
+      ctx.fillText(direction < 0 ? "‹" : "›", b.x + b.w / 2, b.y + b.h / 2 + 6);
     }
   }
 
