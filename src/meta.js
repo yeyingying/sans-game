@@ -77,9 +77,9 @@ export function upgradeCost(id) {
   const u = UPGRADES.find((x) => x.id === id);
   const lvl = upgradeLevel(id);
   if (!u || lvl >= u.max) return null; // maxed out
-  // geometric: each level doubles — first buys stay reachable, the last
-  // levels are real long-term goals (endgame farming can't insta-max)
-  return u.base * Math.pow(2, lvl);
+  // geometric 2.3^lvl(2026-07-13 用户裁决方案B): 首购价不变保上手体验,
+  // 后段更陡拉长长线——全店总价 13855→20374,熟练玩家(约1000/局)约20局清空
+  return Math.round(u.base * Math.pow(2.3, lvl));
 }
 
 export function buyUpgrade(id) {

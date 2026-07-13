@@ -273,15 +273,15 @@ function run(seconds, onFrame) {
   const permanentShopTotal = M.UPGRADES.reduce((sum, u) => sum + u.base * ((u.max * (u.max + 1)) / 2), 0);
   const geoTotal = M.UPGRADES.reduce((sum, u) => {
     let tt = 0;
-    for (let l = 0; l < u.max; l++) tt += u.base * Math.pow(2, l);
+    for (let l = 0; l < u.max; l++) tt += Math.round(u.base * Math.pow(2.3, l));
     return sum + tt;
   }, 0);
-  check("geometric shop curve totals 13855", geoTotal === 13855, `total=${geoTotal}`);
+  check("geometric shop curve totals 20374 (2.3^lvl 方案B)", geoTotal === 20374, `total=${geoTotal}`);
   M.addCoins(300);
   check("coins added", M.getCoins() === 300);
   check("upgrade cost scales", M.upgradeCost("atk") === 90);
   check("buy succeeds", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 1 && M.getCoins() === 210);
-  check("next level costs more", M.upgradeCost("atk") === 180);
+  check("next level costs more", M.upgradeCost("atk") === 207);
   check("cannot overspend", !M.buyUpgrade("reroll") && M.getCoins() === 210);
   const p = { atk: 6, maxHp: 100, hp: 100, moveSpeed: 165, magnetRadius: 90, dmgAmp: 1 };
   M.applyMetaUpgrades(p);

@@ -138,7 +138,7 @@ import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, canc
 import { utPrompt, utNotice } from "./dialog.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
-const GAME_VERSION = "s2-20260714"; // S2: Insanity 上线并进入独立赛季
+const GAME_VERSION = "s2-20260715"; // 商店曲线2.0→2.3(方案B,总价13855→20374)
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
@@ -218,6 +218,7 @@ import {
   bossClearContinueRect,
   drawBossClearScreen,
   drawDailyIntro,
+  IS_TOUCH,
   echoButtonRect,
   menuButtonRect,
   muteButtonRect,
@@ -584,13 +585,14 @@ function runEquipSummary() {
 
 // toggle sits above the share/home/upgrade button row
 function gameoverDetailRect(w, h) {
-  return { x: w / 2 - 120, y: h - 104, w: 240, h: 30 };
+  // 触屏: 30px高在手机上不到20物理px,放大到44
+  return IS_TOUCH ? { x: w / 2 - 132, y: h - 122, w: 264, h: 44 } : { x: w / 2 - 120, y: h - 104, w: 240, h: 30 };
 }
 
 // the ONE primary action on the settlement screen (2026-07-12 评审:
 // 结算页只保留一个主行动) — big, gold, thumb-sized
 function restartButtonRect(w, h) {
-  return { x: w / 2 - 130, y: h - 164, w: 260, h: 48 };
+  return IS_TOUCH ? { x: w / 2 - 140, y: h - 186, w: 280, h: 58 } : { x: w / 2 - 130, y: h - 164, w: 260, h: 48 };
 }
 
 // 结算印章(美术批 backlog 第4项): 结果不靠读字,一眼可辨——
@@ -2352,7 +2354,7 @@ function canvasCoords(e) {
 
 // ⚡去变强 on the defeat screen: centered between share (left) and home (right)
 function upgradeJumpRect(w, h) {
-  return { x: w / 2 - 75, y: h - 62, w: 150, h: 44 };
+  return IS_TOUCH ? { x: w / 2 - 82, y: h - 72, w: 164, h: 54 } : { x: w / 2 - 75, y: h - 62, w: 150, h: 44 };
 }
 
 function inRect(p, r) {
@@ -6353,7 +6355,7 @@ function draw() {
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 20px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(gameoverCta?.label || "⟳ 再 来 一 局", b.x + b.w / 2, b.y + 31);
+      ctx.fillText(gameoverCta?.label || "⟳ 再 来 一 局", b.x + b.w / 2, b.y + b.h / 2 + 7);
       ctx.restore();
       ctx.textAlign = "left";
     }
@@ -6371,7 +6373,7 @@ function draw() {
       ctx.fillStyle = gains > 0 && !gameoverDetail ? "#7cf28a" : "#9a93ab";
       ctx.font = "bold 13px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(gameoverDetail ? "▾ 返回成绩" : `▸ 本局详情${gains ? ` · 新收获×${gains}` : ""}`, b.x + b.w / 2, b.y + 20);
+      ctx.fillText(gameoverDetail ? "▾ 返回成绩" : `▸ 本局详情${gains ? ` · 新收获×${gains}` : ""}`, b.x + b.w / 2, b.y + b.h / 2 + 5);
       ctx.restore();
       ctx.textAlign = "left";
     }
@@ -6390,7 +6392,7 @@ function draw() {
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 15px monospace";
       ctx.textAlign = "center";
-      drawIconLabel(ctx, ICONS.attack, "去变强", b.x + b.w / 2, b.y + 28, 16, 6);
+      drawIconLabel(ctx, ICONS.attack, "去变强", b.x + b.w / 2, b.y + b.h / 2 + 6, 16, 6);
       ctx.restore();
       ctx.textAlign = "left";
     }

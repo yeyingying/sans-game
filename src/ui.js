@@ -1,5 +1,12 @@
 import { ICONS, drawIconLabel, drawPixelIcon } from "./sprites.js";
 
+// 触屏设备: 触控目标放大到 ≥68 画布px(画布600高缩到手机≈390,≈44物理px);
+// 桌面鼠标保持紧凑。?touch=1 可在桌面强制预览触屏布局
+export const IS_TOUCH =
+  (typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches) ||
+  (typeof location !== "undefined" && /[?&]touch=1/.test(location.search));
+const T = (desktop, touch) => (IS_TOUCH ? touch : desktop);
+
 function formatTime(sec) {
   const m = Math.floor(sec / 60)
     .toString()
@@ -11,11 +18,12 @@ function formatTime(sec) {
 }
 
 export function speedButtonRect(width) {
-  return { x: width - 92, y: 56, w: 76, h: 26 };
+  return { x: width - T(92, 106), y: 56, w: T(76, 90), h: T(26, 44) };
 }
 
 export function pauseButtonRect(width) {
-  return { x: width - 92 - 84, y: 56, w: 76, h: 26 };
+  const s = speedButtonRect(width);
+  return { x: s.x - s.w - 8, y: s.y, w: s.w, h: s.h };
 }
 
 export function drawPauseButton(ctx, width, paused) {
@@ -29,7 +37,7 @@ export function drawPauseButton(ctx, width, paused) {
   ctx.fillStyle = "#8fd6ff";
   ctx.font = "bold 13px monospace";
   ctx.textAlign = "center";
-  ctx.fillText(paused ? "▶ 继续" : "❚❚ 暂停", btn.x + btn.w / 2, btn.y + 18);
+  ctx.fillText(paused ? "▶ 继续" : "❚❚ 暂停", btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
   ctx.restore();
 }
 
@@ -62,25 +70,25 @@ export function drawSpeedButton(ctx, width, timeScale) {
   ctx.fillStyle = timeScale > 1 ? "#ffd166" : "#c8c2d4";
   ctx.font = "bold 13px monospace";
   ctx.textAlign = "center";
-  ctx.fillText(`▶▶ x${timeScale}`, btn.x + btn.w / 2, btn.y + 18);
+  ctx.fillText(`▶▶ x${timeScale}`, btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
   ctx.restore();
 }
 
 // two volume rows on the pause screen: music (BGM) and sound effects
 export function volumeMinusRect(width, height) {
-  return { x: width / 2 - 130, y: height / 2 - 26, w: 32, h: 26 };
+  return { x: width / 2 - T(130, 146), y: height / 2 - T(26, 40), w: T(32, 48), h: T(26, 42) };
 }
 
 export function volumePlusRect(width, height) {
-  return { x: width / 2 + 98, y: height / 2 - 26, w: 32, h: 26 };
+  return { x: width / 2 + 98, y: height / 2 - T(26, 40), w: T(32, 48), h: T(26, 42) };
 }
 
 export function sfxMinusRect(width, height) {
-  return { x: width / 2 - 130, y: height / 2 + 10, w: 32, h: 26 };
+  return { x: width / 2 - T(130, 146), y: height / 2 + T(10, 12), w: T(32, 48), h: T(26, 42) };
 }
 
 export function sfxPlusRect(width, height) {
-  return { x: width / 2 + 98, y: height / 2 + 10, w: 32, h: 26 };
+  return { x: width / 2 + 98, y: height / 2 + T(10, 12), w: T(32, 48), h: T(26, 42) };
 }
 
 function drawVolumeRow(ctx, width, minus, plus, label, volume) {
@@ -96,12 +104,12 @@ function drawVolumeRow(ctx, width, minus, plus, label, volume) {
     ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
     ctx.fillStyle = "#8fd6ff";
     ctx.font = "bold 17px monospace";
-    ctx.fillText(sign, btn.x + btn.w / 2, btn.y + 19);
+    ctx.fillText(sign, btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
   }
   // label + bar between the buttons
   const barX = minus.x + minus.w + 74;
   const barW = plus.x - 10 - barX;
-  const barY = minus.y + 6;
+  const barY = minus.y + minus.h / 2 - 7;
   ctx.fillStyle = "#c8c2d4";
   ctx.font = "12px monospace";
   ctx.textAlign = "left";
@@ -124,7 +132,7 @@ export function drawVolumeControl(ctx, width, height, volume, sfxVolume) {
 }
 
 export function resumeButtonRect(width, height) {
-  return { x: width / 2 - 80, y: height / 2 + 48, w: 160, h: 42 };
+  return { x: width / 2 - T(80, 90), y: height / 2 + T(48, 44), w: T(160, 180), h: T(42, 54) };
 }
 
 export function drawResumeButton(ctx, width, height) {
@@ -138,12 +146,12 @@ export function drawResumeButton(ctx, width, height) {
   ctx.fillStyle = "#7cf28a";
   ctx.font = "bold 17px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("继 续", btn.x + btn.w / 2, btn.y + 27);
+  ctx.fillText("继 续", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
   ctx.restore();
 }
 
 export function quitButtonRect(width, height) {
-  return { x: width / 2 - 80, y: height / 2 + 102, w: 160, h: 42 };
+  return { x: width / 2 - T(80, 90), y: height / 2 + T(102, 108), w: T(160, 180), h: T(42, 54) };
 }
 
 export function drawQuitButton(ctx, width, height) {
@@ -157,22 +165,22 @@ export function drawQuitButton(ctx, width, height) {
   ctx.fillStyle = "#ff5d73";
   ctx.font = "bold 17px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("退 出", btn.x + btn.w / 2, btn.y + 27);
+  ctx.fillText("退 出", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
   ctx.restore();
 }
 
 
 export function startButtonRect(width, height) {
-  return { x: width / 2 - 110, y: height / 2 + 66, w: 220, h: 52 };
+  return { x: width / 2 - T(110, 120), y: height / 2 + 66, w: T(220, 240), h: T(52, 62) };
 }
 
 export function creditsButtonRect(width, height) {
-  return { x: width - 132, y: height - 52, w: 116, h: 34 };
+  return { x: width - T(132, 148), y: height - T(52, 64), w: T(116, 132), h: T(34, 48) };
 }
 
 // 标题页静音开关(2026-07-13 用户点名:页面开着浏览器就一直有声)
 export function muteButtonRect(width) {
-  return { x: width - 60, y: 14, w: 44, h: 36 };
+  return { x: width - T(60, 74), y: 14, w: T(44, 58), h: T(36, 48) };
 }
 
 export function drawMuteButton(ctx, width, muted) {
@@ -201,7 +209,7 @@ export function drawMuteButton(ctx, width, muted) {
 }
 
 export function backButtonRect(width, height) {
-  return { x: 24, y: height - 62, w: 120, h: 44 };
+  return { x: 24, y: height - T(62, 72), w: T(120, 136), h: T(44, 54) };
 }
 
 export function drawBackButton(ctx, width, height) {
@@ -215,7 +223,7 @@ export function drawBackButton(ctx, width, height) {
   ctx.fillStyle = "#8fd6ff";
   ctx.font = "bold 17px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("← 返回", btn.x + btn.w / 2, btn.y + 28);
+  ctx.fillText("← 返回", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
   ctx.restore();
 }
 
@@ -229,9 +237,12 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.fillRect(0, 0, width, height);
 
   ctx.textAlign = "center";
-  ctx.fillStyle = "#7ea8ff";
-  ctx.font = "bold 44px monospace";
-  ctx.fillText("我做了一个Sans割草游戏.", width / 2, height / 2 - 130);
+  if (!(menuOpen && IS_TOUCH)) {
+    // 触屏抽屉更高,展开时标题让位避免文字互压
+    ctx.fillStyle = "#7ea8ff";
+    ctx.font = "bold 44px monospace";
+    ctx.fillText("我做了一个Sans割草游戏.", width / 2, height / 2 - 130);
+  }
 
   // the cast, bottom-aligned on a common baseline under the title
   if (portraits && portraits.length) {
@@ -255,7 +266,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 22px monospace";
-  ctx.fillText("开 始", width / 2, btn.y + 34);
+  ctx.fillText("开 始", width / 2, btn.y + btn.h / 2 + 8);
 
   // credits button, tucked into the bottom-right corner
   const cb = creditsButtonRect(width, height);
@@ -266,7 +277,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(cb.x, cb.y, cb.w, cb.h);
   ctx.fillStyle = "#b9b2c9";
   ctx.font = "bold 14px monospace";
-  ctx.fillText("制作名单", cb.x + cb.w / 2, cb.y + 22);
+  ctx.fillText("制作名单", cb.x + cb.w / 2, cb.y + cb.h / 2 + 5);
 
   // collapsed drawer: ☰ 菜单 holds shop/codex/echoes/quests
   const mb = menuButtonRect(width, height);
@@ -277,7 +288,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(mb.x, mb.y, mb.w, mb.h);
   ctx.fillStyle = menuOpen ? "#ffd166" : "#8fd6ff";
   ctx.font = "bold 14px monospace";
-  drawIconLabel(ctx, ICONS.menu, menuOpen ? "收起" : "菜单", mb.x + mb.w / 2, mb.y + 22, 14, 5);
+  drawIconLabel(ctx, ICONS.menu, menuOpen ? "收起" : "菜单", mb.x + mb.w / 2, mb.y + mb.h / 2 + 5, 14, 5);
   if (menuBadge && !menuOpen) {
     // gold dot: today's bounties aren't cleared yet
     ctx.fillStyle = "#ffd166";
@@ -316,7 +327,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
       ctx.strokeRect(r.x, r.y, r.w, r.h);
       ctx.fillStyle = it.color;
       ctx.font = "bold 14px monospace";
-      drawIconLabel(ctx, it.icon, it.label, r.x + r.w / 2, r.y + 26, 16, 6);
+      drawIconLabel(ctx, it.icon, it.label, r.x + r.w / 2, r.y + r.h / 2 + 6, 16, 6);
     });
   }
 
@@ -388,7 +399,7 @@ export function drawContractChips(ctx, width, height, contracts, selected) {
 }
 
 export function homeButtonRect(width, height) {
-  return { x: width - 174, y: height - 62, w: 150, h: 44 };
+  return { x: width - T(174, 186), y: height - T(62, 72), w: T(150, 162), h: T(44, 54) };
 }
 
 export function drawHomeButton(ctx, width, height) {
@@ -402,12 +413,12 @@ export function drawHomeButton(ctx, width, height) {
   ctx.fillStyle = "#8fd6ff";
   ctx.font = "bold 15px monospace";
   ctx.textAlign = "center";
-  drawIconLabel(ctx, ICONS.home, "回主页", btn.x + btn.w / 2, btn.y + 28, 16, 6);
+  drawIconLabel(ctx, ICONS.home, "回主页", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6, 16, 6);
   ctx.restore();
 }
 
 export function shareButtonRect(width, height) {
-  return { x: 24, y: height - 62, w: 150, h: 44 };
+  return { x: 24, y: height - T(62, 72), w: T(150, 162), h: T(44, 54) };
 }
 
 export function drawShareButton(ctx, width, height) {
@@ -421,7 +432,7 @@ export function drawShareButton(ctx, width, height) {
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 15px monospace";
   ctx.textAlign = "center";
-  drawIconLabel(ctx, ICONS.share, "分享战绩", btn.x + btn.w / 2, btn.y + 28, 16, 6);
+  drawIconLabel(ctx, ICONS.share, "分享战绩", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6, 16, 6);
   ctx.restore();
 }
 
@@ -604,12 +615,13 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
 }
 
 export function menuButtonRect(width, height) {
-  return { x: 16, y: height - 52, w: 110, h: 34 };
+  return { x: 16, y: height - T(52, 66), w: T(110, 130), h: T(34, 50) };
 }
 
 // drawer items stack upward from the menu button: 0=商店 … 3=悬赏
 export function titleMenuItemRect(i, width, height) {
-  return { x: 16, y: height - 98 - 46 * i, w: 236, h: 40 };
+  const step = T(46, 56);
+  return { x: 16, y: height - T(98, 124) - step * i, w: T(236, 252), h: T(40, 50) };
 }
 
 export function questButtonRect(width, height) {
@@ -781,11 +793,11 @@ export function codexButtonRect(width, height) {
 // 三主键(2026-07-12 UX批次): 开始/每日/排行榜是仅有的三个主行动,
 // 并排立在屏幕中央;其余一切收进 ☰ 分组抽屉
 export function dailyButtonRect(width, height) {
-  return { x: width / 2 - 165, y: height / 2 + 132, w: 150, h: 40 };
+  return { x: width / 2 - T(165, 172), y: height / 2 + T(132, 136), w: T(150, 162), h: T(40, 52) };
 }
 
 export function leaderboardButtonRect(width, height) {
-  return { x: width / 2 + 15, y: height / 2 + 132, w: 150, h: 40 };
+  return { x: width / 2 + T(15, 10), y: height / 2 + T(132, 136), w: T(150, 162), h: T(40, 52) };
 }
 
 // ---- boss-clear choice screen ------------------------------------------------
@@ -1297,11 +1309,11 @@ export function charBoxRect(i, width, height, count = 2) {
 
 // difficulty pills on the character-select screen
 export function diffPillRect(i, width, height) {
-  const w = 108;
-  const h = 30;
+  const w = T(108, 116);
+  const h = T(30, 44);
   const gap = 10;
   const total = 4 * w + 3 * gap;
-  return { x: width / 2 - total / 2 + i * (w + gap), y: height - 106, w, h };
+  return { x: width / 2 - total / 2 + i * (w + gap), y: height - T(106, 124), w, h };
 }
 
 // diffs: [{name, active, locked, hint}]
@@ -1322,8 +1334,8 @@ function drawDifficultyRow(ctx, width, height, diffs) {
     ctx.strokeRect(box.x, box.y, box.w, box.h);
     ctx.fillStyle = d.locked ? "#6b6578" : d.active ? "#ffd166" : "#c8c2d4";
     ctx.font = "bold 14px monospace";
-    if (d.locked) drawIconLabel(ctx, ICONS.lock, d.name, box.x + box.w / 2, box.y + 20, 13, 4);
-    else ctx.fillText(d.name, box.x + box.w / 2, box.y + 20);
+    if (d.locked) drawIconLabel(ctx, ICONS.lock, d.name, box.x + box.w / 2, box.y + box.h / 2 + 5, 13, 4);
+    else ctx.fillText(d.name, box.x + box.w / 2, box.y + box.h / 2 + 5);
   }
   ctx.restore();
 }
@@ -1438,8 +1450,8 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
-  if (selLock) drawIconLabel(ctx, ICONS.coin, "10000 解锁", width / 2, btn.y + 31, 18, 6);
-  else ctx.fillText("确 定", width / 2, btn.y + 29);
+  if (selLock) drawIconLabel(ctx, ICONS.coin, "10000 解锁", width / 2, btn.y + btn.h / 2 + 8, 18, 6);
+  else ctx.fillText("确 定", width / 2, btn.y + btn.h / 2 + 7);
   drawBackButton(ctx, width, height);
   ctx.restore();
 }
@@ -1457,7 +1469,7 @@ export function weaponBoxRect(i, width) {
 export function confirmButtonRect(width, height) {
   const compact = width > 1040;
   const w = compact ? 260 : 220;
-  const h = compact ? 50 : 44;
+  const h = T(compact ? 50 : 44, 60);
   return { x: width / 2 - w / 2, y: height - h - 16, w, h };
 }
 
@@ -1547,8 +1559,8 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
-  if (charPrice) drawIconLabel(ctx, ICONS.coin, `${charPrice} 解锁`, width / 2, btn.y + 31, 18, 6);
-  else ctx.fillText("确 定", width / 2, btn.y + 29);
+  if (charPrice) drawIconLabel(ctx, ICONS.coin, `${charPrice} 解锁`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
+  else ctx.fillText("确 定", width / 2, btn.y + btn.h / 2 + 7);
   drawBackButton(ctx, width, height);
   ctx.restore();
 }
@@ -1562,7 +1574,7 @@ export function choiceBoxRect(i, width, height) {
 }
 
 export function rerollButtonRect(width, height) {
-  return { x: width / 2 - 70, y: height / 2 + 110, w: 140, h: 40 };
+  return { x: width / 2 - T(70, 78), y: height / 2 + 110, w: T(140, 156), h: T(40, 52) };
 }
 
 // 选卡像素图标(美术批 backlog 第3项): kind → ICONS key。
@@ -1645,7 +1657,7 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
     ICONS.refresh,
     canReroll ? (rerolls > 1 ? `刷新 ×${rerolls}` : "刷新") : "已刷新",
     btn.x + btn.w / 2,
-    btn.y + 25,
+    btn.y + btn.h / 2 + 5,
     14,
     5
   );
