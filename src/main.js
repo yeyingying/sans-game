@@ -1413,14 +1413,14 @@ function rollChestRewards() {
   for (let i = 0; i < count; i++) {
     const pick = Math.random() * 100;
     if (pick < 22) {
-      rewards.push({ label: "羊妈的派", color: "#ff8fc7", icon: ICONS.pie, apply: () => {
+      rewards.push({ label: "羊妈的派", detail: "生命上限+15 · 回满", color: "#ff8fc7", icon: ICONS.pie, apply: () => {
         player.maxHp += 15; // 永久上限,然后全回复 — 一大口家的味道
         player.hp = player.maxHp;
         healFlash = 0.6;
         candyBanner = { text: "* 黄油太妃派。有家的味道。生命上限 +15!", t: 3 };
       }});
     } else if (pick < 40) {
-      rewards.push({ label: "骨白审判", color: "#f2ead8", icon: ICONS.skull, apply: () => {
+      rewards.push({ label: "骨白审判", detail: "清除全部普通怪", color: "#f2ead8", icon: ICONS.skull, apply: () => {
         let reaped = 0;
         for (const e of enemies) {
           if (!e.elite && !e.boss && e.hp > 0) {
@@ -1432,7 +1432,7 @@ function rollChestRewards() {
         candyBanner = { text: `* 骨白审判降下。${reaped} 个身影同时化尘。`, t: 3 };
       }});
     } else if (pick < 55) {
-      rewards.push({ label: "热狗 ×3('dogs)", color: "#ffb066", icon: ICONS.hotdog, apply: () => {
+      rewards.push({ label: "热狗 ×3('dogs)", detail: "残血自动回血 · 3次", color: "#ffb066", icon: ICONS.hotdog, apply: () => {
         hotdogStock = Math.min(9, hotdogStock + 3); // 残血自动吃,用完为止
         candyBanner = { text: "* 三根热狗揣进口袋。残血时会自动想起它们。", t: 3 };
       }});
@@ -1440,7 +1440,7 @@ function rollChestRewards() {
       // 六魂遗物: 机制型独特物件 — rogue-like 的 item 心跳,卡池永远给不了
       const relic = pickRelic(relics);
       if (relic) {
-        rewards.push({ label: `${relic.name}·${relic.soul}`, color: relic.color, icon: ICONS.relic, apply: () => {
+        rewards.push({ label: `${relic.name}·${relic.soul}`, detail: relic.desc, color: relic.color, icon: ICONS.relic, apply: () => {
           relics[relic.id] = true;
           if (relic.id === "patience") player.invulnMult = 1.25;
           sfxEquip();
@@ -1462,13 +1462,13 @@ function rollChestRewards() {
       } else {
         // all six collected: the souls send coins instead
         const v = Math.max(1, Math.round(30 * coinGainMult() * getDifficulty().coinMult * Math.max(currentCoinFactor(), endlessRound > 0 ? 0 : 1)));
-        rewards.push({ label: `金币雨 ×${v}`, color: "#ffd166", icon: ICONS.coin, apply: () => {
+        rewards.push({ label: `金币雨 ×${v}`, detail: "本局金币立即入账", color: "#ffd166", icon: ICONS.coin, apply: () => {
           if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
         }});
       }
     } else if (pick < 81) {
       // 觉醒骨: 宝箱的圣杯 — 三层逻辑永无死槽
-      rewards.push({ label: "觉醒骨", color: "#ffd93d", icon: ICONS.awakening, apply: () => {
+      rewards.push({ label: "觉醒骨", detail: "进化或强化一件武器", color: "#ffd93d", icon: ICONS.awakening, apply: () => {
         const ready = player.weapons.find((w) => canEvolve(w));
         if (ready) {
           ready.evolved = true; // 已攒够条件的武器当场觉醒 — 质变时刻
@@ -1491,7 +1491,7 @@ function rollChestRewards() {
       }});
     } else {
       const v = Math.max(1, Math.round((25 + Math.random() * 20) * coinGainMult() * getDifficulty().coinMult * Math.max(currentCoinFactor(), endlessRound > 0 ? 0 : 1)));
-      rewards.push({ label: `金币雨 ×${v}`, color: "#ffd166", icon: ICONS.coin, apply: () => {
+      rewards.push({ label: `金币雨 ×${v}`, detail: "本局金币立即入账", color: "#ffd166", icon: ICONS.coin, apply: () => {
         if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
       }});
     }
@@ -1552,11 +1552,11 @@ function chestAdvance() {
     chestCeremony.phase = "reveal";
     chestCeremony.t = 0;
     const jackpot = chestCeremony.rewards.length >= 5 ? 2 : chestCeremony.rewards.length >= 3 ? 1 : 0;
-    chestCeremony.freeze = jackpot === 2 ? 0.35 : 0; // 大奖定帧: 全场屏息一拍
+    chestCeremony.freeze = jackpot === 2 ? 0.18 : 0; // 五连只停一拍,不拖慢继续战斗
     // the burst: white flash, shake, and a golden fountain sized to the prize
     chestCeremony.flash = 0.22;
     chestCeremony.shake = jackpot === 2 ? 0.8 : jackpot === 1 ? 0.5 : 0.3;
-    chestSpawnSparks(jackpot === 2 ? 110 : jackpot === 1 ? 70 : 40, jackpot);
+    chestSpawnSparks(jackpot === 2 ? 72 : jackpot === 1 ? 48 : 26, jackpot);
     sfxChestOpen(jackpot);
     if (jackpot) killFlash = 0.3;
     if (jackpot === 2) sfxFanfare();
@@ -5405,7 +5405,8 @@ function draw() {
     ctx.restore();
     ctx.textAlign = "left";
   }
-  if (bossFight) bossFight.drawOverlay(ctx);
+  // 结算页上别再画Boss血条/台词(死在Boss战时它们会压住结算文案)
+  if (bossFight && state !== "gameover") bossFight.drawOverlay(ctx);
   if (state === "playing" || state === "paused" || state === "choice") {
     drawSpeedButton(ctx, WIDTH, timeScale);
     drawPauseButton(ctx, WIDTH, state === "paused");
@@ -5902,23 +5903,31 @@ function draw() {
       ctx.restore();
       ctx.fillStyle = "#9a93ab";
       ctx.font = "13px monospace";
-      ctx.fillText("命运正在滚动…… (点击跳过)", cx, cy + 176);
+      ctx.fillText("命运正在滚动……", cx, cy + 170);
+      ctx.fillStyle = "#6f697d";
+      ctx.font = "11px monospace";
+      ctx.fillText("点击跳过", cx, cy + 190);
     } else {
-      // reveal: banner + staggered bouncing reward cards
+      // reveal: restrained banner + staggered 3+2 pixel reward plaques
       ctx.save();
       if (jackpot === 2) {
-        const pulse = 0.7 + 0.3 * Math.sin(elapsedWall() * 10);
-        ctx.shadowColor = "#ffd93d";
-        ctx.shadowBlur = 24 * pulse;
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = "#ffd93d";
+        ctx.fillRect(cx - 188, cy + 65, 376, 38);
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(cx - 164, cy + 61, 328, 3);
+        ctx.fillRect(cx - 164, cy + 104, 328, 3);
+        ctx.globalAlpha = 1;
       }
       ctx.fillStyle = jackpot === 2 ? "#ffd93d" : jackpot === 1 ? "#ffd166" : "#f2ead8";
       ctx.font = `bold ${jackpot === 2 ? 36 : jackpot === 1 ? 30 : 24}px monospace`;
-      ctx.fillText(jackpot === 2 ? "★ 五 连 大 奖 ★" : jackpot === 1 ? "✦ 三 连 奖 ! ✦" : "战 利 品", cx, cy + 96);
+      ctx.fillText(jackpot === 2 ? "五 连 大 奖" : jackpot === 1 ? "三 连 奖" : "战 利 品", cx, cy + 96);
       ctx.restore();
-      const phoneG = WIDTH >= 1000;
-      const w = phoneG ? 200 : 150;
-      const gap = phoneG ? 16 : 12;
-      const perRow = phoneG ? Math.min(3, n) : n; // phone: max 3 per row
+      const wide = WIDTH >= 1100;
+      const w = wide ? 200 : 174;
+      const gap = wide ? 16 : 14;
+      const perRow = Math.min(3, n);
+      const rowStep = 96;
       cc.rewards.forEach((rw, i) => {
         // staggered entrance with an overshoot bounce
         const local = Math.max(0, cc.t - 0.1 - i * 0.12);
@@ -5930,7 +5939,7 @@ function draw() {
         const col = i % perRow;
         const rowTotal = inRow * w + (inRow - 1) * gap;
         const x = cx - rowTotal / 2 + col * (w + gap);
-        const y = cy + 120 + row * (phoneG ? 104 : 0);
+        const y = cy + 120 + row * rowStep;
         ctx.save();
         ctx.globalAlpha = k;
         ctx.translate(x + w / 2, y + 42);
@@ -5951,13 +5960,16 @@ function draw() {
         drawPixelIcon(ctx, rw.icon, w / 2 - 17, 12, 34);
         ctx.font = "bold 12px monospace";
         ctx.fillStyle = "#f2ead8";
-        ctx.fillText(rw.label, w / 2, 68);
+        ctx.fillText(rw.label, w / 2, 58);
+        ctx.font = "11px monospace";
+        ctx.fillStyle = "#d0cad8";
+        ctx.fillText(rw.detail || "", w / 2, 74);
         ctx.restore();
       });
       if (cc.t > 0.1 + n * 0.12 + 0.3) {
         ctx.fillStyle = "#9a93ab";
         ctx.font = "13px monospace";
-        ctx.fillText("点击收下,继续战斗", cx, cy + (WIDTH >= 1000 && cc.rewards.length > 3 ? 350 : 240));
+        ctx.fillText("点击收下,继续战斗", cx, cy + (cc.rewards.length > 3 ? 350 : 240));
       }
     }
 
@@ -6076,15 +6088,17 @@ function draw() {
               ? [{ text: nearMiss, font: "bold 13px monospace", color: "#ff8a5d" }]
               : []),
         ];
-    // 详情行数多时密排+上提,底行别钻进主按钮、表头别顶进HUD
-    // (动态版的"-72px 防重叠")
-    const settleLineH = gameoverDetail ? (screenRows.length > 11 ? 24 : 28) : 34;
-    const settleHalf = ((screenRows.length - 1) * settleLineH) / 2;
-    let settleLift = 0;
-    if (gameoverDetail) {
-      settleLift = Math.min(0, HEIGHT - 192 - (HEIGHT / 2 + settleHalf));
-      settleLift = Math.max(settleLift, 132 - (HEIGHT / 2 - settleHalf));
-    }
+    // 详情行数不定(5~20行):行距按"HUD之下、按钮之上"的安全带动态求值,
+    // 整块居中在带内——行再多也不顶HUD、不钻按钮(治本版"-72px防重叠")
+    const settleTop = 132;
+    const settleBottom = HEIGHT - 192;
+    const settleLineH = gameoverDetail
+      ? Math.max(18, Math.min(28, Math.floor((settleBottom - settleTop) / Math.max(1, screenRows.length - 1))))
+      : 34;
+    const settleLift = gameoverDetail ? (settleTop + settleBottom) / 2 - HEIGHT / 2 : 0;
+    // 结算页额外压暗一层:战场残留的伤害数字/怪物bark别透过来和文案打架
+    ctx.fillStyle = "rgba(10, 8, 16, 0.5)";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
     drawCenterText(ctx, WIDTH, HEIGHT, screenRows, settleLift, settleLineH);
     if (!gameoverDetail) {
       // 印章压在文字块上方,与标题同轴
@@ -6308,9 +6322,9 @@ function loop(now) {
       s.spin += dt * 9;
     }
     // 五连大奖: golden rain pours from the sky for the opening beat
-    if (cc.phase === "reveal" && cc.rewards.length >= 5 && cc.t < 1.6 && Math.random() < 0.55) {
+    if (cc.phase === "reveal" && cc.rewards.length >= 5 && cc.t < 1.35 && Math.random() < 0.28) {
       cc.sparks.push({
-        x: WIDTH / 2 + (Math.random() - 0.5) * 880,
+        x: WIDTH / 2 + (Math.random() - 0.5) * WIDTH * 0.72,
         y: 16,
         vx: (Math.random() - 0.5) * 50,
         vy: 140 + Math.random() * 160,

@@ -220,6 +220,18 @@ function run(seconds, onFrame) {
     ),
   );
   check("高频 UI 不再依赖系统 Emoji", !/[🏠📤📜🔒]/u.test(uiSrc) && !mainSrc.includes('icon: "🥧"') && !mainSrc.includes('icon: "🌭"') && !mainSrc.includes("💡"));
+  check(
+    "五连宝箱使用3+2像素铭牌且不再依赖模糊标题光晕",
+    mainSrc.includes("const perRow = Math.min(3, n)") &&
+      mainSrc.includes("staggered 3+2 pixel reward plaques") &&
+      mainSrc.includes('detail: "生命上限+15 · 回满"') &&
+      mainSrc.includes('detail: "进化或强化一件武器"') &&
+      !mainSrc.includes("ctx.shadowBlur = 24 * pulse"),
+  );
+  check(
+    "Boss光炮具备提前轨迹、安全通道与玩家定位标记",
+    bossSrc.includes("pxDashedRay") && bossSrc.includes("drawSafeLaneBrackets") && bossSrc.includes("drawPlayerFocus"),
+  );
 
   const { Enemy } = await import(new URL("../src/entities.js", import.meta.url));
   const scale = { hpMult: 2.8, dmgMult: 2.2, speedMult: 1, xpMult: 1, elite: true, difficultyId: 1 };
