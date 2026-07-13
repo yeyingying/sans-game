@@ -1149,7 +1149,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           // ghost of the boss sprite itself — pixel silhouettes, no blur blob
           c.save();
           c.globalAlpha = a * 0.35;
-          drawBossBody(c, tr.x, tr.y, 0, true, { animT: 0, faceDir: this.faceDir, moving: false, hitFlash: 0 });
+          drawBossBody(c, tr.x, tr.y, 0, true, { animT: 0, faceDir: this.faceDir, moving: false, hitFlash: 0, phase2: this.phase === 2 });
           c.restore();
         }
       }
@@ -1213,6 +1213,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           faceDir: this.faceDir,
           moving: this.moving,
           hitFlash: boss.hitFlash,
+          phase2: this.phase === 2,
         });
       }
     },
@@ -1233,6 +1234,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           faceDir: this.faceDir,
           moving: this.moving,
           hitFlash: boss.hitFlash,
+          phase2: this.phase === 2,
         });
       }
       // red vignette flash on heavy hits
@@ -1445,10 +1447,10 @@ function drawBoneRed(c, x, y, size, angle) {
   c.restore();
 }
 
-// corrupted sans: red glow, flickering dark-red blocks, blank white sockets,
+// corrupted sans: hard-edged pixel erosion, blank white sockets,
 // walk animation, wind-up gestures and teleport fades
 function drawBossBody(c, x, y, t, active, opts = {}) {
-  const { shake = 0, gesture = null, tele = null, animT = 0, faceDir = "down", moving = false, hitFlash = 0 } = opts;
+  const { shake = 0, gesture = null, tele = null, animT = 0, faceDir = "down", moving = false, hitFlash = 0, phase2 = false } = opts;
   // pick a walk frame like the player does
   const frames = WALK_SETS.sans[faceDir] || WALK_SETS.sans.down;
   const spr = moving ? frames[Math.floor(animT * 7) % 4] : frames[0];
@@ -1489,18 +1491,16 @@ function drawBossBody(c, x, y, t, active, opts = {}) {
 
   c.save();
   // flickering dark-red blocks around the body
-  c.fillStyle = "#5a1414";
-  for (let i = 0; i < 6; i++) {
+  c.fillStyle = phase2 ? "#8a2f96" : "#5a1414";
+  for (let i = 0; i < (phase2 ? 10 : 6); i++) {
     if ((Math.floor(t * 12) + i) % 3 === 0) {
-      const a = (i / 6) * Math.PI * 2 + t;
-      const r = 30 + (i % 2) * 9;
+      const a = (i / (phase2 ? 10 : 6)) * Math.PI * 2 + t;
+      const r = 30 + (i % 2) * (phase2 ? 13 : 9);
       c.globalAlpha = alpha;
-      c.fillRect(x + Math.cos(a) * r - 3, y + Math.sin(a) * r - 3, 6, 6);
+      const chunk = phase2 && i % 3 === 0 ? 4 : 6;
+      c.fillRect(Math.round(x + Math.cos(a) * r) - chunk / 2, Math.round(y + Math.sin(a) * r) - chunk / 2, chunk, chunk);
     }
   }
-  // red glow (pulses harder mid-gesture)
-  c.shadowColor = "#ff2d2d";
-  c.shadowBlur = gesture ? 30 : 20;
   c.imageSmoothingEnabled = false;
   const drawH = 48 * sqy;
   const drawW = (spr.width / spr.height) * 48 * sqx;
@@ -1510,10 +1510,20 @@ function drawBossBody(c, x, y, t, active, opts = {}) {
   c.drawImage(spr, bx - drawW / 2, by - drawH / 2, drawW, drawH);
   // blank white sockets (front-facing frames only)
   if (faceDir === "down" && !tele) {
-    c.shadowBlur = 0;
     c.fillStyle = "#ffffff";
     c.fillRect(bx - 8 * sqx, by - drawH / 2 + 8 * sqy, 5, 5);
     c.fillRect(bx + 3 * sqx, by - drawH / 2 + 8 * sqy, 5, 5);
+    if (phase2) {
+      // One eye and three stepped cracks are enough to sell the corrupted
+      // phase without covering the original Sans silhouette in effects.
+      c.fillStyle = Math.floor(t * 10) % 2 ? "#f2a0ff" : "#c95df0";
+      c.fillRect(Math.round(bx + 3 * sqx), Math.round(by - drawH / 2 + 8 * sqy), 5, 5);
+      c.fillRect(Math.round(bx + 1 * sqx), Math.round(by - drawH / 2 + 10 * sqy), 9, 2);
+      c.fillStyle = "#8a2f96";
+      for (const [ox, oy, w, h] of [[-2, -11, 2, 5], [0, -7, 5, 2], [3, -5, 2, 5], [-7, 6, 5, 2], [-4, 8, 2, 5]]) {
+        c.fillRect(Math.round(bx + ox * sqx), Math.round(by + oy * sqy), w, h);
+      }
+    }
   }
   // hit feedback: brief white overlay
   if (hitFlash > 0) {
