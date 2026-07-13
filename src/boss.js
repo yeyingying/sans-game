@@ -133,6 +133,23 @@ function drawUTBattleFrame(c, W, H, t) {
   c.restore();
 }
 
+function drawPlayerFocus(c, x, y, alpha) {
+  const r = 15;
+  const arm = 7;
+  c.save();
+  c.globalAlpha = alpha;
+  c.fillStyle = "#ffffff";
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      const px = Math.round(x + sx * r);
+      const py = Math.round(y + sy * r);
+      c.fillRect(px - (sx < 0 ? 0 : arm), py, arm, 2);
+      c.fillRect(px, py - (sy < 0 ? 0 : arm), 2, arm);
+    }
+  }
+  c.restore();
+}
+
 // a minimal boss "enemy" so weapons can target and damage it
 export function makeBossEnemy(x, y) {
   return {
@@ -276,6 +293,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     // ----- main update ------------------------------------------------------
     update(dt, ctx) {
       const { player } = ctx;
+      this._playerFocus = { x: player.x, y: player.y };
       // boss hits scale to the player's bulk (1x fresh build → 3x tank build)
       // floor raised 1 → 1.2 (2026-07-12): low-bulk (=normal/early) builds sat
       // at the old floor and shrugged the boss off; tanky builds already >1.2
@@ -1140,6 +1158,11 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
             c.restore();
           }
         }
+      }
+
+      if (this._playerFocus && this.hazards.some((h) => h.kind === "blaster" && h.t > 0.1)) {
+        const blink = Math.floor(this.t * 12) % 2;
+        drawPlayerFocus(c, this._playerFocus.x, this._playerFocus.y, blink ? 1 : 0.72);
       }
 
       // dash afterimages: fading red silhouettes
