@@ -1,7 +1,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { dailyKey, expectedScore, randomNickname, runProgressError, signToken, validateNickname } from "./core.mjs";
+import { SEASON, dailyKey, expectedScore, isValidCharacter, randomNickname, runProgressError, signToken, validateNickname } from "./core.mjs";
 import { adminAuthorized, adminCookie, adminOverview, adminPage, clearAdminCookie, passwordMatches, uniqueNickname } from "./admin.mjs";
 import { clientIp, requestNetwork } from "./geo.mjs";
 
@@ -17,9 +17,8 @@ for(const [t,c,type] of [
  ["players","last_seen_at","INTEGER NOT NULL DEFAULT 0"],["players","last_ip_masked","TEXT NOT NULL DEFAULT ''"],["players","last_network_tag","TEXT NOT NULL DEFAULT ''"],["players","last_device","TEXT NOT NULL DEFAULT ''"],["players","last_region","TEXT NOT NULL DEFAULT ''"],["players","last_isp","TEXT NOT NULL DEFAULT ''"],
  ["runs","ip_masked","TEXT NOT NULL DEFAULT ''"],["runs","network_tag","TEXT NOT NULL DEFAULT ''"],["runs","device","TEXT NOT NULL DEFAULT ''"],["runs","region","TEXT NOT NULL DEFAULT ''"],["runs","isp","TEXT NOT NULL DEFAULT ''"]
 ])try{db.exec(`ALTER TABLE ${t} ADD COLUMN ${c} ${type}`)}catch{}
-// season gate: '' = pre-season legacy rows (kept, never shown); bump when
-// scoring rules change so old scores never mix with new ones
-const SEASON="s1";
+// season gate: '' = pre-season legacy rows (kept, never shown); the current
+// value lives in core.mjs so production and deterministic tests cannot drift.
 for(const [c,type] of [["recovery_hash","TEXT NOT NULL DEFAULT ''"],["recovery_created","INTEGER NOT NULL DEFAULT 0"]])try{db.exec(`ALTER TABLE players ADD COLUMN ${c} ${type}`)}catch{}
 const stmt={
  player:db.prepare("SELECT * FROM players WHERE id=?"), nick:db.prepare("SELECT 1 FROM players WHERE nickname=?"),
@@ -80,7 +79,7 @@ const server=http.createServer(async(req,res)=>{const origin=ORIGINS.has(req.hea
  if(!p)return send(res,401,{error:"请先初始化游客身份"},origin);
  if(u.pathname==="/v1/me/name"&&req.method==="POST"){const name=validateNickname((await read(req)).nickname),now=Date.now();if(p.renamed_at&&now<p.renamed_at+604800000)throw err("每 7 天只能改名一次",429);try{stmt.rename.run(name,now,p.id)}catch{throw err("昵称已被使用",409)}return send(res,200,{player:{nickname:name,canRenameAt:now+604800000}},origin)}
  if(u.pathname==="/v1/account/recovery"&&req.method==="POST"){const code=recoveryCode(),now=Date.now();stmt.recovery.run(recoveryHash(code),now,p.id);return send(res,200,{code,createdAt:now,warning:"恢复码只显示一次，请立即保存"},origin)}
- if(u.pathname==="/v1/runs"&&req.method==="POST"){const b=await read(req);if(!/^(sans|ukb|horror|hard)$/.test(b.character)||![0,1,2,3].includes(b.difficulty)||b.debug)throw err("无效开局");const id=crypto.randomUUID(),token=crypto.randomBytes(24).toString("base64url"),now=Date.now(),n=await touchPlayer(req,p.id);stmt.addRun.run(id,p.id,signToken(SECRET,token),b.character,b.difficulty,b.silence?1:0,now,now,b.daily?dailyKey(now):"");stmt.runNetwork.run(n.ipMasked,n.networkTag,n.device,n.region,n.isp,id);return send(res,201,{runId:id,token},origin)}
+ if(u.pathname==="/v1/runs"&&req.method==="POST"){const b=await read(req);if(!isValidCharacter(b.character)||![0,1,2,3].includes(b.difficulty)||b.debug)throw err("无效开局");const id=crypto.randomUUID(),token=crypto.randomBytes(24).toString("base64url"),now=Date.now(),n=await touchPlayer(req,p.id);stmt.addRun.run(id,p.id,signToken(SECRET,token),b.character,b.difficulty,b.silence?1:0,now,now,b.daily?dailyKey(now):"");stmt.runNetwork.run(n.ipMasked,n.networkTag,n.device,n.region,n.isp,id);return send(res,201,{runId:id,token},origin)}
  // 匿名 run 汇总: one whitelisted stats blob per run (win or loss); token-
  // gated, write-once, values clamped — the balance loop's production data
  const mr=u.pathname.match(/^\/v1\/runs\/([^/]+)\/report$/); if(mr&&req.method==="POST"){const b=await read(req),r=stmt.run.get(mr[1],p.id);if(!r||signToken(SECRET,String(b.token||""))!==r.token_hash)throw err("无效 run",409);if(r.report)throw err("已上报",409);const s=b.stats&&typeof b.stats==="object"?b.stats:{};const pick={};for(const k of ["version","mode","outcome","elapsed","kills","score","bossReached","bossDefeated","rounds","hpPct","damageTaken","revivesUsed","weapons","contract","speed","metaPower","deathBy","chests","relics","wallet","up"]){const v=s[k];if(v===undefined)continue;pick[k]=Array.isArray(v)?v.slice(0,8).map(x=>String(x).slice(0,32)):typeof v==="boolean"?v:typeof v==="number"&&Number.isFinite(v)?v:String(v).slice(0,32)}stmt.report.run(JSON.stringify(pick),r.id);return send(res,200,{ok:true},origin)}

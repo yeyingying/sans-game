@@ -1,5 +1,11 @@
 import crypto from "node:crypto";
 
+// Competitive ruleset. A stronger paid character entered in S2, so its
+// scores must not be mixed with the pre-Insanity S1 field.
+export const SEASON = "s2";
+const VALID_CHARACTERS = new Set(["sans", "ukb", "horror", "hard", "insanity"]);
+export const isValidCharacter = (character) => VALID_CHARACTERS.has(character);
+
 // mirrors the client's DIFFICULTIES.scoreMult exactly — the board must show
 // the same number the player saw in-game (boards are difficulty-filterable
 // since s1, so the multiplier is display fidelity, not fairness policy)

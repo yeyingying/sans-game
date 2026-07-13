@@ -133,12 +133,12 @@ import {
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
-import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=rankfix-20260713";
+import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=s2-20260714";
 
 import { utPrompt, utNotice } from "./dialog.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
-const GAME_VERSION = "s1-20260714"; // 新角色 Insanity(血疯线)上线,八武器+10000G解锁
+const GAME_VERSION = "s2-20260714"; // S2: Insanity 上线并进入独立赛季
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,

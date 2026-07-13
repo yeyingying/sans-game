@@ -7,8 +7,8 @@ import { ICONS, drawIconLabel } from "./sprites.js";
 
 const API = "https://api.sansgecao.com/v1";
 // names must mirror weapon.js CHARACTERS — the board and the game must agree
-const CHARACTER_NAMES = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式" };
-const CHARACTER_COLORS = { sans: "#7ea8ff", ukb: "#c59bff", horror: "#ff5d5d", hard: "#5db9ff" };
+const CHARACTER_NAMES = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式", insanity: "Insanity" };
+const CHARACTER_COLORS = { sans: "#7ea8ff", ukb: "#c59bff", horror: "#ff5d5d", hard: "#5db9ff", insanity: "#d92535" };
 const DIFF_NAMES = ["普通", "狂暴", "地狱", "屠杀"];
 const DIFF_COLORS = ["#c8c2d4", "#ff8a5d", "#ff5d73", "#c59bff"];
 // 三个榜衡量三种实力,明说,不假装是同一种(2026-07-12 评审)
@@ -17,7 +17,7 @@ const MODES = [
   { id: "endless", label: "无尽榜", hint: "后期构筑与生存能力 · 轮数优先" },
   { id: "daily", label: "每日榜", hint: "全员同一起跑线 · 禁局外强化 · 纯竞技" },
 ];
-const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard"];
+const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard", "insanity"];
 
 export const leaderboardOnline = typeof location !== "undefined" && /(^|\.)sansgecao\.com$/.test(location.hostname || "");
 let me = null, run = null, timer = null, retryTimer = null, result = "", rows = [], mode = "normal", character = "", boardDate = "";
@@ -270,10 +270,10 @@ function filterToggleRect(w) {
 }
 function charChipRect(i, w) {
   const ph = isPhone(w);
-  const m = ph ? 1.9 : 1;
+  const m = ph ? 1.75 : 1;
   const cw = 88 * m;
   const gap = 8 * m;
-  const x0 = w / 2 - (5 * cw + 4 * gap) / 2;
+  const x0 = w / 2 - (CHAR_FILTERS.length * cw + (CHAR_FILTERS.length - 1) * gap) / 2;
   return { x: x0 + i * (cw + gap), y: ph ? 274 : 138, w: cw, h: 28 * m };
 }
 function diffChipRect(i, w) {
