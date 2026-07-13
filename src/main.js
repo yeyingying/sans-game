@@ -123,7 +123,7 @@ import {
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
-import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=5d5d8dc";
+import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=rankfix-20260713";
 
 import { utPrompt, utNotice } from "./dialog.js";
 
@@ -1105,17 +1105,19 @@ function settleGame(kind) {
   if (bossDefeated) finishRankedRun({ mode: dailyMode ? "daily" : runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: dailyMode || runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
   else cancelRankedRun(); // died/quit before the boss: the run never boards
   lastBest = bestScoreOf(player.character);
-  newRecord = lastScore > lastBest;
+  // Debug helpers may be useful for art/testing, but must never create a
+  // convincing local "最高" that looks like a missing legitimate rank.
+  newRecord = !PRODUCTION_DEBUG_RUN && lastScore > lastBest;
   if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
   // endless gets its own ledger and its own best
   endlessResult = null;
   if (bossDefeated && runOutcome !== "victory") {
     const eScore = Math.max(0, currentScore() - stageClearScore);
     const eBestPrev = bestEndlessOf(player.character);
-    const eNew = eScore > eBestPrev;
+    const eNew = !PRODUCTION_DEBUG_RUN && eScore > eBestPrev;
     if (eNew) localStorage.setItem("best_endless_" + player.character, String(eScore));
     const roundBestPrev = bestEndlessRoundOf(player.character);
-    const roundNew = roundsCleared > roundBestPrev;
+    const roundNew = !PRODUCTION_DEBUG_RUN && roundsCleared > roundBestPrev;
     if (roundNew) localStorage.setItem("best_endless_round_" + player.character, String(roundsCleared));
     endlessResult = {
       rounds: roundsCleared,
@@ -1137,9 +1139,9 @@ function settleGame(kind) {
   if (dailyMode) {
     const key = "daily_" + todayKey();
     const prev = parseInt(localStorage.getItem(key) || "0", 10) || 0;
-    dailyNewBest = lastScore > prev;
-    dailyBestToday = Math.max(prev, lastScore);
-    localStorage.setItem(key, String(dailyBestToday));
+    dailyNewBest = !PRODUCTION_DEBUG_RUN && lastScore > prev;
+    dailyBestToday = PRODUCTION_DEBUG_RUN ? prev : Math.max(prev, lastScore);
+    if (!PRODUCTION_DEBUG_RUN) localStorage.setItem(key, String(dailyBestToday));
   }
   exitDailyMode();
   // 提交A snapshots: what THIS run adds to the account, taken pre-record
@@ -1704,6 +1706,25 @@ const DEBUG_EVOLVE = new URLSearchParams(location.search).get("evolve");
 // debug: ?chest opens the slot ceremony immediately (?chest=3 / ?chest=5
 // forces the jackpot sizes) — for tuning the show without farming elites
 const DEBUG_CHEST = new URLSearchParams(location.search).get("chest");
+const RANKING_DEBUG_RUN = DEBUG_BOSS !== null || DEBUG_EVOLVE !== null || DEBUG_CHEST !== null;
+// The public debug helpers must not leave a convincing local record card.
+// Headless/offline harnesses keep their local ledger so deterministic legacy
+// regressions can still assert normal-vs-endless score separation.
+const PRODUCTION_DEBUG_RUN = RANKING_DEBUG_RUN && /(^|\.)sansgecao\.com$/.test(location.hostname || "");
+
+function rankedRunRequest() {
+  return {
+    character: player.character,
+    difficulty: getDifficulty().id,
+    silence: activeContract?.id === "silence",
+    daily: dailyMode,
+    debug: RANKING_DEBUG_RUN,
+  };
+}
+
+function rankedRunStats() {
+  return { elapsed, kills: player.kills, rounds: dailyMode ? 0 : roundsCleared };
+}
 
 // ---- boss-clear choices ----------------------------------------------------
 
@@ -1942,6 +1963,10 @@ function startGame() {
   bgm.volume = 0; // fades up during the intro
   bgmPlay();
   cancelRankedRun(); // drop any stale unsettled ranked handle before a new run
+  // Ranked time starts with the run, not with the first upgrade card. The
+  // client retries identity/run registration in the background if mobile
+  // networking is briefly unavailable.
+  beginRankedRun(rankedRunRequest(), rankedRunStats);
   funValue = 1 + Math.floor(Math.random() * 100); // fresh FUN roll each run
   // savepoint aphorism: typed out as the black intro lifts (UT save-star vibe)
   savepointNote = {
@@ -2270,7 +2295,8 @@ function applyChoice(i) {
   floatingTexts.push(new FloatingText(player.x, player.y - 26, opt.title, opt.color));
   choiceOptions = [];
   state = "playing";
-  beginRankedRun({ character: player.character, difficulty: getDifficulty().id, silence: activeContract?.id === "silence", daily: dailyMode, debug: DEBUG_BOSS !== null }, () => ({ elapsed, kills: player.kills, rounds: dailyMode ? 0 : roundsCleared }));
+  // Also acts as an immediate retry point after a transient start failure.
+  beginRankedRun(rankedRunRequest(), rankedRunStats);
 }
 
 // ---- input ---------------------------------------------------------------
@@ -6089,6 +6115,25 @@ function draw() {
     // 结算两段式(2026-07-12 UX批次)+第一屏六行收敛(美术批): 第一屏只讲
     // "这局怎么样、下一步干嘛",最多六行;流水账折到第二屏并按
     // 构筑/永久成长/新发现 分区(评审共识:分区不拆页签)
+    const rankState = rankedRunStatus();
+    const rankResultLine =
+      bossDefeated && rankState.phase !== "offline"
+        ? {
+            text:
+              rankState.phase === "success"
+                ? `已上榜 · ${rankState.message}`
+                : rankState.message,
+            font: "bold 14px monospace",
+            color:
+              rankState.phase === "success"
+                ? "#7cf28a"
+                : rankState.phase === "error"
+                  ? "#ff5d73"
+                  : rankState.phase === "disabled"
+                    ? "#9a93ab"
+                    : "#8fd6ff",
+          }
+        : null;
     const screenRows = gameoverDetail
       ? [
           { text: "本 局 收 获", font: "bold 26px monospace", color: "#ffd166" },
@@ -6147,6 +6192,7 @@ function draw() {
             : wasDaily
               ? { text: `每日得分 ${lastScore} · 今日最佳 ${dailyBestToday}${dailyNewBest ? " 新纪录！" : ""}`, font: "bold 22px monospace", color: "#ffd166" }
               : { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore} · ${newRecord ? "新纪录！" : `历史最高 ${lastBest}`}`, font: "bold 22px monospace", color: "#ffd166" },
+          ...(rankResultLine ? [rankResultLine] : []),
           {
             text: `${endlessResult ? `审判 ${endlessResult.rounds} 轮 · ` : ""}存活 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒 · 击杀 ${player.kills} · 连杀 ${runMaxStreak} · Lv${player.level}`,
             font: "15px monospace",

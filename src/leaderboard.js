@@ -20,8 +20,16 @@ const MODES = [
 const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard"];
 
 export const leaderboardOnline = typeof location !== "undefined" && /(^|\.)sansgecao\.com$/.test(location.hostname || "");
-let me = null, run = null, timer = null, result = "", rows = [], mode = "normal", character = "", boardDate = "";
+let me = null, run = null, timer = null, retryTimer = null, result = "", rows = [], mode = "normal", character = "", boardDate = "";
 let loading = false, error = "", difficulty = "", myRank = null;
+let identityPromise = null, registrationPromise = null, registrationData = null, registrationStats = null, runGeneration = 0;
+let checkpointFailures = 0;
+let rankedStatus = {
+  phase: leaderboardOnline ? "idle" : "offline",
+  message: leaderboardOnline ? "尚未开局" : "当前版本不连接排行榜",
+  rank: null,
+  score: null,
+};
 const DIFF_FILTERS = ["", "0", "1", "2", "3"]; // 全部 + 四难度(账号榜按难度拆看)
 
 async function call(path, options = {}) {
@@ -31,10 +39,25 @@ async function call(path, options = {}) {
   return data;
 }
 
+async function ensureIdentity() {
+  if (!leaderboardOnline) return null;
+  if (me) return me;
+  if (identityPromise) return identityPromise;
+  identityPromise = call("/me")
+    .then((data) => {
+      me = data.player;
+      return me;
+    })
+    .finally(() => {
+      identityPromise = null;
+    });
+  return identityPromise;
+}
+
 export async function initLeaderboard() {
   if (!leaderboardOnline) return;
   try {
-    me = (await call("/me")).player;
+    await ensureIdentity();
   } catch (e) {
     error = e.message;
   }
@@ -42,6 +65,10 @@ export async function initLeaderboard() {
 
 export function leaderboardProfile() {
   return me;
+}
+
+export function rankedRunStatus() {
+  return { ...rankedStatus };
 }
 
 
@@ -88,16 +115,56 @@ export async function loadLeaderboard(nextMode = mode, nextChar = character, nex
   }
 }
 
-// one server run per game: applyChoice fires this every card, so the guard
-// keeps the first registration (its started_at anchors the anti-cheat clock)
+function scheduleRegistrationRetry(generation) {
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => {
+    if (generation === runGeneration && registrationData && !run) {
+      beginRankedRun(registrationData, registrationStats);
+    }
+  }, 5000);
+}
+
+// One server run per game, requested at the actual start of play. Identity is
+// ensured here as well as at page boot: a transient /me failure must never
+// silently turn a full clear into a local-only score.
 export async function beginRankedRun(data, getStats) {
-  if (!leaderboardOnline || data.debug || run) return;
+  if (!leaderboardOnline) return false;
+  if (data.debug) {
+    rankedStatus = { phase: "disabled", message: "测试入口不上传成绩", rank: null, score: null };
+    return false;
+  }
+  registrationData = data;
+  registrationStats = getStats;
+  if (run) return true;
+  if (registrationPromise) return registrationPromise;
+  const generation = runGeneration;
+  rankedStatus = { phase: "connecting", message: "正在连接全球排行榜…", rank: null, score: null };
+  const attempt = (async () => {
+    try {
+      await ensureIdentity();
+      const created = await call("/runs", { method: "POST", body: JSON.stringify(data) });
+      if (generation !== runGeneration) return false;
+      run = created;
+      checkpointFailures = 0;
+      clearTimeout(retryTimer);
+      clearInterval(timer);
+      timer = setInterval(() => checkpointRankedRun(getStats), 30000);
+      rankedStatus = { phase: "active", message: "本局已进入全球排行榜", rank: null, score: null };
+      return true;
+    } catch (e) {
+      if (generation === runGeneration) {
+        run = null;
+        rankedStatus = { phase: "retrying", message: `排行榜重连中：${e.message}`, rank: null, score: null };
+        scheduleRegistrationRetry(generation);
+      }
+      return false;
+    }
+  })();
+  registrationPromise = attempt;
   try {
-    run = await call("/runs", { method: "POST", body: JSON.stringify(data) });
-    clearInterval(timer);
-    timer = setInterval(() => checkpointRankedRun(getStats), 30000);
-  } catch {
-    run = null;
+    return await attempt;
+  } finally {
+    if (registrationPromise === attempt) registrationPromise = null;
   }
 }
 
@@ -105,8 +172,22 @@ export async function beginRankedRun(data, getStats) {
 // the handle so the next game can register cleanly
 export function cancelRankedRun() {
   clearInterval(timer);
+  clearTimeout(retryTimer);
   timer = null;
+  retryTimer = null;
   run = null;
+  registrationPromise = null;
+  registrationData = null;
+  registrationStats = null;
+  runGeneration += 1;
+  if (rankedStatus.phase !== "disabled") {
+    rankedStatus = {
+      phase: leaderboardOnline ? "idle" : "offline",
+      message: leaderboardOnline ? "尚未开局" : "当前版本不连接排行榜",
+      rank: null,
+      score: null,
+    };
+  }
 }
 
 // 匿名 run 汇总: one whitelisted stats blob per run (win OR loss), fired at
@@ -122,17 +203,47 @@ export async function checkpointRankedRun(getStats) {
   if (!run) return;
   try {
     await call(`/runs/${run.runId}/checkpoint`, { method: "POST", body: JSON.stringify({ ...getStats(), token: run.token }) });
-  } catch {}
+    checkpointFailures = 0;
+    rankedStatus = { phase: "active", message: "本局已进入全球排行榜", rank: null, score: null };
+  } catch (e) {
+    checkpointFailures += 1;
+    rankedStatus = {
+      phase: "warning",
+      message: `检查点重试中(${checkpointFailures})：${e.message}`,
+      rank: null,
+      score: null,
+    };
+  }
 }
 
 export async function finishRankedRun(data) {
-  if (!run) return;
+  clearTimeout(retryTimer);
+  retryTimer = null;
+  registrationData = null;
+  registrationStats = null;
+  if (!run) {
+    const disabled = rankedStatus.phase === "disabled";
+    rankedStatus = {
+      phase: disabled ? "disabled" : "error",
+      message: disabled ? rankedStatus.message : "未上榜：本局未连接到排行榜服务器",
+      rank: null,
+      score: null,
+    };
+    result = rankedStatus.message;
+    return null;
+  }
   clearInterval(timer);
+  timer = null;
+  rankedStatus = { phase: "settling", message: "正在校验并上传成绩…", rank: null, score: null };
   try {
     const x = await call(`/runs/${run.runId}/settle`, { method: "POST", body: JSON.stringify({ ...data, token: run.token }) });
     result = `你的最近成绩:全球第 ${x.rank} 名 · ${x.score} 分`;
+    rankedStatus = { phase: "success", message: `全球第 ${x.rank} 名 · ${x.score} 分`, rank: x.rank, score: x.score };
+    return x;
   } catch (e) {
-    result = e.message;
+    result = `未上榜：${e.message}`;
+    rankedStatus = { phase: "error", message: result, rank: null, score: null };
+    return null;
   } finally {
     run = null;
   }
