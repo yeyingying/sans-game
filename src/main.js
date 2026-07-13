@@ -638,6 +638,7 @@ let temVisit = null; // {x, y, t} hOI!!!
 let letterVisit = null; // {x, y, t} 帕子的信 — walk over it to read
 let visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false }; // once each per run
 let shopMsg = null; // {text, t} UT-style denial line in the shop
+let shopFlash = null; // {id, t} 购买成功后的数值短闪(美术批: 不加弹窗,行内反馈)
 let hotdogStock = 0; // 🌭 chest hot dogs: auto-eaten at low HP, run-scoped
 let hotdogCd = 0; // one dog per second, not a chug
 let relics = {}; // 六魂遗物: run-scoped mechanic passives, chest-exclusive
@@ -2514,11 +2515,17 @@ function handleCanvasTap(pos) {
     for (let i = 0; i < items.length; i++) {
       if (inRect(pos, shopItemRect(i, WIDTH, HEIGHT))) {
         const ok = items[i].id === "reviveStock" ? buyReviveStock() : buyUpgrade(items[i].id);
-        if (ok) sfxEquip();
-        else {
+        if (ok) {
+          sfxEquip();
+          shopFlash = { id: items[i].id, t: 0.6 }; // 数值短闪: 行内看到新值
+        } else {
           sfxHurt(); // maxed or broke: denial buzz + a UT-style line
           const it = items[i];
-          shopMsg = { text: shopDenyLine(it.lvl >= it.max ? "maxed" : it.gate ? "gated" : "broke"), t: 2.2 };
+          // 门槛原因不再常驻条目上,点击时在这里给完整解释(复用已定稿文案)
+          shopMsg = {
+            text: it.lvl >= it.max ? shopDenyLine("maxed") : it.gate ? `* 但什么都没有发生。(${it.gate})` : shopDenyLine("broke"),
+            t: 2.2,
+          };
         }
         return;
       }
@@ -3781,7 +3788,7 @@ function update(dt) {
     if (!e.noXp) spawnDrops(e);
     if (e.roundBoss) {
       roundBossDown = true;
-      floatingTexts.push(new FloatingText(e.x, e.y - 30, `★ ${enemyDisplayName(e)}被击败！`, "#ffd166"));
+      floatingTexts.push(new FloatingText(e.x, e.y - 30, `${enemyDisplayName(e)}被击败！`, "#ffd166"));
     }
     if (e.elite) {
       // elites go out with a bang: shock ring + deep boom
@@ -3934,7 +3941,7 @@ function update(dt) {
         }
       }
       explosions.push(new Explosion(player.x, player.y, 200, "#ffffff", true));
-      floatingTexts.push(new FloatingText(player.x, player.y - 40, "★ 决心重燃！", "#ffffff"));
+      floatingTexts.push(new FloatingText(player.x, player.y - 40, "决心重燃！", "#ffffff"));
       killFlash = 0.3;
       sfxFanfare();
     } else {
@@ -5472,7 +5479,8 @@ function draw() {
         equipped: equippedCosmetic()?.id === c.id || equippedBoneSkin()?.id === c.id,
       })),
       shopTab === 0 ? metaBonusLine() : cosmeticEquipLine(),
-      COSMETICS_SHOP_ENABLED
+      COSMETICS_SHOP_ENABLED,
+      shopFlash?.id ?? null
     );
     // UT-style denial narration for maxed / gated / broke purchases
     if (shopMsg) {
@@ -6043,7 +6051,7 @@ function draw() {
           ...(endlessResult
             ? [
                 { text: `完成审判 ${endlessResult.rounds} 轮 · 无尽存活 ${endlessResult.time} 秒 · 新增击杀 ${endlessResult.kills}`, font: "14px monospace", color: "#ff8a5d" },
-                { text: `最高审判轮数 ${endlessResult.bestRound}${endlessResult.newBestRound ? " ★新纪录！" : ""}`, font: "14px monospace", color: endlessResult.newBestRound ? "#7cf28a" : "#ff8a5d" },
+                { text: `最高审判轮数 ${endlessResult.bestRound}${endlessResult.newBestRound ? " 新纪录！" : ""}`, font: "14px monospace", color: endlessResult.newBestRound ? "#7cf28a" : "#ff8a5d" },
               ]
             : []),
           ...(nearMiss ? [{ text: nearMiss, font: "bold 13px monospace", color: "#ff8a5d" }] : []),
@@ -6066,7 +6074,7 @@ function draw() {
           ...(lastNewTitles.length || lastNewEchoes.length || lastNewQuests.length || lastGoldenFlower || lastMasteryUp || permaGrowth?.newCodex.length
             ? [
                 { text: "—— 新 发 现 ——", font: "12px monospace", color: "#5a5468" },
-                ...(lastNewTitles.length ? [{ text: `★ 新称号:${lastNewTitles.map((n) => `「${n}」`).join("")}`, font: "13px monospace", color: "#7cf28a" }] : []),
+                ...(lastNewTitles.length ? [{ text: `新称号:${lastNewTitles.map((n) => `「${n}」`).join("")}`, font: "13px monospace", color: "#7cf28a" }] : []),
                 ...(lastNewEchoes.length
                   ? [{ text: `回响解锁:「${lastNewEchoes[0]}」${lastNewEchoes.length > 1 ? ` 等 ${lastNewEchoes.length} 段` : ""}(标题页聆听)`, font: "13px monospace", color: "#6bd0ff" }]
                   : []),
@@ -6091,10 +6099,10 @@ function draw() {
             ? [{ text: `死于:${lastDeathBy}`, font: "13px monospace", color: "#c95d5d" }]
             : []),
           endlessResult
-            ? { text: `无尽得分 ${endlessResult.score} · ${endlessResult.newBest ? "★新纪录！" : `历史最佳 ${endlessResult.best}`}`, font: "bold 22px monospace", color: "#ffd166" }
+            ? { text: `无尽得分 ${endlessResult.score} · ${endlessResult.newBest ? "新纪录！" : `历史最佳 ${endlessResult.best}`}`, font: "bold 22px monospace", color: "#ffd166" }
             : wasDaily
-              ? { text: `每日得分 ${lastScore} · 今日最佳 ${dailyBestToday}${dailyNewBest ? " ★新纪录！" : ""}`, font: "bold 22px monospace", color: "#ffd166" }
-              : { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore} · ${newRecord ? "★新纪录！" : `历史最高 ${lastBest}`}`, font: "bold 22px monospace", color: "#ffd166" },
+              ? { text: `每日得分 ${lastScore} · 今日最佳 ${dailyBestToday}${dailyNewBest ? " 新纪录！" : ""}`, font: "bold 22px monospace", color: "#ffd166" }
+              : { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore} · ${newRecord ? "新纪录！" : `历史最高 ${lastBest}`}`, font: "bold 22px monospace", color: "#ffd166" },
           {
             text: `${endlessResult ? `审判 ${endlessResult.rounds} 轮 · ` : ""}存活 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒 · 击杀 ${player.kills} · 连杀 ${runMaxStreak} · Lv${player.level}`,
             font: "15px monospace",
@@ -6315,6 +6323,7 @@ function loop(now) {
   if (deathShatter && state === "gameover") deathShatter.t += dt;
   if (chapterShow && state === "chapter") chapterShow.t += dt;
   if (shopMsg && (shopMsg.t -= dt) <= 0) shopMsg = null;
+  if (shopFlash && (shopFlash.t -= dt) <= 0) shopFlash = null;
   if (tapFlash && (tapFlash.t -= dt) <= 0) tapFlash = null;
   if (state === "chest" && chestCeremony) {
     const cc = chestCeremony;

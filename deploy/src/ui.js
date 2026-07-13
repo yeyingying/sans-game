@@ -1104,8 +1104,20 @@ export function cosmeticItemRect(i, width, height) {
   return { x, y: 122 + (i % 6) * (h + gap), w, h };
 }
 
+// 商店条目像素图标(美术批 backlog 第8项)
+const SHOP_ICONS = {
+  atk: "attack",
+  hp: "heart",
+  speed: "speed",
+  magnet: "magnet",
+  greed: "coin",
+  reroll: "refresh",
+  gear: "chest",
+  reviveStock: "awakening",
+};
+
 // souls: [{id, name, color, desc, price, owned, equipped}]
-export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = [], infoLine = "", showCosmetics = true) {
+export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = [], infoLine = "", showCosmetics = true, flashId = null) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
   ctx.fillRect(0, 0, width, height);
@@ -1194,17 +1206,21 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
     const it = items[i];
     const box = shopItemRect(i, width, height);
     const affordable = it.cost !== null && coins >= it.cost;
+    const flashing = flashId && it.id === flashId;
     ctx.fillStyle = "#1d1828";
     ctx.fillRect(box.x, box.y, box.w, box.h);
-    ctx.strokeStyle = it.cost === null ? "#453f52" : affordable ? it.color : "#5a5468";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = flashing ? "#7cf28a" : it.cost === null ? "#453f52" : affordable ? it.color : "#5a5468";
+    ctx.lineWidth = flashing ? 3 : 2;
     ctx.strokeRect(box.x, box.y, box.w, box.h);
 
     ctx.textAlign = "left";
+    const icon = ICONS[SHOP_ICONS[it.id]];
+    if (icon) drawPixelIcon(ctx, icon, box.x + 12, box.y + 12, 16);
     ctx.fillStyle = it.color;
     ctx.font = "bold 16px monospace";
-    ctx.fillText(it.name, box.x + 16, box.y + 24);
-    ctx.fillStyle = "#b9b2c9";
+    ctx.fillText(it.name, box.x + (icon ? 36 : 16), box.y + 24);
+    // 购买瞬间数值行短闪绿色: 新数值就是反馈,不加弹窗
+    ctx.fillStyle = flashing ? "#7cf28a" : "#b9b2c9";
     ctx.font = "12px monospace";
     ctx.fillText(it.desc, box.x + 16, box.y + 44);
 
@@ -1223,9 +1239,11 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
       ctx.fillText(costText, box.x + box.w - 16, box.y + 24);
     }
     if (it.cost !== null) {
+      // 统一状态语义: 可买/金币不足/未解锁(锁图标);门槛原因点击后弹一次,
+      // 不再每个条目常驻一整句
       ctx.fillStyle = it.gate ? "#d9c47a" : affordable ? "#7d7690" : "#5a5468";
       ctx.font = "11px monospace";
-      const statusText = it.gate || (affordable ? "点击购买" : "金币不足");
+      const statusText = it.gate ? "未解锁" : affordable ? "点击购买" : "金币不足";
       if (it.gate) {
         const statusW = ctx.measureText(statusText).width;
         drawPixelIcon(ctx, ICONS.lock, box.x + box.w - statusW - 31, box.y + 31, 11);
