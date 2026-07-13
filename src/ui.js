@@ -1564,7 +1564,18 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
     ctx.fillText(`[${i + 1}]`, box.x + 10, box.y + 22);
     ctx.textAlign = "center";
     const icon = ICONS[CHOICE_KIND_ICONS[opt.kind]];
-    if (icon) drawPixelIcon(ctx, icon, box.x + box.w / 2 - 12, box.y + 14, 24);
+    if (icon) {
+      // 亮底板:武器/骷髅等图标主体是深墨色,直接贴深色卡面会隐形——
+      // 奶白硬边小方块垫底(UT命令框语感),边框沿用卡色不加新强调色
+      const px = box.x + box.w / 2 - 16;
+      const py = box.y + 10;
+      ctx.fillStyle = "#f2ead8";
+      ctx.fillRect(px, py, 32, 32);
+      ctx.strokeStyle = opt.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px, py, 32, 32);
+      drawPixelIcon(ctx, icon, px + 4, py + 4, 24);
+    }
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 18px monospace";
     ctx.fillText(opt.title, box.x + box.w / 2, box.y + 66);
