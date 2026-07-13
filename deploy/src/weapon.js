@@ -813,12 +813,13 @@ export const WEAPONS = {
 };
 
 export const CHARACTERS = [
-  { id: "sans", name: "传说之下", color: "#7ea8ff", desc: "经典骨骼战士，八种正统骨系武器" },
-  { id: "ukb", name: "因果报应", color: "#c59bff", desc: "紫光神秘骷髅，禁锢与反震的掌控者" },
-  { id: "horror", name: "恐惧传说", color: "#ff5d5d", desc: "猎手骷髅，巨骨与飞斧的狂宴" },
-  { id: "hard", name: "困难模式", color: "#5db9ff", desc: "蓝光缠身，极限攻势的化身" },
+  // tags = 选人卡面的两个玩法标签(backlog 第6项: 卡面只留名/标签/专精,长描述渐进披露)
+  { id: "sans", name: "传说之下", color: "#7ea8ff", tags: ["正统骨系", "均衡"], desc: "经典骨骼战士，八种正统骨系武器" },
+  { id: "ukb", name: "因果报应", color: "#c59bff", tags: ["禁锢", "反震"], desc: "紫光神秘骷髅，禁锢与反震的掌控者" },
+  { id: "horror", name: "恐惧传说", color: "#ff5d5d", tags: ["巨骨", "飞斧"], desc: "猎手骷髅，巨骨与飞斧的狂宴" },
+  { id: "hard", name: "困难模式", color: "#5db9ff", tags: ["蓝光", "极限攻势"], desc: "蓝光缠身，极限攻势的化身" },
   // 血疯线:决心过量实验体——解锁价与商店总价同级,是账号的长线目标
-  { id: "insanity", name: "Insanity", color: "#d92535", desc: "决心过量实验体，天性增伤生命+15%", cost: 10000 },
+  { id: "insanity", name: "Insanity", color: "#d92535", tags: ["禁锢", "处刑"], desc: "决心过量实验体，天性增伤与生命+15%", cost: 10000 },
 ];
 
 export const WEAPON_LISTS = {

@@ -1383,31 +1383,23 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
       }
       ctx.fillText(text, box.x + box.w / 2, cy);
     };
+    // 卡面减负(backlog 第6项): 只留 名字/两个玩法标签/专精等级——
+    // 完整描述与最高分只讲当前选中的角色,显示在卡排下方一行
     ctx.fillStyle = lock ? "#7d7690" : active ? "#ffffff" : "#c8c2d4";
     ctx.font = "bold 22px monospace";
-    if (lock) drawIconLabel(ctx, ICONS.lock, c.name, box.x + box.w / 2, box.y + 228, 17, 5);
-    else ctx.fillText(c.name, box.x + box.w / 2, box.y + 228);
+    if (lock) drawIconLabel(ctx, ICONS.lock, c.name, box.x + box.w / 2, box.y + 234, 17, 5);
+    else ctx.fillText(c.name, box.x + box.w / 2, box.y + 234);
     if (lock) {
       ctx.fillStyle = "#d9c47a";
-      fitFill(`解锁：${lock.hint}`, box.y + 250);
-      ctx.fillStyle = "#9a93ab";
-      fitFill(`进度：${lock.progress}`, box.y + 270);
+      fitFill(lock.hint, box.y + 262);
     } else {
-      ctx.fillStyle = active ? "#b9b2c9" : "#7d7690";
-      ctx.font = "11px monospace";
-      if (ctx.measureText(c.desc).width > box.w - 12) {
-        const mid = Math.ceil(c.desc.length / 2);
-        fitFill(c.desc.slice(0, mid), box.y + 244, 11);
-        fitFill(c.desc.slice(mid), box.y + 258, 11);
-      } else {
-        fitFill(c.desc, box.y + 250);
-      }
-      ctx.fillStyle = "#ffd166";
+      ctx.fillStyle = active ? "#b9b2c9" : "#6f6880";
+      fitFill((c.tags || []).join(" · "), box.y + 262);
       const m = masteries[c.id];
-      fitFill(
-        `${bests[c.id] > 0 ? `最高 ${bests[c.id]}` : "最高 --"}${m ? ` · 专精 Lv${m.lvl}` : ""}`,
-        box.y + 270
-      );
+      if (m) {
+        ctx.fillStyle = "#ffd166";
+        fitFill(`专精 Lv${m.lvl}`, box.y + 284);
+      }
     }
     // 数字快捷键仍可用(1-5 选卡),但不再占卡面一行(2026-07-13 用户点名)
     if (active) {
@@ -1415,6 +1407,19 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
       ctx.font = "bold 18px monospace";
       ctx.fillText("▼", box.x + box.w / 2, box.y - 12);
     }
+  }
+
+  // 渐进披露: 当前选中角色的完整描述+最高分,单独一行居中
+  {
+    const sel = characters[selected];
+    const sLock = locks[sel.id];
+    const sBox = charBoxRect(selected, width, height, characters.length);
+    ctx.fillStyle = sLock ? "#9a93ab" : "#c8c2d4";
+    ctx.font = "12px monospace";
+    const line = sLock
+      ? `${sel.desc} · ${sLock.progress}`
+      : `${sel.desc}${bests[sel.id] > 0 ? ` · 最高 ${bests[sel.id]}` : ""}`;
+    ctx.fillText(line, width / 2, sBox.y + sBox.h + 26);
   }
 
   if (diffs) drawDifficultyRow(ctx, width, height, diffs);
