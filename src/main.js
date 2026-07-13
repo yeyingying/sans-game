@@ -210,6 +210,8 @@ import {
   drawDailyIntro,
   echoButtonRect,
   menuButtonRect,
+  muteButtonRect,
+  drawMuteButton,
   titleMenuItemRect,
   bookCharPillRect,
   bookRowRect,
@@ -719,12 +721,24 @@ function setBgmVolume(v) {
 }
 // sound effects have their own knob on the pause screen
 let sfxVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem("sfxVolume") ?? "0.7") || 0.7));
+// 全局静音(标题页喇叭按钮):不动音量档位,恢复时原样回来。
+// fadeAudio 在目标>0时会自动解除muted,所以静音必须闸住音量目标本身
+let audioMuted = localStorage.getItem("audioMuted") === "1";
 function updateSfxVolume(v) {
   sfxVolume = Math.min(1, Math.max(0, Math.round(v * 10) / 10));
   localStorage.setItem("sfxVolume", String(sfxVolume));
-  setSfxVolume(sfxVolume);
+  setSfxVolume(audioMuted ? 0 : sfxVolume);
 }
-setSfxVolume(sfxVolume);
+setSfxVolume(audioMuted ? 0 : sfxVolume);
+function toggleAudioMuted() {
+  audioMuted = !audioMuted;
+  localStorage.setItem("audioMuted", audioMuted ? "1" : "0");
+  setSfxVolume(audioMuted ? 0 : sfxVolume);
+  if (audioMuted) {
+    bgm.muted = true;
+    menuBgm.muted = true;
+  }
+}
 // ease an audio element's volume toward a target; auto play/pause at the ends
 function fadeAudio(audio, target, dt, speed) {
   const cur = audio.volume;
@@ -1936,7 +1950,7 @@ function startGame() {
   menuBgm.muted = true; // iOS ignores volume writes — mute is the real switch
   menuBgm.currentTime = 0;
   menuBgm.volume = 0;
-  bgm.muted = false;
+  bgm.muted = audioMuted; // 全局静音开着就别在开局解除
   const track = BGM_TRACKS[currentCharacter().id] || "MEGALOVANIA.mp3";
   bgm.src = track; // reload also resets playback to the start
   bgm.volume = 0; // fades up during the intro
@@ -2329,6 +2343,11 @@ function handleCanvasTap(pos) {
           return;
         }
       }
+    }
+    if (inRect(pos, muteButtonRect(WIDTH))) {
+      toggleAudioMuted();
+      if (!audioMuted) sfxClick(); // 开声时"哒"一下作确认,静音时保持安静
+      return;
     }
     if (inRect(pos, menuButtonRect(WIDTH, HEIGHT))) {
       titleMenuOpen = !titleMenuOpen;
@@ -5456,6 +5475,7 @@ function draw() {
       titleMenuOpen,
       questView().some((q) => !q.done) // gold dot: bounties waiting
     );
+    drawMuteButton(ctx, WIDTH, audioMuted);
     // 主线目标(2026-07-12 评审「玩家要知道现在最值得做什么」): one line,
     // evolves with account progress — everything else serves these three
     {
@@ -6329,12 +6349,12 @@ function loop(now) {
 
   // crossfade the menu theme and the battle music
   const inMenu = MENU_STATES.has(state);
-  fadeAudio(menuBgm, inMenu ? bgmVolume : 0, dt, 0.9);
+  fadeAudio(menuBgm, inMenu && !audioMuted ? bgmVolume : 0, dt, 0.9);
   if (state === "paused") {
     if (!bgm.paused) bgm.pause();
   } else if (bgm.src && (state === "playing" || state === "choice" || state === "chest")) {
     // the music ducks during the boss warning so the siren reads clearly
-    fadeAudio(bgm, gameVolTarget() * (bossWarnActive() ? 0.25 : 1), dt, 1.1);
+    fadeAudio(bgm, audioMuted ? 0 : gameVolTarget() * (bossWarnActive() ? 0.25 : 1), dt, 1.1);
   } else {
     fadeAudio(bgm, 0, dt, 1.5); // gameover / back to menu
   }

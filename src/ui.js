@@ -170,6 +170,36 @@ export function creditsButtonRect(width, height) {
   return { x: width - 132, y: height - 52, w: 116, h: 34 };
 }
 
+// 标题页静音开关(2026-07-13 用户点名:页面开着浏览器就一直有声)
+export function muteButtonRect(width) {
+  return { x: width - 60, y: 14, w: 44, h: 36 };
+}
+
+export function drawMuteButton(ctx, width, muted) {
+  const b = muteButtonRect(width);
+  ctx.save();
+  ctx.fillStyle = "#141a26";
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.strokeStyle = muted ? "#8d8798" : "#8fd6ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(b.x, b.y, b.w, b.h);
+  // 像素小喇叭:箱体+两级锥口;静音时红色阶梯斜杠盖过
+  const cx = b.x + 12;
+  const cy = b.y + b.h / 2;
+  ctx.fillStyle = muted ? "#8d8798" : "#8fd6ff";
+  ctx.fillRect(cx, cy - 3, 5, 6);
+  ctx.fillRect(cx + 5, cy - 5, 3, 10);
+  ctx.fillRect(cx + 8, cy - 7, 3, 14);
+  if (muted) {
+    ctx.fillStyle = "#ff5d73";
+    for (let i = 0; i < 7; i++) ctx.fillRect(cx - 2 + i * 3, cy + 5 - i * 2, 3, 3);
+  } else {
+    ctx.fillRect(cx + 13, cy - 4, 2, 8);
+    ctx.fillRect(cx + 17, cy - 7, 2, 14);
+  }
+  ctx.restore();
+}
+
 export function backButtonRect(width, height) {
   return { x: 24, y: height - 62, w: 120, h: 44 };
 }
