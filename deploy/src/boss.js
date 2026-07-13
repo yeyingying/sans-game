@@ -92,6 +92,47 @@ function drawSafeLaneBrackets(c, x, y1, y2, w, alpha) {
   c.restore();
 }
 
+function drawPixelHeart(c, x, y, scale = 2) {
+  const rows = [
+    ".RR..RR.",
+    "RRRRRRRR",
+    "RRRRRRRR",
+    ".RRRRRR.",
+    "..RRRR..",
+    "...RR...",
+  ];
+  c.save();
+  c.fillStyle = "#ff334d";
+  for (let py = 0; py < rows.length; py++) {
+    for (let px = 0; px < rows[py].length; px++) {
+      if (rows[py][px] === "R") c.fillRect(Math.round(x + px * scale), Math.round(y + py * scale), scale, scale);
+    }
+  }
+  c.restore();
+}
+
+function drawUTBattleFrame(c, W, H, t) {
+  const insetX = Math.max(24, Math.round(W * 0.1));
+  const top = Math.max(62, Math.round(H * 0.16));
+  const bottom = H - 64;
+  const reveal = Math.min(1, t * 5);
+  c.save();
+  c.globalAlpha = 0.84 * reveal;
+  c.fillStyle = "#050308";
+  c.fillRect(0, 0, W, H);
+  c.globalAlpha = reveal;
+  c.fillStyle = "#f2ead8";
+  c.fillRect(insetX, top, W - insetX * 2, bottom - top);
+  c.fillStyle = "#050308";
+  c.fillRect(insetX + 4, top + 4, W - insetX * 2 - 8, bottom - top - 8);
+  // Cut corners keep the frame visibly pixel-built on small phone screens.
+  c.fillRect(insetX, top, 8, 8);
+  c.fillRect(W - insetX - 8, top, 8, 8);
+  c.fillRect(insetX, bottom - 8, 8, 8);
+  c.fillRect(W - insetX - 8, bottom - 8, 8, 8);
+  c.restore();
+}
+
 // a minimal boss "enemy" so weapons can target and damage it
 export function makeBossEnemy(x, y) {
   return {
@@ -717,12 +758,14 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       boss.hp = 1;
       boss.invulnTimer = 999;
       this.hazards.length = 0;
+      this._transitionCamX = ctx.camX;
       // retreat to the top-center of the view
       this.homeX = ctx.camX + this.WIDTH / 2;
       this.homeY = this.WALL_H + 60;
     },
 
     updateTransition(dt, ctx) {
+      this._transitionCamX = ctx.camX;
       if (this.step < 3) {
         boss.x += (this.homeX - boss.x) * Math.min(1, dt * 3);
         boss.y += (this.homeY - boss.y) * Math.min(1, dt * 3);
@@ -1179,6 +1222,19 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       const c = ctx2d;
       const W = this.WIDTH;
       const H = this.HEIGHT;
+      if (this.mercyChoice) {
+        drawUTBattleFrame(c, W, H, this.t);
+        // The world-space body was deliberately covered by the battle box.
+        // Redraw it once in screen space so it belongs to the scene instead of
+        // looking like an unrelated sprite pasted above two UI buttons.
+        drawBossBody(c, boss.x - (this._transitionCamX || 0), boss.y, this.t, false, {
+          shake: this.shake || 0,
+          animT: this.animT,
+          faceDir: this.faceDir,
+          moving: this.moving,
+          hitFlash: boss.hitFlash,
+        });
+      }
       // red vignette flash on heavy hits
       if (this.flash > 0) {
         c.save();
@@ -1209,7 +1265,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         c.restore();
       }
       // boss health bar at the bottom
-      if (this.state === "fight1" || this.state === "fight2" || this.state === "transition") {
+      if ((this.state === "fight1" || this.state === "fight2" || this.state === "transition") && !this.mercyChoice) {
         const bw = W * 0.6;
         const bx = (W - bw) / 2;
         const by = H - 46;
@@ -1265,8 +1321,11 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       if (this.mercyChoice) {
         c.save();
         drawUTButton(c, fightBtnRect(W, H), "FIGHT");
+        const mercyRect = mercyBtnRect(W, H);
         if (!this.mercySmashed) {
-          drawUTButton(c, mercyBtnRect(W, H), "MERCY");
+          drawUTButton(c, mercyRect, "MERCY");
+          const heartPulse = Math.floor(this.t * 8) % 2;
+          drawPixelHeart(c, mercyRect.x - 24 - heartPulse * 2, mercyRect.y + mercyRect.h / 2 - 6, 2);
         } else if (!this._mercyShards) {
           // MERCY shatters: 8 orange pixel shards — text and border fall as one
           const m = mercyBtnRect(W, H);
@@ -1302,6 +1361,18 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
             c.fillText(sh.glyph, Math.round(sh.x) + 4, Math.round(sh.y) + Math.round(sh.h) - 4);
           }
           c.globalAlpha = 1;
+        }
+        if (this.step === 4 && this.t >= 0.52 && this.t <= 1.04) {
+          const fall = Math.max(0, Math.min(1, (this.t - 0.52) / 0.3));
+          const hitY = mercyRect.y + mercyRect.h / 2;
+          const boneY = hitY - (1 - fall) * 170;
+          drawBoneRed(c, mercyRect.x + mercyRect.w / 2, boneY, 100, -Math.PI / 2);
+          if (this.t >= 0.82 && this.t < 0.94) {
+            c.globalAlpha = 0.34;
+            c.fillStyle = "#ffffff";
+            c.fillRect(0, 0, W, H);
+            c.globalAlpha = 1;
+          }
         }
         c.restore();
       }
