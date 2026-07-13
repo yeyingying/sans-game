@@ -5384,7 +5384,7 @@ function draw() {
     ctx.textAlign = "left";
   }
 
-  drawHud(ctx, WIDTH, player, elapsed, healFlash, !!bossFight);
+  drawHud(ctx, WIDTH, player, elapsed, healFlash, !!bossFight, weaponSummary(player));
   // 右上只留金币(像素图标+数字);无尽轮压缩为短状态;契约/每日缩为小图标
   if (state === "playing" || state === "paused" || state === "choice") {
     ctx.save();

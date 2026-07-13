@@ -221,6 +221,12 @@ function run(seconds, onFrame) {
   );
   check("高频 UI 不再依赖系统 Emoji", !/[🏠📤📜🔒]/u.test(uiSrc) && !mainSrc.includes('icon: "🥧"') && !mainSrc.includes('icon: "🌭"') && !mainSrc.includes("💡"));
   check(
+    "战斗HUD持续显示武器名称与等级",
+    mainSrc.includes("weaponSummary(player)") &&
+      uiSrc.includes("战斗 HUD 保留紧凑武器栏") &&
+      uiSrc.includes("ctx.fillText(weaponLabel, x, 62)"),
+  );
+  check(
     "五连宝箱使用3+2像素铭牌且不再依赖模糊标题光晕",
     mainSrc.includes("const perRow = Math.min(3, n)") &&
       mainSrc.includes("staggered 3+2 pixel reward plaques") &&

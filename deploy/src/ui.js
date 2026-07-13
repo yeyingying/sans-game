@@ -1611,9 +1611,9 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   ctx.restore();
 }
 
-// HUD 减负(美术批 backlog 第2项): 常驻只留 生命/等级/时间/金币——
-// 武器构筑看暂停页,击杀总数看结算,Boss 出现后时间让位给 Boss 信息
-export function drawHud(ctx, width, player, elapsed, healFlash = 0, bossActive = false) {
+// 战斗 HUD 保留紧凑武器栏:玩家必须随时知道当前构筑与等级;
+// 完整状态仍放在暂停页,Boss 出现后时间让位给 Boss 信息。
+export function drawHud(ctx, width, player, elapsed, healFlash = 0, bossActive = false, weaponLabel = "") {
   ctx.save();
   ctx.imageSmoothingEnabled = false;
 
@@ -1652,6 +1652,21 @@ export function drawHud(ctx, width, player, elapsed, healFlash = 0, bossActive =
   ctx.fillStyle = "#f2ead8";
   ctx.font = "12px monospace";
   ctx.fillText(`LV ${player.level}`, 20, 62);
+
+  if (weaponLabel) {
+    const x = 76;
+    const maxW = Math.max(220, width - x - 188);
+    let weaponFont = 11;
+    ctx.font = `${weaponFont}px monospace`;
+    while (weaponFont > 9 && ctx.measureText(weaponLabel).width > maxW) {
+      weaponFont -= 1;
+      ctx.font = `${weaponFont}px monospace`;
+    }
+    ctx.fillStyle = "#7ea8ff";
+    ctx.fillRect(66, 53, 2, 10);
+    ctx.fillStyle = "#c9d7ff";
+    ctx.fillText(weaponLabel, x, 62);
+  }
 
   // Timer — 顶部中央;Boss 战中隐藏(底部 Boss 血条才是当下的焦点)
   if (!bossActive) {
