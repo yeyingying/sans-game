@@ -1409,10 +1409,7 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
         box.y + 270
       );
     }
-    ctx.fillStyle = c.color;
-    ctx.font = "bold 13px monospace";
-    ctx.fillText(`[${i + 1}]`, box.x + box.w / 2, box.y + 290);
-
+    // 数字快捷键仍可用(1-5 选卡),但不再占卡面一行(2026-07-13 用户点名)
     if (active) {
       ctx.fillStyle = c.color;
       ctx.font = "bold 18px monospace";
