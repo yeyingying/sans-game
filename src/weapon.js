@@ -2258,11 +2258,15 @@ function updateInstance(player, inst, dt, world) {
     // ...then a ring of bones erupts around the player; the ring widens with
     // attack range, capped at attack range itself
     const bones = tier.bones + extraAmmo;
-    const ringR = Math.min(tier.ring + Math.max(0, effRange - 130), effRange);
+    // 阵地最大半径(2026-07-13 用户点名): 圈数×45px+射程无上限时,
+    // 后期红骨阵铺满全屏闪眼——半径封顶,超出的外圈折回顶在上限处,
+    // 骨头根数与伤害不变,只约束覆盖范围
+    const FIELD_MAX = 260;
+    const ringR = Math.min(tier.ring + Math.max(0, effRange - 130), effRange, FIELD_MAX);
     // enhancement: +2 extra rings (then +1 per stack), expanding outward
     const rings = 1 + (inst.enhance > 0 ? 2 + (inst.enhance - 1) : 0);
     for (let k = 0; k < rings; k++) {
-      const rr = ringR + k * 45;
+      const rr = Math.min(ringR + k * 45, FIELD_MAX);
       for (let i = 0; i < bones; i++) {
         const a = (i / bones) * Math.PI * 2 + k * 0.3;
         world.spawnSpike({

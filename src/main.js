@@ -128,7 +128,7 @@ import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, canc
 import { utPrompt, utNotice } from "./dialog.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
-const GAME_VERSION = "s1-20260712";
+const GAME_VERSION = "s1-20260713"; // 震地骨阵阵地半径封顶 FIELD_MAX=260
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
