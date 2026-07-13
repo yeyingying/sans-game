@@ -5619,7 +5619,7 @@ function draw() {
       ctx.textAlign = "center";
       ctx.fillStyle = "#d9c47a";
       ctx.font = "13px monospace";
-      drawIconLabel(ctx, ICONS.star, goal, WIDTH / 2, HEIGHT / 2 + 200, 14, 5);
+      drawIconLabel(ctx, ICONS.star, goal, WIDTH / 2, HEIGHT / 2 + (IS_TOUCH ? 210 : 200), 14, 5);
       ctx.restore();
       ctx.textAlign = "left";
     }
@@ -5824,7 +5824,7 @@ function draw() {
     if (pauseTip) {
       ctx.fillStyle = "#9a93ab";
       ctx.font = "12px monospace";
-      drawIconLabel(ctx, ICONS.tip, `小贴士:${pauseTip}`, WIDTH / 2, py0 + 246 + 24, 15, 5);
+      drawIconLabel(ctx, ICONS.tip, `小贴士:${pauseTip}`, WIDTH / 2, IS_TOUCH ? HEIGHT / 2 + 202 : py0 + 246 + 24, 15, 5);
     }
     ctx.restore();
     ctx.textAlign = "center";

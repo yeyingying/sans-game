@@ -132,7 +132,7 @@ export function drawVolumeControl(ctx, width, height, volume, sfxVolume) {
 }
 
 export function resumeButtonRect(width, height) {
-  return { x: width / 2 - T(80, 90), y: height / 2 + T(48, 44), w: T(160, 180), h: T(42, 54) };
+  return { x: width / 2 - T(80, 90), y: height / 2 + T(48, 64), w: T(160, 180), h: T(42, 54) };
 }
 
 export function drawResumeButton(ctx, width, height) {
@@ -151,7 +151,7 @@ export function drawResumeButton(ctx, width, height) {
 }
 
 export function quitButtonRect(width, height) {
-  return { x: width / 2 - T(80, 90), y: height / 2 + T(102, 108), w: T(160, 180), h: T(42, 54) };
+  return { x: width / 2 - T(80, 90), y: height / 2 + T(102, 126), w: T(160, 180), h: T(42, 54) };
 }
 
 export function drawQuitButton(ctx, width, height) {
@@ -1434,7 +1434,7 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
     const line = sLock
       ? `${sel.desc} · ${sLock.progress}`
       : `${sel.desc}${bests[sel.id] > 0 ? ` · 最高 ${bests[sel.id]}` : ""}`;
-    ctx.fillText(line, width / 2, sBox.y + sBox.h + 26);
+    ctx.fillText(line, width / 2, sBox.y + sBox.h + T(26, 16));
   }
 
   if (diffs) drawDifficultyRow(ctx, width, height, diffs);
