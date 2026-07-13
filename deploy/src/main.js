@@ -5953,7 +5953,8 @@ function draw() {
       const w = wide ? 200 : 174;
       const gap = wide ? 16 : 14;
       const perRow = Math.min(3, n);
-      const rowStep = 96;
+      const cardH = 96;
+      const rowStep = 108;
       cc.rewards.forEach((rw, i) => {
         // staggered entrance with an overshoot bounce
         const local = Math.max(0, cc.t - 0.1 - i * 0.12);
@@ -5968,28 +5969,32 @@ function draw() {
         const y = cy + 120 + row * rowStep;
         ctx.save();
         ctx.globalAlpha = k;
-        ctx.translate(x + w / 2, y + 42);
+        ctx.translate(x + w / 2, y + cardH / 2);
         ctx.scale(k * overshoot, k * overshoot);
-        ctx.translate(-(w / 2), -42);
-        // double pixel frame: dark slab, inner plate, 2px color band
+        ctx.translate(-(w / 2), -cardH / 2);
+        // double pixel frame: dark slab, inner plate, separate effect footer
         ctx.fillStyle = "#0c0914";
-        ctx.fillRect(0, 0, w, 84);
+        ctx.fillRect(0, 0, w, cardH);
         ctx.fillStyle = "#1d1828";
-        ctx.fillRect(3, 3, w - 6, 78);
+        ctx.fillRect(3, 3, w - 6, cardH - 6);
         ctx.fillStyle = rw.color;
         ctx.fillRect(3, 3, w - 6, 2);
-        ctx.fillRect(3, 79, w - 6, 2);
-        ctx.fillRect(3, 3, 2, 78);
-        ctx.fillRect(w - 5, 3, 2, 78);
+        ctx.fillRect(3, cardH - 5, w - 6, 2);
+        ctx.fillRect(3, 3, 2, cardH - 6);
+        ctx.fillRect(w - 5, 3, 2, cardH - 6);
         ctx.fillStyle = "#14101c"; // icon pixel drop shadow
-        ctx.fillRect(w / 2 - 17 + 2, 12 + 2, 34, 34);
-        drawPixelIcon(ctx, rw.icon, w / 2 - 17, 12, 34);
-        ctx.font = "bold 12px monospace";
+        ctx.fillRect(w / 2 - 15 + 2, 9 + 2, 30, 30);
+        drawPixelIcon(ctx, rw.icon, w / 2 - 15, 9, 30);
+        ctx.font = "bold 13px monospace";
         ctx.fillStyle = "#f2ead8";
         ctx.fillText(rw.label, w / 2, 58);
+        ctx.fillStyle = "#100d18";
+        ctx.fillRect(6, 67, w - 12, 23);
+        ctx.fillStyle = rw.color;
+        ctx.fillRect(6, 67, w - 12, 1);
         ctx.font = "11px monospace";
         ctx.fillStyle = "#d0cad8";
-        ctx.fillText(rw.detail || "", w / 2, 74);
+        ctx.fillText(rw.detail || "", w / 2, 83);
         ctx.restore();
       });
       if (cc.t > 0.1 + n * 0.12 + 0.3) {

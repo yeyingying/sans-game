@@ -224,6 +224,8 @@ function run(seconds, onFrame) {
     "五连宝箱使用3+2像素铭牌且不再依赖模糊标题光晕",
     mainSrc.includes("const perRow = Math.min(3, n)") &&
       mainSrc.includes("staggered 3+2 pixel reward plaques") &&
+      mainSrc.includes("separate effect footer") &&
+      mainSrc.includes("const cardH = 96") &&
       mainSrc.includes('detail: "生命上限+15 · 回满"') &&
       mainSrc.includes('detail: "进化或强化一件武器"') &&
       !mainSrc.includes("ctx.shadowBlur = 24 * pulse"),
