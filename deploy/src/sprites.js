@@ -109,9 +109,10 @@ export const ICONS = Object.freeze({
     ".KWWWWWWWWK.", "..KKKKKKKWK.", ".........KK.", "............",
   ]),
   weapon: uiIcon([
-    "K..........K", "KK........KK", ".KK......KK.", "..KK....KK..",
-    "...KK..KK...", "....KKKK....", "....KKKK....", "...KK..KK...",
-    "..KK....KK..", ".GK......KG.", "GG........GG", "G..........G",
+    // 剑身用奶白(深墨色贴深色卡面会隐形,2026-07-13 用户点名),护手保持金
+    "W..........W", "WW........WW", ".WW......WW.", "..WW....WW..",
+    "...WW..WW...", "....WWWW....", "....WWWW....", "...WW..WW...",
+    "..WW....WW..", ".GW......WG.", "GG........GG", "G..........G",
   ]),
   flower: uiIcon([
     "....BB......", "...BWWB.....", ".BBWWWWBB...", "BWWWGGWWWB..",
