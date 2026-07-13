@@ -152,10 +152,10 @@ function tabRect(i, w) {
   const bw = 124 * m;
   const gap = 12 * m;
   const x0 = w / 2 - (3 * bw + 2 * gap) / 2;
-  return { x: x0 + i * (bw + gap), y: isPhone(w) ? 88 : 96, w: bw, h: 34 * m };
+  return { x: x0 + i * (bw + gap), y: isPhone(w) ? 110 : 96, w: bw, h: 34 * m };
 }
 function filterToggleRect(w) {
-  return { x: w / 2 - 210, y: 186, w: 420, h: 54 }; // phone only
+  return { x: w / 2 - 210, y: 208, w: 420, h: 54 }; // phone only
 }
 function charChipRect(i, w) {
   const ph = isPhone(w);
@@ -163,7 +163,7 @@ function charChipRect(i, w) {
   const cw = 88 * m;
   const gap = 8 * m;
   const x0 = w / 2 - (5 * cw + 4 * gap) / 2;
-  return { x: x0 + i * (cw + gap), y: ph ? 250 : 138, w: cw, h: 28 * m };
+  return { x: x0 + i * (cw + gap), y: ph ? 274 : 138, w: cw, h: 28 * m };
 }
 function diffChipRect(i, w) {
   const ph = isPhone(w);
@@ -171,12 +171,18 @@ function diffChipRect(i, w) {
   const cw = 72 * m;
   const gap = 8 * m;
   const x0 = w / 2 - (5 * cw + 4 * gap) / 2;
-  return { x: x0 + i * (cw + gap), y: ph ? 314 : 172, w: cw, h: 28 * m };
+  return { x: x0 + i * (cw + gap), y: ph ? 338 : 172, w: cw, h: 28 * m };
+}
+function identityRect(w) {
+  return { x: w / 2 - 260, y: 52, w: 520, h: 46 };
 }
 function renameRect(w) {
   const ph = isPhone(w);
-  const m = ph ? 1.8 : 1;
-  return { x: w / 2 + (ph ? 200 : 128), y: ph ? 38 : 58, w: 88 * m, h: 28 * m };
+  if (ph) {
+    const identity = identityRect(w);
+    return { x: identity.x + identity.w - 116, y: identity.y, w: 116, h: identity.h };
+  }
+  return { x: w / 2 + 128, y: 58, w: 88, h: 28 };
 }
 function retryRect(w, h) {
   const m = isPhone(w) ? 1.6 : 1;
@@ -217,7 +223,7 @@ export function drawLeaderboard(ctx, w, h) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
   ctx.font = `bold ${Math.round(30 * F)}px monospace`;
-  ctx.fillText("审 判 排 行 榜", w / 2, ph ? 44 : 40);
+  ctx.fillText("审判排行榜", w / 2, ph ? 40 : 40);
 
   if (!leaderboardOnline) {
     ctx.fillStyle = "#c8c2d4";
@@ -232,10 +238,25 @@ export function drawLeaderboard(ctx, w, h) {
     return;
   }
 
-  // identity bar: who you are + a visible, honest rename button
-  ctx.fillStyle = "#8fd6ff";
-  ctx.font = `bold ${Math.round(15 * F)}px monospace`;
-  ctx.fillText(`你是:${me?.nickname || "游客身份连接中……"}`, w / 2 - (ph ? 90 : 40), ph ? 66 : 77);
+  // identity bar: on phone this owns a full row, so nickname, title and tabs
+  // never compete for the same narrow strip of vertical space.
+  if (ph) {
+    const identity = identityRect(w);
+    ctx.fillStyle = "#121522";
+    ctx.fillRect(identity.x, identity.y, identity.w, identity.h);
+    ctx.strokeStyle = "#34475c";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(identity.x, identity.y, identity.w, identity.h);
+    ctx.fillStyle = "#8fd6ff";
+    ctx.font = "bold 22px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(`昵称：${me?.nickname || "连接中……"}`, identity.x + 18, identity.y + 30);
+    ctx.textAlign = "center";
+  } else {
+    ctx.fillStyle = "#8fd6ff";
+    ctx.font = `bold ${Math.round(15 * F)}px monospace`;
+    ctx.fillText(`你是:${me?.nickname || "游客身份连接中……"}`, w / 2 - 40, 77);
+  }
   if (me) {
     const cooling = me.canRenameAt && Date.now() < me.canRenameAt;
     button(ctx, renameRect(w), cooling ? "冷却中" : "改名", cooling ? "#7d7690" : "#8fd6ff", !cooling, cooling ? null : ICONS.edit);
@@ -254,7 +275,7 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.fillStyle = "#7d7690";
     ctx.font = "16px monospace";
     const modeInfo = MODES.find((m2) => m2.id === mode);
-    ctx.fillText(`${modeInfo.hint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 176);
+    ctx.fillText(`${modeInfo.hint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 198);
     button(ctx, filterToggleRect(w), fLabel, "#c8c2d4", filtersOpen);
     if (filtersOpen) {
       CHAR_FILTERS.forEach((c, i) =>
@@ -264,9 +285,9 @@ export function drawLeaderboard(ctx, w, h) {
         DIFF_FILTERS.forEach((d, i) =>
           button(ctx, diffChipRect(i, w), d === "" ? "全难度" : DIFF_NAMES[+d], d === "" ? "#f2ead8" : DIFF_COLORS[+d], d === difficulty)
         );
-      listTop = 404;
+      listTop = 428;
     } else {
-      listTop = 278;
+      listTop = 292;
     }
   } else {
     CHAR_FILTERS.forEach((c, i) =>
