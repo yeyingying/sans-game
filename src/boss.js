@@ -51,6 +51,47 @@ function pxBang(c, x, y, alpha) {
   c.restore();
 }
 
+function pxDashedRay(c, x, y, angle, len, color, alpha, phase = 0) {
+  c.save();
+  c.translate(Math.round(x), Math.round(y));
+  c.rotate(angle);
+  c.globalAlpha = alpha;
+  c.fillStyle = color;
+  const dash = 12;
+  const gap = 8;
+  const offset = Math.round(phase) % (dash + gap);
+  for (let dx = -offset; dx < len; dx += dash + gap) {
+    const w = Math.min(dash, len - Math.max(0, dx));
+    if (w > 0) c.fillRect(Math.max(0, dx), -2, w, 4);
+  }
+  c.restore();
+}
+
+function drawSafeLaneBrackets(c, x, y1, y2, w, alpha) {
+  const left = Math.round(x - w / 2 + 8);
+  const right = Math.round(x + w / 2 - 8);
+  const top = Math.round(y1 + 12);
+  const bottom = Math.round(y2 - 12);
+  const mid = Math.round((top + bottom) / 2);
+  c.save();
+  c.globalAlpha = alpha;
+  c.fillStyle = "#8fd6ff";
+  // Three inward-facing bracket pairs make the safe route readable by shape,
+  // not merely by its cyan colour. They also stay clear of the player lane.
+  for (const y of [top, mid, bottom]) {
+    c.fillRect(left, y - 8, 4, 16);
+    c.fillRect(left, y - 8, 13, 4);
+    c.fillRect(left, y + 4, 13, 4);
+    c.fillRect(right - 4, y - 8, 4, 16);
+    c.fillRect(right - 13, y - 8, 13, 4);
+    c.fillRect(right - 13, y + 4, 13, 4);
+  }
+  c.fillStyle = "#ffffff";
+  c.fillRect(Math.round(x) - 5, top - 2, 10, 4);
+  c.fillRect(Math.round(x) - 5, bottom - 2, 10, 4);
+  c.restore();
+}
+
 // a minimal boss "enemy" so weapons can target and damage it
 export function makeBossEnemy(x, y) {
   return {
@@ -169,10 +210,19 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       // t starts negative: 0.5s of dashed-line warning before the bones exist
       this.hazards.push({ kind: "wall", x1, y1, x2, y2, dmg: this.scaleDmg(dmg), t: -0.5, life, hitTimer: 0 });
     },
-    blaster(bx, by, angle, dmg, life) {
+    blaster(bx, by, angle, dmg, life, opts = {}) {
       // hard cap (P0 美术止血): never more than 6 blasters alive on screen
       if (this.hazards.filter((h) => h.kind === "blaster").length >= 6) return;
-      this.hazards.push({ kind: "blaster", x: bx, y: by, angle, dmg: this.scaleDmg(dmg), t: 0, life, warned: false });
+      this.hazards.push({
+        kind: "blaster",
+        x: bx,
+        y: by,
+        angle,
+        dmg: this.scaleDmg(dmg),
+        t: -(opts.delay || 0),
+        life,
+        signature: !!opts.signature,
+      });
     },
     boom(px, py, r, dmg, delay = 0) {
       this.hazards.push({ kind: "boom", x: px, y: py, r, dmg: this.scaleDmg(dmg), t: -delay, life: 0.4, hit: false });
@@ -361,10 +411,17 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           // obvious before firing and remains safe for the whole sweep.
           const slots = 6;
           const slotW = this.WIDTH / slots;
+          let fired = 0;
           for (let i = 0; i < slots; i++) {
             if (i === s.safe) continue;
             const bx = s.camX + slotW * (i + 0.5);
-            this.blaster(bx, this.WALL_H + 18, Math.PI / 2, 1, 1.3);
+            // The five-lane signature keeps its exact coverage, but ignites in
+            // a short left-to-right ripple so it reads as one authored move.
+            this.blaster(bx, this.WALL_H + 18, Math.PI / 2, 1, 1.3, {
+              delay: fired * 0.04,
+              signature: true,
+            });
+            fired += 1;
           }
         }
       }
@@ -874,6 +931,13 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
     // ----- drawing (world space; caller has translated by -camX) -----------
     draw(ctx2d) {
       const c = ctx2d;
+      if (this.signature?.kind === "blasterLanes") {
+        const s = this.signature;
+        const slotW = this.WIDTH / 6;
+        const safeX = s.camX + slotW * (s.safe + 0.5);
+        const blink = Math.floor(s.t * 10) % 2 === 0;
+        drawSafeLaneBrackets(c, safeX, this.WALL_H, this.HEIGHT - 48, slotW, blink ? 0.9 : 0.55);
+      }
       // hazards
       for (const h of this.hazards) {
         if (h.kind === "bone") {
@@ -939,14 +1003,33 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           }
         } else if (h.kind === "blaster") {
           const spr = h.t > 0.45 ? GB_FIRE : GB_IDLE;
+          const shownT = Math.max(0, h.t);
+          if (h.t <= 0.45) {
+            // The danger line exists before collision does. A moving dashed
+            // phase leads the eye from skull to destination without adding a
+            // smooth glow or hiding the playfield beneath a translucent cone.
+            const cue = Math.max(0, Math.min(1, (h.t + 0.16) / 0.61));
+            const mx = h.x + Math.cos(h.angle) * 22;
+            const my = h.y + Math.sin(h.angle) * 22;
+            pxDashedRay(
+              c,
+              mx,
+              my,
+              h.angle,
+              900,
+              this.phase === 2 ? "#ff5d73" : "#e04545",
+              (0.24 + cue * 0.52) * (Math.floor((shownT + 0.08) * 12) % 2 ? 1 : 0.62),
+              shownT * 90,
+            );
+          }
           c.save();
           c.translate(h.x, h.y);
           // spin-in entrance like the player's blaster
-          const spin = h.t < 0.2 ? (1 - h.t / 0.2) * Math.PI * 2 : 0;
+          const spin = shownT < 0.2 ? (1 - shownT / 0.2) * Math.PI * 2 : 0;
           c.rotate(h.angle - Math.PI / 2 + spin);
           c.imageSmoothingEnabled = false;
           const gw = 44; // head -21% (P0 美术止血)
-          c.globalAlpha = Math.min(1, h.t / 0.15);
+          c.globalAlpha = h.t < 0 ? 0.25 : Math.min(1, shownT / 0.15);
           c.drawImage(spr, -gw / 2, -(spr.height / spr.width) * gw / 2, gw, (spr.height / spr.width) * gw);
           c.restore();
           if (h.t > 0.2 && h.t <= 0.45) {
