@@ -5650,24 +5650,43 @@ function draw() {
     ctx.fillText(`骨之涂装:${boneNow ? boneNow.name : "默认白骨"}`, qx0 + 14, py0 + 76);
     ctx.fillStyle = "#c8c2d4";
     ctx.fillText(`称号:${bestTitle() ? "「" + bestTitle().name + "」" : "无"}`, qx0 + 14, py0 + 102);
-    // 构筑与状态(美术批: 武器构筑从 HUD 常驻标签移到这里)
+    // 武器和道具:不用“构筑”等设计术语,每件武器单独列出避免长串溢出
+    const pauseWeapons = player.weapons.map((inst) => ({
+      text: `${inst.evolved ? "★" + WEAPONS[inst.id].evolve.name : WEAPONS[inst.id].name} Lv${inst.tier + 1}`,
+      evolved: inst.evolved,
+    }));
+    const pauseItems = [
+      ...(activeContract ? [`契约:${activeContract.name}`] : []),
+      ...(hotdogStock > 0 ? [`热狗 ×${hotdogStock}:血少时自动吃`] : []),
+      ...(dailyMode ? ["每日挑战进行中"] : []),
+    ];
+    const weaponCols = pauseWeapons.length > 4 ? 2 : 1;
+    const weaponRows = Math.ceil(pauseWeapons.length / weaponCols);
+    const buildPanelH = 44 + weaponRows * 19 + pauseItems.length * 18 + 10;
     ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
-    ctx.fillRect(qx0, py0 + 142, 240, 104);
+    ctx.fillRect(qx0, py0 + 142, 240, buildPanelH);
     ctx.strokeStyle = "#5a5468";
-    ctx.strokeRect(qx0, py0 + 142, 240, 104);
+    ctx.strokeRect(qx0, py0 + 142, 240, buildPanelH);
     ctx.fillStyle = "#7ea8ff";
     ctx.font = "bold 14px monospace";
-    ctx.fillText("构筑与状态", qx0 + 14, py0 + 166);
-    ctx.font = "12px monospace";
-    ctx.fillStyle = "#e8e2d4";
-    [
-      weaponSummary(player),
-      ...(activeContract ? [`契约「${activeContract.name}」`] : []),
-      ...(hotdogStock > 0 ? [`热狗储备 ×${hotdogStock}(残血自动吃)`] : []),
-      ...(dailyMode ? ["每日挑战进行中"] : []),
-    ]
-      .slice(0, 3)
-      .forEach((line, i) => ctx.fillText(line, qx0 + 14, py0 + 190 + i * 22));
+    ctx.fillText("武器和道具", qx0 + 14, py0 + 166);
+    pauseWeapons.forEach((weapon, i) => {
+      const col = weaponCols === 2 ? i % 2 : 0;
+      const row = weaponCols === 2 ? Math.floor(i / 2) : i;
+      const maxW = weaponCols === 2 ? 100 : 210;
+      let fontSize = weaponCols === 2 ? 10 : 12;
+      ctx.font = `${fontSize}px monospace`;
+      while (fontSize > 8 && ctx.measureText(weapon.text).width > maxW) {
+        fontSize -= 1;
+        ctx.font = `${fontSize}px monospace`;
+      }
+      ctx.fillStyle = weapon.evolved ? "#ffd166" : "#e8e2d4";
+      ctx.fillText(weapon.text, qx0 + 14 + col * 108, py0 + 190 + row * 19);
+    });
+    ctx.font = "11px monospace";
+    ctx.fillStyle = "#c8c2d4";
+    const itemY = py0 + 190 + weaponRows * 19;
+    pauseItems.forEach((line, i) => ctx.fillText(line, qx0 + 14, itemY + i * 18));
     // 小贴士: half mechanics, half memes — refreshed on every pause
     if (pauseTip) {
       ctx.fillStyle = "#9a93ab";

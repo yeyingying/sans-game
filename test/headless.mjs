@@ -227,6 +227,13 @@ function run(seconds, onFrame) {
       uiSrc.includes("ctx.fillText(weaponLabel, x, 62)"),
   );
   check(
+    "暂停页武器和道具逐件显示且不会挤成一行",
+    mainSrc.includes('ctx.fillText("武器和道具"') &&
+      mainSrc.includes("const weaponCols = pauseWeapons.length > 4 ? 2 : 1") &&
+      mainSrc.includes("const buildPanelH = 44 + weaponRows * 19") &&
+      !mainSrc.includes('ctx.fillText("构筑与状态"'),
+  );
+  check(
     "五连宝箱使用3+2像素铭牌且不再依赖模糊标题光晕",
     mainSrc.includes("const perRow = Math.min(3, n)") &&
       mainSrc.includes("staggered 3+2 pixel reward plaques") &&
