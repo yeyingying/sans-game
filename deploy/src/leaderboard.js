@@ -293,7 +293,7 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.fillStyle = "#ff8a5d";
     ctx.font = `bold ${Math.round(14 * F)}px monospace`;
     ctx.fillText(`* 连接失败:${error}`, w / 2, h / 2 - 20);
-    button(ctx, retryRect(w, h), "↻ 重试", "#8fd6ff", true);
+    button(ctx, retryRect(w, h), "重试", "#8fd6ff", true, ICONS.refresh);
   } else if (!rows.length) {
     ctx.fillStyle = "#9a93ab";
     ctx.font = `bold ${Math.round(14 * F)}px monospace`;
@@ -310,7 +310,7 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.textAlign = "left";
     ctx.fillText("名次  昵称", cx - 320 * C, top);
     ctx.fillText("角色", cx + 60 * C, top);
-    ctx.fillText("难度", cx + 170 * C, top);
+    drawIconLabel(ctx, ICONS.difficulty, "难度", cx + 170 * C, top, Math.round(12 * F), 4);
     ctx.textAlign = "right";
     ctx.fillText(mode === "endless" ? "轮数 · 无尽分" : "分数", cx + 320 * C, top);
     const medals = ["#ffd166", "#c9d4e0", "#cd9a62"];
@@ -353,9 +353,10 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.fillStyle = "#8fd6ff";
     ctx.font = `bold ${Math.round(13 * F)}px monospace`;
     const text = myRank
-      ? `★ 你:第 ${myRank.rank} 名 · ${mode === "endless" ? `${myRank.rounds} 轮 · ` : ""}${myRank.score} 分`
+      ? `你:第 ${myRank.rank} 名 · ${mode === "endless" ? `${myRank.rounds} 轮 · ` : ""}${myRank.score} 分`
       : "尚未上榜——击败一次 Boss 即可留名";
-    ctx.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + 5 * F);
+    if (myRank) drawIconLabel(ctx, ICONS.star, text, r.x + r.w / 2, r.y + r.h / 2 + 5 * F, Math.round(14 * F), 5);
+    else ctx.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + 5 * F);
   }
   // footer: your latest settle result / status line
   if (result) {

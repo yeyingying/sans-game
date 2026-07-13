@@ -5378,7 +5378,7 @@ function draw() {
       ctx.textAlign = "center";
       ctx.fillStyle = "#d9c47a";
       ctx.font = "13px monospace";
-      ctx.fillText(`★ ${goal}`, WIDTH / 2, HEIGHT / 2 + 200);
+      drawIconLabel(ctx, ICONS.star, goal, WIDTH / 2, HEIGHT / 2 + 200, 14, 5);
       ctx.restore();
       ctx.textAlign = "left";
     }

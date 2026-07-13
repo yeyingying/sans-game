@@ -215,7 +215,7 @@ function run(seconds, onFrame) {
   const mainSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8"));
   check(
     "像素图标系统覆盖核心入口",
-    ["coin", "lock", "pie", "hotdog", "tip", "quest", "weapon", "flower", "save", "daily", "leaderboard", "edit", "copy", "skull", "relic", "awakening", "heart", "shop", "home", "share", "codex"].every((id) =>
+    ["coin", "lock", "pie", "hotdog", "tip", "quest", "weapon", "flower", "save", "daily", "leaderboard", "edit", "copy", "skull", "relic", "awakening", "heart", "shop", "home", "share", "chest", "refresh", "pact", "difficulty", "star", "menu", "warn", "codex"].every((id) =>
       spriteSrc.includes(`${id}: uiIcon`),
     ),
   );

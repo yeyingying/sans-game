@@ -247,7 +247,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(mb.x, mb.y, mb.w, mb.h);
   ctx.fillStyle = menuOpen ? "#ffd166" : "#8fd6ff";
   ctx.font = "bold 14px monospace";
-  ctx.fillText(menuOpen ? "☰ 收起" : "☰ 菜单", mb.x + mb.w / 2, mb.y + 22);
+  drawIconLabel(ctx, ICONS.menu, menuOpen ? "收起" : "菜单", mb.x + mb.w / 2, mb.y + 22, 14, 5);
   if (menuBadge && !menuOpen) {
     // gold dot: today's bounties aren't cleared yet
     ctx.fillStyle = "#ffd166";
@@ -328,10 +328,14 @@ export function drawContractChips(ctx, width, height, contracts, selected) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#d9c47a";
   ctx.font = "bold 13px monospace";
-  ctx.fillText(
-    selected < 0 ? "⚖ 审判契约(可选):点击签订,再点解除 · 按 C 循环" : "⚖ 已签契约——审判会记得你的选择",
+  drawIconLabel(
+    ctx,
+    ICONS.pact,
+    selected < 0 ? "审判契约(可选):点击签订,再点解除 · 按 C 循环" : "已签契约——审判会记得你的选择",
     width / 2,
-    height - 164
+    height - 164,
+    15,
+    6
   );
   contracts.forEach((c, i) => {
     const box = contractChipRect(i, width, height);
@@ -1259,7 +1263,7 @@ function drawDifficultyRow(ctx, width, height, diffs) {
   const activeDiff = diffs.find((d) => d.active);
   ctx.fillStyle = "#9a93ab";
   ctx.font = "12px monospace";
-  ctx.fillText(`难度：${activeDiff ? activeDiff.hint : ""}`, width / 2, diffPillRect(0, width, height).y - 10);
+  drawIconLabel(ctx, ICONS.difficulty, `难度：${activeDiff ? activeDiff.hint : ""}`, width / 2, diffPillRect(0, width, height).y - 10, 13, 5);
   for (let i = 0; i < diffs.length; i++) {
     const d = diffs[i];
     const box = diffPillRect(i, width, height);
@@ -1539,7 +1543,15 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = canReroll ? "#5ee6e6" : "#6b6578";
   ctx.font = "bold 15px monospace";
-  ctx.fillText(canReroll ? (rerolls > 1 ? `刷新 ×${rerolls}` : "刷新") : "已刷新", btn.x + btn.w / 2, btn.y + 25);
+  drawIconLabel(
+    ctx,
+    ICONS.refresh,
+    canReroll ? (rerolls > 1 ? `刷新 ×${rerolls}` : "刷新") : "已刷新",
+    btn.x + btn.w / 2,
+    btn.y + 25,
+    14,
+    5
+  );
   ctx.restore();
 }
 

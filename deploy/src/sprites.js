@@ -178,6 +178,41 @@ export const ICONS = Object.freeze({
     ".....BB.....", ".....BB.....", ".KKKKBBKKKK.", ".KWWWWWWWWK.",
     ".KWWWWWWWWK.", ".KWWWWWWWWK.", ".KKKKKKKKKK.", "............",
   ]),
+  chest: uiIcon([
+    "............", "...KKKKKK...", "..KGGGGGGK..", ".KGGggggGGK.",
+    ".KKKKKKKKKK.", ".KGGGGGGGGK.", ".KGGGKKGGGK.", ".KGGGKGGGGK.",
+    ".KGGGGGGGGK.", ".KKKKKKKKKK.", "............", "............",
+  ]),
+  refresh: uiIcon([
+    "....BBBB....", "..BBBBBBBB..", ".BBB....BBB..", "BBB......BB..",
+    "BB.......B..", "BB..........", "BB....BBB...", "BB......BB..",
+    ".BB....BBB..", "..BBBBBBBB..", "....BBBB....", "............",
+  ]),
+  pact: uiIcon([
+    ".....G......", "....GGG.....", ".....G......", "..KKKGKKK...",
+    ".K...G...K..", "KK...G...KK.", ".GG..G..GG..", "..GG.G.GG...",
+    "...GGGGG....", "....GGG.....", ".....G......", "............",
+  ]),
+  difficulty: uiIcon([
+    "............", "....RRRR....", "...RWWWWR...", "..RW....WR..",
+    ".RW...RR.WR.", ".RW..R...WR.", ".RW.R....WR.", "..RWWWWWWR..",
+    "...RRRRRR...", "....R..R....", "....RRRR....", "............",
+  ]),
+  star: uiIcon([
+    ".....G......", ".....G......", "....GGG.....", ".GGGGGGGGG..",
+    "..GGGWGGG...", "...GWWWG....", "..GGGWGGG...", ".GGG...GGG..",
+    "..G.....G...", "............", "............", "............",
+  ]),
+  menu: uiIcon([
+    "............", ".BB......BB.", ".BB......BB.", "............",
+    ".BB......BB.", ".BB......BB.", "............", ".BB......BB.",
+    ".BB......BB.", "............", "............", "............",
+  ]),
+  warn: uiIcon([
+    ".....R......", "....RRR.....", "...RRWRR....", "..RRRWRRR...",
+    ".RRRRWRRRR..", "RRRRRWRRRRR.", "RRRRRWRRRRR.", "RRRRRRRRRRR.",
+    "RRRRRWRRRRR.", ".RRRRRRRRR..", "..RRRRRRR...", "............",
+  ]),
   codex: uiIcon([
     "..KK....KK..", ".KWWK..KWWK.", ".KWWWKKWWWK.", ".KWWWWWWWWK.",
     ".KWWWWWWWWK.", ".KWWWWWWWWK.", ".KWWWWWWWWK.", ".KWWWKKWWWK.",
