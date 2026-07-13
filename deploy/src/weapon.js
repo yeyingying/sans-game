@@ -499,14 +499,14 @@ export const WEAPONS = {
     evolve: {
       name: "血色扣杀",
       desc: "GET DUNKED ON——撞墙撞怪必爆",
-      tier: { dmgMult: 4.2, rateMult: 0.65, blast: 140, fling: 260, bind: 4 },
+      tier: { dmgMult: 5.0, rateMult: 0.65, blast: 140, fling: 260, bind: 4 },
     },
     tiers: [
-      { blast: 70, fling: 160, bind: 3, dmgMult: 1.8, rateMult: 0.4 },
-      { blast: 76, fling: 180, bind: 3, dmgMult: 2.0, rateMult: 0.42 },
-      { blast: 84, fling: 200, bind: 3, dmgMult: 2.2, rateMult: 0.45 },
-      { blast: 92, fling: 220, bind: 3, dmgMult: 2.5, rateMult: 0.48 },
-      { blast: 100, fling: 240, bind: 3, dmgMult: 2.8, rateMult: 0.5 },
+      { blast: 70, fling: 160, bind: 3, dmgMult: 2.15, rateMult: 0.4 },
+      { blast: 76, fling: 180, bind: 3, dmgMult: 2.4, rateMult: 0.42 },
+      { blast: 84, fling: 200, bind: 3, dmgMult: 2.65, rateMult: 0.45 },
+      { blast: 92, fling: 220, bind: 3, dmgMult: 3.0, rateMult: 0.48 },
+      { blast: 100, fling: 240, bind: 3, dmgMult: 3.35, rateMult: 0.5 },
     ],
   },
   ipounce: {
@@ -519,14 +519,14 @@ export const WEAPONS = {
     evolve: {
       name: "轮回噬咬",
       desc: "目标死亡立即锁定下一只,最多3连扑",
-      tier: { tick: 1.6, interval: 0.45, guard: 0.95, chain: 3, rateMult: 0.34 },
+      tier: { tick: 1.9, interval: 0.45, guard: 0.95, chain: 3, rateMult: 0.34 },
     },
     tiers: [
-      { tick: 0.9, interval: 0.6, guard: 0.9, chain: 1, rateMult: 0.22 },
-      { tick: 1.0, interval: 0.56, guard: 0.9, chain: 1, rateMult: 0.24 },
-      { tick: 1.1, interval: 0.52, guard: 0.9, chain: 1, rateMult: 0.26 },
-      { tick: 1.25, interval: 0.48, guard: 0.9, chain: 1, rateMult: 0.28 },
-      { tick: 1.4, interval: 0.45, guard: 0.9, chain: 1, rateMult: 0.3 },
+      { tick: 1.1, interval: 0.6, guard: 0.9, chain: 1, rateMult: 0.22 },
+      { tick: 1.2, interval: 0.56, guard: 0.9, chain: 1, rateMult: 0.24 },
+      { tick: 1.3, interval: 0.52, guard: 0.9, chain: 1, rateMult: 0.26 },
+      { tick: 1.5, interval: 0.48, guard: 0.9, chain: 1, rateMult: 0.28 },
+      { tick: 1.7, interval: 0.45, guard: 0.9, chain: 1, rateMult: 0.3 },
     ],
   },
   iblaster: {
@@ -539,14 +539,14 @@ export const WEAPONS = {
     evolve: {
       name: "乱码狂轰",
       desc: "W.D.的符文尖啸——10门齐鸣,每门连轰两次",
-      tier: { count: 10, volleys: 2, dmgMult: 3.6, rateMult: 0.6 },
+      tier: { count: 10, volleys: 2, dmgMult: 4.3, rateMult: 0.6 },
     },
     tiers: [
-      { count: 5, volleys: 1, dmgMult: 2.2, rateMult: 0.35 },
-      { count: 6, volleys: 1, dmgMult: 2.4, rateMult: 0.38 },
-      { count: 7, volleys: 1, dmgMult: 2.6, rateMult: 0.4 },
-      { count: 8, volleys: 1, dmgMult: 2.8, rateMult: 0.42 },
-      { count: 9, volleys: 1, dmgMult: 3.0, rateMult: 0.45 },
+      { count: 5, volleys: 1, dmgMult: 2.65, rateMult: 0.35 },
+      { count: 6, volleys: 1, dmgMult: 2.9, rateMult: 0.38 },
+      { count: 7, volleys: 1, dmgMult: 3.1, rateMult: 0.4 },
+      { count: 8, volleys: 1, dmgMult: 3.35, rateMult: 0.42 },
+      { count: 9, volleys: 1, dmgMult: 3.6, rateMult: 0.45 },
     ],
   },
   ihook: {
@@ -559,14 +559,14 @@ export const WEAPONS = {
     evolve: {
       name: "猩红捷径",
       desc: "sans的捷径,染了色——连跳3段,落点连环爆",
-      tier: { jumps: 3, blasts: 2, dmgMult: 3.8, rateMult: 0.6 },
+      tier: { jumps: 3, blasts: 2, dmgMult: 4.55, rateMult: 0.6 },
     },
     tiers: [
-      { jumps: 1, blasts: 1, dmgMult: 2.0, rateMult: 0.4 },
-      { jumps: 1, blasts: 1, dmgMult: 2.2, rateMult: 0.42 },
-      { jumps: 1, blasts: 2, dmgMult: 2.4, rateMult: 0.45 },
-      { jumps: 1, blasts: 2, dmgMult: 2.6, rateMult: 0.48 },
-      { jumps: 1, blasts: 3, dmgMult: 2.8, rateMult: 0.5 },
+      { jumps: 1, blasts: 1, dmgMult: 2.4, rateMult: 0.4 },
+      { jumps: 1, blasts: 1, dmgMult: 2.65, rateMult: 0.42 },
+      { jumps: 1, blasts: 2, dmgMult: 2.9, rateMult: 0.45 },
+      { jumps: 1, blasts: 2, dmgMult: 3.1, rateMult: 0.48 },
+      { jumps: 1, blasts: 3, dmgMult: 3.35, rateMult: 0.5 },
     ],
   },
   ipull: {
@@ -579,14 +579,14 @@ export const WEAPONS = {
     evolve: {
       name: "决心灼烧",
       desc: "过量的决心在体内点燃——6连爆+灼烧",
-      tier: { blasts: 6, burn: 2, dmgMult: 3.2, rateMult: 0.58 },
+      tier: { blasts: 6, burn: 2, dmgMult: 3.85, rateMult: 0.58 },
     },
     tiers: [
-      { blasts: 2, burn: 0, dmgMult: 1.5, rateMult: 0.45 },
-      { blasts: 2, burn: 0, dmgMult: 1.65, rateMult: 0.48 },
-      { blasts: 3, burn: 0, dmgMult: 1.8, rateMult: 0.5 },
-      { blasts: 3, burn: 0, dmgMult: 1.95, rateMult: 0.52 },
-      { blasts: 4, burn: 0, dmgMult: 2.1, rateMult: 0.55 },
+      { blasts: 2, burn: 0, dmgMult: 1.8, rateMult: 0.45 },
+      { blasts: 2, burn: 0, dmgMult: 2.0, rateMult: 0.48 },
+      { blasts: 3, burn: 0, dmgMult: 2.15, rateMult: 0.5 },
+      { blasts: 3, burn: 0, dmgMult: 2.35, rateMult: 0.52 },
+      { blasts: 4, burn: 0, dmgMult: 2.5, rateMult: 0.55 },
     ],
   },
   ihand: {
@@ -599,14 +599,14 @@ export const WEAPONS = {
     evolve: {
       name: "加斯特之手",
       desc: "洞穿的手掌自虚空合围——前后双手",
-      tier: { size: 2.0, bind: 2.5, twin: true, dmgMult: 5.0, rateMult: 0.55 },
+      tier: { size: 2.0, bind: 2.5, twin: true, dmgMult: 6.0, rateMult: 0.55 },
     },
     tiers: [
-      { size: 1.2, bind: 1.5, twin: false, dmgMult: 3.0, rateMult: 0.3 },
-      { size: 1.35, bind: 1.5, twin: false, dmgMult: 3.3, rateMult: 0.32 },
-      { size: 1.5, bind: 1.5, twin: false, dmgMult: 3.6, rateMult: 0.35 },
-      { size: 1.65, bind: 1.5, twin: false, dmgMult: 3.9, rateMult: 0.38 },
-      { size: 1.8, bind: 1.5, twin: false, dmgMult: 4.2, rateMult: 0.4 },
+      { size: 1.2, bind: 1.5, twin: false, dmgMult: 3.6, rateMult: 0.3 },
+      { size: 1.35, bind: 1.5, twin: false, dmgMult: 3.95, rateMult: 0.32 },
+      { size: 1.5, bind: 1.5, twin: false, dmgMult: 4.3, rateMult: 0.35 },
+      { size: 1.65, bind: 1.5, twin: false, dmgMult: 4.7, rateMult: 0.38 },
+      { size: 1.8, bind: 1.5, twin: false, dmgMult: 5.05, rateMult: 0.4 },
     ],
   },
   irain: {
@@ -619,14 +619,14 @@ export const WEAPONS = {
     evolve: {
       name: "糟糕时光",
       desc: "you're gonna have a bad time——3秒骨幕不停歇",
-      tier: { bones: 140, duration: 3, dmgMult: 1.5, rateMult: 0.5 },
+      tier: { bones: 140, duration: 3, dmgMult: 1.8, rateMult: 0.5 },
     },
     tiers: [
-      { bones: 50, duration: 0.9, dmgMult: 0.8, rateMult: 0.28 },
-      { bones: 58, duration: 0.9, dmgMult: 0.9, rateMult: 0.3 },
-      { bones: 68, duration: 1.0, dmgMult: 1.0, rateMult: 0.32 },
-      { bones: 78, duration: 1.0, dmgMult: 1.1, rateMult: 0.34 },
-      { bones: 90, duration: 1.1, dmgMult: 1.2, rateMult: 0.36 },
+      { bones: 50, duration: 0.9, dmgMult: 0.95, rateMult: 0.28 },
+      { bones: 58, duration: 0.9, dmgMult: 1.1, rateMult: 0.3 },
+      { bones: 68, duration: 1.0, dmgMult: 1.2, rateMult: 0.32 },
+      { bones: 78, duration: 1.0, dmgMult: 1.3, rateMult: 0.34 },
+      { bones: 90, duration: 1.1, dmgMult: 1.45, rateMult: 0.36 },
     ],
   },
   ispike: {
@@ -639,14 +639,14 @@ export const WEAPONS = {
     evolve: {
       name: "审判乱葬",
       desc: "审判厅的地板下,埋着所有失败的时间线",
-      tier: { targets: 6, splits: 8, dmgMult: 3.0, rateMult: 0.62 },
+      tier: { targets: 6, splits: 8, dmgMult: 3.6, rateMult: 0.62 },
     },
     tiers: [
-      { targets: 2, splits: 4, dmgMult: 1.4, rateMult: 0.42 },
-      { targets: 2, splits: 4, dmgMult: 1.55, rateMult: 0.45 },
-      { targets: 3, splits: 5, dmgMult: 1.7, rateMult: 0.48 },
-      { targets: 3, splits: 5, dmgMult: 1.85, rateMult: 0.5 },
-      { targets: 4, splits: 6, dmgMult: 2.0, rateMult: 0.52 },
+      { targets: 2, splits: 4, dmgMult: 1.7, rateMult: 0.42 },
+      { targets: 2, splits: 4, dmgMult: 1.85, rateMult: 0.45 },
+      { targets: 3, splits: 5, dmgMult: 2.05, rateMult: 0.48 },
+      { targets: 3, splits: 5, dmgMult: 2.2, rateMult: 0.5 },
+      { targets: 4, splits: 6, dmgMult: 2.4, rateMult: 0.52 },
     ],
   },
   // ---- Hard-mode weapons ----------------------------------------------------
@@ -818,7 +818,7 @@ export const CHARACTERS = [
   { id: "horror", name: "恐惧传说", color: "#ff5d5d", desc: "猎手骷髅，巨骨与飞斧的狂宴" },
   { id: "hard", name: "困难模式", color: "#5db9ff", desc: "蓝光缠身，极限攻势的化身" },
   // 血疯线:决心过量实验体——解锁价与商店总价同级,是账号的长线目标
-  { id: "insanity", name: "Insanity", color: "#d92535", desc: "决心过量实验体，禁锢与处刑的疯宴", cost: 10000 },
+  { id: "insanity", name: "Insanity", color: "#d92535", desc: "决心过量实验体，天性增伤生命+15%", cost: 10000 },
 ];
 
 export const WEAPON_LISTS = {

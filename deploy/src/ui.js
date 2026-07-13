@@ -1374,26 +1374,38 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
       ctx.restore();
     }
 
+    // 卡面文字按卡宽收缩,超宽折两行(5卡后卡面变窄,字不许溢出边框)
+    const fitFill = (text, cy, px = 12) => {
+      ctx.font = `${px}px monospace`;
+      while (px > 8 && ctx.measureText(text).width > box.w - 12) {
+        px -= 1;
+        ctx.font = `${px}px monospace`;
+      }
+      ctx.fillText(text, box.x + box.w / 2, cy);
+    };
     ctx.fillStyle = lock ? "#7d7690" : active ? "#ffffff" : "#c8c2d4";
     ctx.font = "bold 22px monospace";
     if (lock) drawIconLabel(ctx, ICONS.lock, c.name, box.x + box.w / 2, box.y + 228, 17, 5);
     else ctx.fillText(c.name, box.x + box.w / 2, box.y + 228);
     if (lock) {
       ctx.fillStyle = "#d9c47a";
-      ctx.font = "12px monospace";
-      ctx.fillText(`解锁：${lock.hint}`, box.x + box.w / 2, box.y + 250);
+      fitFill(`解锁：${lock.hint}`, box.y + 250);
       ctx.fillStyle = "#9a93ab";
-      ctx.fillText(`进度：${lock.progress}`, box.x + box.w / 2, box.y + 270);
+      fitFill(`进度：${lock.progress}`, box.y + 270);
     } else {
       ctx.fillStyle = active ? "#b9b2c9" : "#7d7690";
-      ctx.font = "12px monospace";
-      ctx.fillText(c.desc, box.x + box.w / 2, box.y + 250);
+      ctx.font = "11px monospace";
+      if (ctx.measureText(c.desc).width > box.w - 12) {
+        const mid = Math.ceil(c.desc.length / 2);
+        fitFill(c.desc.slice(0, mid), box.y + 244, 11);
+        fitFill(c.desc.slice(mid), box.y + 258, 11);
+      } else {
+        fitFill(c.desc, box.y + 250);
+      }
       ctx.fillStyle = "#ffd166";
-      ctx.font = "12px monospace";
       const m = masteries[c.id];
-      ctx.fillText(
+      fitFill(
         `${bests[c.id] > 0 ? `最高 ${bests[c.id]}` : "最高 --"}${m ? ` · 专精 Lv${m.lvl}` : ""}`,
-        box.x + box.w / 2,
         box.y + 270
       );
     }

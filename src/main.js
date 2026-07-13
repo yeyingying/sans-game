@@ -373,7 +373,7 @@ function insanityOwned() {
 function charLocksNow() {
   return insanityOwned()
     ? {}
-    : { insanity: { hint: "10000 金币买断", progress: `钱包 ${getCoins()} / 10000` } };
+    : { insanity: { hint: "10000 金币买断", progress: `钱包 ${getCoins()}` } };
 }
 // 选中锁定角色时,确认键=购买;返回 true 表示这次输入已被购买流吃掉
 function tryBuySelectedChar() {
@@ -930,6 +930,13 @@ function reset(weaponId) {
   player.character = currentCharacter().id;
   // 每日挑战 = 标准竞技:局外强化不进场,全服同一起跑线
   if (!dailyMode) applyMetaUpgrades(player); // permanent shop upgrades kick in from second zero
+  // Insanity 天性「决心过量」: 付费角色要配得上10000G——增伤+15%,生命+15%
+  // (2026-07-13 用户裁决: 花钱的角色至少要比本家厉害)
+  if (player.character === "insanity") {
+    player.dmgAmp += 0.15;
+    player.maxHp = Math.round(player.maxHp * 1.15);
+    player.hp = player.maxHp;
+  }
   player.revives = 0; // armed in startGame from the consumable stock
   player.weapons = [createWeaponInstance(weaponId)];
   spawner = new Spawner(WIDTH, HEIGHT, WALL_H, getDifficulty());
