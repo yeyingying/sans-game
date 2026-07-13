@@ -755,6 +755,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       this.state = "transition";
       this.step = 0;
       this.t = 0;
+      this.transitionVisualT = 0;
       boss.hp = 1;
       boss.invulnTimer = 999;
       this.hazards.length = 0;
@@ -766,6 +767,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
 
     updateTransition(dt, ctx) {
       this._transitionCamX = ctx.camX;
+      this.transitionVisualT += dt;
       if (this.step < 3) {
         boss.x += (this.homeX - boss.x) * Math.min(1, dt * 3);
         boss.y += (this.homeY - boss.y) * Math.min(1, dt * 3);
@@ -1224,7 +1226,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       const W = this.WIDTH;
       const H = this.HEIGHT;
       if (this.mercyChoice) {
-        drawUTBattleFrame(c, W, H, this.t);
+        drawUTBattleFrame(c, W, H, this.transitionVisualT || 0);
         // The world-space body was deliberately covered by the battle box.
         // Redraw it once in screen space so it belongs to the scene instead of
         // looking like an unrelated sprite pasted above two UI buttons.
