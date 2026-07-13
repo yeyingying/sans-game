@@ -123,7 +123,7 @@ import {
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
-import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js";
+import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=5d5d8dc";
 
 import { utPrompt, utNotice } from "./dialog.js";
 
