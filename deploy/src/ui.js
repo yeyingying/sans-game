@@ -1495,6 +1495,28 @@ export function rerollButtonRect(width, height) {
   return { x: width / 2 - 70, y: height / 2 + 110, w: 140, h: 40 };
 }
 
+// 选卡像素图标(美术批 backlog 第3项): kind → ICONS key。
+// 粗粒度语义映射——躲闪归机动,减伤归生存;缺的专属图标(荆棘/骰子/护盾)
+// 记录在 docs/icon-gap-checklist.md,补齐后在这里换 key 即可
+const CHOICE_KIND_ICONS = {
+  atk: "attack",
+  amp20: "attack",
+  amp100: "attack",
+  fireRate: "attack",
+  hp: "heart",
+  regen: "heart",
+  heal50: "heart",
+  tough: "heart",
+  speed: "speed",
+  faster: "speed",
+  dodge: "speed",
+  thorns: "skull",
+  newWeapon: "weapon",
+  tierUp: "weapon",
+  enhance: "weapon",
+  evolve: "awakening",
+};
+
 export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.78)";
@@ -1517,19 +1539,24 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
     ctx.lineWidth = 3;
     ctx.strokeRect(box.x, box.y, box.w, box.h);
 
+    // 快捷键提示缩到左上角,顶部中央让给像素图标
+    ctx.textAlign = "left";
     ctx.fillStyle = opt.color;
-    ctx.font = "bold 15px monospace";
-    ctx.fillText(`[${i + 1}]`, box.x + box.w / 2, box.y + 34);
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(`[${i + 1}]`, box.x + 10, box.y + 22);
+    ctx.textAlign = "center";
+    const icon = ICONS[CHOICE_KIND_ICONS[opt.kind]];
+    if (icon) drawPixelIcon(ctx, icon, box.x + box.w / 2 - 12, box.y + 14, 24);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 18px monospace";
-    ctx.fillText(opt.title, box.x + box.w / 2, box.y + 76);
+    ctx.fillText(opt.title, box.x + box.w / 2, box.y + 66);
     ctx.fillStyle = "#b9b2c9";
-    // 4+ description lines shrink to stay inside the card
+    // 普通卡两行/进化卡三行(超出属于文案违规,缩字号兜底)
     const lines = opt.desc.split("\n");
     const many = lines.length > 3;
     ctx.font = many ? "12px monospace" : "13px monospace";
     lines.forEach((line, li) => {
-      ctx.fillText(line, box.x + box.w / 2, box.y + (many ? 100 : 108) + li * (many ? 16 : 20));
+      ctx.fillText(line, box.x + box.w / 2, box.y + (many ? 90 : 98) + li * (many ? 16 : 20));
     });
   }
 

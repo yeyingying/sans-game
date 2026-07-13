@@ -2028,7 +2028,7 @@ function buildChoicePool() {
     weight: 10,
     make: () => ({
       title: "荆棘之躯",
-      desc: `触碰你的敌人受到伤害\n(当前 ${player.thorns} -> ${player.thorns + 5})`,
+      desc: `触碰你的敌人受到伤害\n(当前 ${player.thorns} → ${player.thorns + 5})`,
       color: "#d9c47a",
       apply: () => {
         player.thorns += 5;
@@ -2147,10 +2147,12 @@ function buildChoicePool() {
         const inst = enhanceable[Math.floor(Math.random() * enhanceable.length)];
         const w = WEAPONS[inst.id];
         const stacks = inst.enhance;
-        const evoHint = w.evolve && !inst.evolved && stacks < 3 ? "\n(满品阶+3层强化 → 可进化)" : "";
+        // 普通卡最多两行效果(美术批): 机制细节看武器图鉴,这里只留
+        // 效果一句 + 层数/进化路标一句
+        const evoHint = w.evolve && !inst.evolved && stacks < 3 ? " · 满阶+3层可进化" : "";
         return {
           title: `专属强化·${w.name}`,
-          desc: `${w.enhance.desc}\n${w.enhance.detail}${stacks > 0 ? `\n(当前 ${stacks} 层)` : ""}${evoHint}`,
+          desc: `${w.enhance.desc}\n(${stacks > 0 ? `当前 ${stacks} → ${stacks + 1} 层` : "首层"}${evoHint})`,
           color: w.color,
           apply: () => {
             inst.enhance += 1;
@@ -2222,7 +2224,8 @@ function rollChoices() {
       }
       r -= pool[i].weight;
     }
-    picked.push(pool[idx].make());
+    // kind 跟着卡走: 选卡界面按 kind 配像素图标(美术批 backlog 第3项)
+    picked.push(Object.assign(pool[idx].make(), { kind: pool[idx].kind }));
     pickedKinds.push(pool[idx].kind);
     pool.splice(idx, 1);
   }
@@ -2232,7 +2235,7 @@ function rollChoices() {
     if (weaponEntries.length) {
       const entry = weaponEntries[Math.floor(Math.random() * weaponEntries.length)];
       const slot = Math.floor(Math.random() * picked.length);
-      picked[slot] = entry.make();
+      picked[slot] = Object.assign(entry.make(), { kind: entry.kind });
     }
   }
   return picked;

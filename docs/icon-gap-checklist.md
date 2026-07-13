@@ -46,6 +46,13 @@ edit copy skull relic awakening heart shop codex magnet speed attack
 2. **换点归属**:main.js 结算/商店区域的 ★⚖✦ 调用点在 Claude 的后续批次里换
    (key 存在即可);ui.js/HUD/宝箱/leaderboard 的换点归 Codex。避免同函数互踩。
 
+## 四点五、选卡图标缺口(Claude 选卡批发现,P1 可选)
+
+选卡 kind→图标映射已上线(ui.js CHOICE_KIND_ICONS),以下 kind 暂用粗粒度语义近似,
+有专属图标更好:`thorns`(荆棘,暂用 skull)、`dodge`(闪避,暂用 speed)、
+`tough`(减伤/护盾,暂用 heart)、`fireRate`(攻速,暂用 attack)。
+补齐后改映射表一行即接入。
+
 ## 五、验收口径(来自 backlog 第 1 项)
 
 - 16×16 与 24×24 两档;移除全部随系统变脸的字体符号(dingbat 也算);
