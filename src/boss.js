@@ -3,7 +3,7 @@
 // rendering, health bar, subtitles, and the FIGHT / MERCY transition.
 // The boss body itself is pushed into main's `enemies` array so the player's
 // weapons target and damage it; everything else is driven from here.
-import { PROJECTILE_BONE_RED, GB_IDLE, GB_FIRE, WALK_SETS } from "./sprites.js";
+import { PROJECTILE_BONE, PROJECTILE_BONE_RED, GB_IDLE, GB_FIRE, WALK_SETS } from "./sprites.js";
 import { circleHit } from "./utils.js";
 import { bossLineFor } from "./narrative.js";
 
@@ -112,9 +112,9 @@ function drawPixelHeart(c, x, y, scale = 2) {
 }
 
 function drawUTBattleFrame(c, W, H, t) {
-  const insetX = Math.max(24, Math.round(W * 0.1));
-  const top = Math.max(62, Math.round(H * 0.16));
-  const bottom = H - 64;
+  const insetX = Math.max(56, Math.round(W * 0.18));
+  const top = Math.max(78, Math.round(H * 0.18));
+  const bottom = H - 170;
   const reveal = Math.min(1, t * 5);
   c.save();
   c.globalAlpha = 0.84 * reveal;
@@ -125,12 +125,28 @@ function drawUTBattleFrame(c, W, H, t) {
   c.fillRect(insetX, top, W - insetX * 2, bottom - top);
   c.fillStyle = "#050308";
   c.fillRect(insetX + 4, top + 4, W - insetX * 2 - 8, bottom - top - 8);
-  // Cut corners keep the frame visibly pixel-built on small phone screens.
-  c.fillRect(insetX, top, 8, 8);
-  c.fillRect(W - insetX - 8, top, 8, 8);
-  c.fillRect(insetX, bottom - 8, 8, 8);
-  c.fillRect(W - insetX - 8, bottom - 8, 8, 8);
   c.restore();
+}
+
+const BOSS_TINT_CACHE = new WeakMap();
+function tintedBossSprite(spr, color) {
+  let byColor = BOSS_TINT_CACHE.get(spr);
+  if (!byColor) {
+    byColor = new Map();
+    BOSS_TINT_CACHE.set(spr, byColor);
+  }
+  if (byColor.has(color)) return byColor.get(color);
+  const cv = document.createElement("canvas");
+  cv.width = spr.width;
+  cv.height = spr.height;
+  const g = cv.getContext("2d");
+  g.imageSmoothingEnabled = false;
+  g.drawImage(spr, 0, 0);
+  g.globalCompositeOperation = "source-atop";
+  g.fillStyle = color;
+  g.fillRect(0, 0, cv.width, cv.height);
+  byColor.set(color, cv);
+  return cv;
 }
 
 function drawPlayerFocus(c, x, y, alpha) {
@@ -780,7 +796,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       this._transitionCamX = ctx.camX;
       // retreat to the top-center of the view
       this.homeX = ctx.camX + this.WIDTH / 2;
-      this.homeY = this.WALL_H + 60;
+      this.homeY = this.WALL_H + 105;
     },
 
     updateTransition(dt, ctx) {
@@ -812,15 +828,16 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           this.shake = 0;
           this.step = 3;
           this.t = 0;
-          // walk down to stand before the MERCY button
+          // remember the button impact point; the boss stays composed inside
+          // the battle box instead of walking across the frame and text.
           const m = mercyBtnRect(this.WIDTH, this.HEIGHT);
           this._mercyX = ctx.camX + m.x + m.w / 2;
-          this._mercyY = m.y - 30;
+          this._mercyY = m.y + m.h / 2;
         }
       } else if (this.step === 3) {
-        boss.x += (this._mercyX - boss.x) * Math.min(1, dt * 2.2);
-        boss.y += (this._mercyY - boss.y) * Math.min(1, dt * 2.2);
-        if (dist(boss.x, boss.y, this._mercyX, this._mercyY) < 8 && this.t > 0.9) {
+        boss.x += (this.homeX - boss.x) * Math.min(1, dt * 3);
+        boss.y += (this.homeY - boss.y) * Math.min(1, dt * 3);
+        if (this.t > 0.9) {
           this.step = 4;
           this.t = 0;
           this.subtitleShow("* Sans 拒绝了仁慈", 2.5);
@@ -1201,19 +1218,6 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         c.restore();
       }
 
-      // phase-2 identity: purple-red shard ring orbits the corrupted body
-      if (this.state === "fight2") {
-        const rot = Math.floor(this.t * 10) * (Math.PI / 24); // stepped spin
-        for (let i = 0; i < 5; i++) {
-          const a = rot + (i * Math.PI * 2) / 5;
-          c.save();
-          c.globalAlpha = 0.8;
-          c.fillStyle = i % 2 ? "#c95df0" : "#ff5d5d";
-          c.fillRect(Math.round(boss.x + Math.cos(a) * 30) - 2, Math.round(boss.y - 8 + Math.sin(a) * 22) - 2, 4, 4);
-          c.restore();
-        }
-      }
-
       // Recovery is a reward state, not merely a gap in the attack stream.
       // Mark it on the boss itself so mobile players do not have to read HUD
       // text while steering through the last particles of the signature.
@@ -1260,6 +1264,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           moving: this.moving,
           hitFlash: boss.hitFlash,
           phase2: this.phase === 2,
+          scale: 1.35,
         });
       }
       // red vignette flash on heavy hits
@@ -1327,7 +1332,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         c.textAlign = "center";
         c.fillStyle = "#ffffff";
         c.font = "bold 22px monospace";
-        c.fillText(this.subtitle, W / 2, H - 90);
+        c.fillText(this.subtitle, W / 2, this.mercyChoice ? H - 190 : H - 90);
         c.restore();
       }
       if (this.recoveryTimer > 0) {
@@ -1352,21 +1357,21 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         if (!this.mercySmashed) {
           drawUTButton(c, mercyRect, "MERCY");
           const heartPulse = Math.floor(this.t * 8) % 2;
-          drawPixelHeart(c, mercyRect.x - 24 - heartPulse * 2, mercyRect.y + mercyRect.h / 2 - 6, 2);
+          drawPixelHeart(c, mercyRect.x - 34 - heartPulse * 2, mercyRect.y + mercyRect.h / 2 - 9, 3);
         } else if (!this._mercyShards) {
-          // MERCY shatters: 8 orange pixel shards — text and border fall as one
+          // MERCY shatters into five readable letter blocks, not confetti.
           const m = mercyBtnRect(W, H);
           this._mercyShards = [];
-          for (let i = 0; i < 8; i++) {
+          for (let i = 0; i < 5; i++) {
             this._mercyShards.push({
-              x: m.x + (i % 4) * (m.w / 4) + 4,
-              y: m.y + (i < 4 ? 0 : m.h / 2),
-              w: m.w / 4 - 6,
-              h: m.h / 2 - 4,
-              vx: (Math.random() - 0.5) * 90,
+              x: m.x + i * (m.w / 5) + 2,
+              y: m.y + 2,
+              w: m.w / 5 - 4,
+              h: m.h - 4,
+              vx: (i - 2) * 22 + (Math.random() - 0.5) * 24,
               vy: -40 - Math.random() * 70,
               t: 0,
-              glyph: "MERCY"[Math.min(4, i % 5)],
+              glyph: "MERCY"[i],
             });
           }
         }
@@ -1393,7 +1398,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           const fall = Math.max(0, Math.min(1, (this.t - 0.52) / 0.3));
           const hitY = mercyRect.y + mercyRect.h / 2;
           const boneY = hitY - (1 - fall) * 170;
-          drawBoneRed(c, mercyRect.x + mercyRect.w / 2, boneY, 100, -Math.PI / 2);
+          drawBoneWhite(c, mercyRect.x + mercyRect.w / 2, boneY, 78, -Math.PI / 2);
           if (this.t >= 0.82 && this.t < 0.94) {
             c.globalAlpha = 0.34;
             c.fillStyle = "#ffffff";
@@ -1443,13 +1448,13 @@ export function fightBtnRect(W, H) {
   const ph = W >= 1000;
   const w = ph ? 128 : 144;
   const h = ph ? 48 : 54;
-  return { x: W / 2 - w - 36, y: H / 2 - h / 2 - 4, w, h };
+  return { x: W / 2 - w - 36, y: H - 128, w, h };
 }
 export function mercyBtnRect(W, H) {
   const ph = W >= 1000;
   const w = ph ? 128 : 144;
   const h = ph ? 48 : 54;
-  return { x: W / 2 + 36, y: H / 2 - h / 2 - 4, w, h };
+  return { x: W / 2 + 36, y: H - 128, w, h };
 }
 function drawUTButton(c, r, label) {
   c.fillStyle = "#ff8a00"; // hard 4px border: orange slab under black plate
@@ -1472,10 +1477,19 @@ function drawBoneRed(c, x, y, size, angle) {
   c.restore();
 }
 
+function drawBoneWhite(c, x, y, size, angle) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(angle);
+  c.imageSmoothingEnabled = false;
+  c.drawImage(PROJECTILE_BONE, -size / 2, -size / 2, size, size);
+  c.restore();
+}
+
 // corrupted sans: hard-edged pixel erosion, blank white sockets,
 // walk animation, wind-up gestures and teleport fades
 function drawBossBody(c, x, y, t, active, opts = {}) {
-  const { shake = 0, gesture = null, tele = null, animT = 0, faceDir = "down", moving = false, hitFlash = 0, phase2 = false } = opts;
+  const { shake = 0, gesture = null, tele = null, animT = 0, faceDir = "down", moving = false, hitFlash = 0, phase2 = false, scale = 1 } = opts;
   // pick a walk frame like the player does
   const frames = WALK_SETS.sans[faceDir] || WALK_SETS.sans.down;
   const spr = moving ? frames[Math.floor(animT * 7) % 4] : frames[0];
@@ -1527,11 +1541,22 @@ function drawBossBody(c, x, y, t, active, opts = {}) {
     }
   }
   c.imageSmoothingEnabled = false;
-  const drawH = 48 * sqy;
-  const drawW = (spr.width / spr.height) * 48 * sqx;
+  const baseH = (phase2 ? 60 : 48) * scale;
+  const drawH = baseH * sqy;
+  const drawW = (spr.width / spr.height) * baseH * sqx;
   c.globalAlpha = alpha;
   const bx = x + shake + gx;
   const by = y + gy + (48 - drawH) / 2; // keep the feet planted when squashing
+  if (phase2) {
+    const purple = tintedBossSprite(spr, "#8a2f96");
+    const red = tintedBossSprite(spr, "#a8283c");
+    c.globalAlpha = alpha * 0.9;
+    c.drawImage(purple, bx - drawW / 2 - 3, by - drawH / 2, drawW, drawH);
+    c.drawImage(purple, bx - drawW / 2 + 3, by - drawH / 2, drawW, drawH);
+    c.globalAlpha = alpha * 0.7;
+    c.drawImage(red, bx - drawW / 2, by - drawH / 2 + 3, drawW, drawH);
+  }
+  c.globalAlpha = alpha;
   c.drawImage(spr, bx - drawW / 2, by - drawH / 2, drawW, drawH);
   // blank white sockets (front-facing frames only)
   if (faceDir === "down" && !tele) {
