@@ -1232,6 +1232,20 @@ function settleGame(kind) {
     const gap = nextBuy ? nextBuy.cost - getCoins() : 0;
     if (nextBuy && gap > 0 && gap <= 90) coachAdvice += `(还差 ${gap} 金币就能拿下「${nextBuy.u.name}」)`;
   }
+  // 每局都给"下一步变强"推荐(2026-07-13 用户点名):教练句原本只管
+  // 战前死亡,通关/撤离/无尽局的建议槽是空的,商店推荐也跟着丢了
+  if (!coachAdvice) {
+    if (affordable) {
+      coachAdvice = `* 裂缝外攻略组:「${affordable.u.name}」已经买得起了,商店见。`;
+    } else {
+      const nextBuy = UPGRADES
+        .map((u) => ({ u, lvl: upgradeLevel(u.id), cost: upgradeCost(u.id), gate: upgradeGate(u.id) }))
+        .filter((x) => x.lvl < x.u.max && !x.gate)
+        .sort((a, b) => a.cost - b.cost)[0];
+      const gap = nextBuy ? nextBuy.cost - getCoins() : 0;
+      if (nextBuy && gap > 0 && gap <= 90) coachAdvice = `* 裂缝外攻略组:还差 ${gap} 金币就能拿下「${nextBuy.u.name}」。`;
+    }
+  }
   // 审判纪元: first-time milestones open a story chapter before the results
   chapterQueue = unseenChapters({
     victory: runOutcome === "victory",
