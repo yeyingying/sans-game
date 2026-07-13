@@ -1555,7 +1555,9 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   ctx.restore();
 }
 
-export function drawHud(ctx, width, player, elapsed, weaponLabel, healFlash = 0) {
+// HUD 减负(美术批 backlog 第2项): 常驻只留 生命/等级/时间/金币——
+// 武器构筑看暂停页,击杀总数看结算,Boss 出现后时间让位给 Boss 信息
+export function drawHud(ctx, width, player, elapsed, healFlash = 0, bossActive = false) {
   ctx.save();
   ctx.imageSmoothingEnabled = false;
 
@@ -1593,15 +1595,15 @@ export function drawHud(ctx, width, player, elapsed, weaponLabel, healFlash = 0)
   ctx.fillRect(17, 41, (xpBarW - 2) * xpPct, 8);
   ctx.fillStyle = "#f2ead8";
   ctx.font = "12px monospace";
-  ctx.fillText(`LV ${player.level}${weaponLabel ? "  " + weaponLabel : ""}`, 20, 62);
+  ctx.fillText(`LV ${player.level}`, 20, 62);
 
-  // Timer + kills
-  ctx.textAlign = "right";
-  ctx.font = "16px monospace";
-  ctx.fillText(formatTime(elapsed), width - 16, 32);
-  ctx.font = "12px monospace";
-  ctx.fillText(`击杀 ${player.kills}`, width - 16, 50);
-  ctx.textAlign = "left";
+  // Timer — 顶部中央;Boss 战中隐藏(底部 Boss 血条才是当下的焦点)
+  if (!bossActive) {
+    ctx.textAlign = "center";
+    ctx.font = "16px monospace";
+    ctx.fillText(formatTime(elapsed), width / 2, 32);
+    ctx.textAlign = "left";
+  }
   ctx.restore();
 }
 

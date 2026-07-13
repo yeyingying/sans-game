@@ -5360,48 +5360,45 @@ function draw() {
     ctx.textAlign = "left";
   }
 
-  drawHud(ctx, WIDTH, player, elapsed, weaponSummary(player) + (hotdogStock > 0 ? `  热狗×${hotdogStock}` : ""), healFlash);
-  // run coins, top-right under the kill counter
+  drawHud(ctx, WIDTH, player, elapsed, healFlash, !!bossFight);
+  // 右上只留金币(像素图标+数字);无尽轮压缩为短状态;契约/每日缩为小图标
   if (state === "playing" || state === "paused" || state === "choice") {
     ctx.save();
     ctx.textAlign = "right";
     ctx.fillStyle = "#ffd166";
+    ctx.font = "bold 15px monospace";
+    ctx.fillText(`${runCoins}`, WIDTH - 16, 32);
+    drawPixelIcon(ctx, ICONS.coin, WIDTH - 38 - ctx.measureText(`${runCoins}`).width, 19, 16);
+    let hudY = 52;
     ctx.font = "12px monospace";
-    ctx.fillText(`ⓖ ${runCoins}`, WIDTH - 16, 68);
     if (endlessRound > 0) {
+      const clock = roundTimer > 0 ? `剩 ${Math.ceil(roundTimer)}s` : roundBossDown ? "完成" : "消灭首领！";
       ctx.fillStyle = "#ff8a5d";
-      const clock =
-        roundTimer > 0
-          ? `剩余 ${Math.ceil(roundTimer)}s`
-          : roundBossDown
-            ? "完成"
-            : "消灭首领！";
-      ctx.fillText(`⚖ 审判第 ${endlessRound} 轮 · ${clock}`, WIDTH - 16, 86);
+      ctx.fillText(`第 ${endlessRound} 轮 · ${clock}`, WIDTH - 16, hudY);
+      hudY += 18;
       const cf = currentCoinFactor();
       ctx.fillStyle = cf > 0 ? "#ffd166" : "#8d8798";
-      ctx.fillText(cf > 0 ? `金币收益 ${Math.round(cf * 100)}%` : "金币收益已停止", WIDTH - 16, 104);
-      ctx.fillStyle = "#ffd166";
-      ctx.fillText(`本轮待结算 ⓖ ${roundPendingCoins}`, WIDTH - 16, 122);
+      ctx.fillText(cf > 0 ? `待结算 +${roundPendingCoins}` : `断供 · 待结算 +${roundPendingCoins}`, WIDTH - 16, hudY);
+      hudY += 18;
     }
+    // 契约/每日: 开局横幅已经交代过,战斗中只留 16px 像素图标占位
+    let iconX = WIDTH - 32;
     if (dailyMode) {
-      ctx.fillStyle = "#c59bff";
-      ctx.fillText("✦ 每日挑战", WIDTH - 16, endlessRound > 0 ? 140 : 86);
+      drawPixelIcon(ctx, ICONS.daily, iconX, hudY - 11, 16);
+      iconX -= 22;
     }
-    if (activeContract) {
-      ctx.fillStyle = "#d9c47a";
-      ctx.fillText(`⚖ 「${activeContract.name}」`, WIDTH - 16, endlessRound > 0 ? 158 : dailyMode ? 104 : 86);
-    }
+    if (activeContract) drawPixelIcon(ctx, ICONS.pact, iconX, hudY - 11, 16);
     ctx.restore();
     ctx.textAlign = "left";
   }
-  // live kill-streak counter: grows with the streak, pops on fresh kills
+  // 连杀常驻缩小实时计数;10/25/40…里程碑时借 killFlash 放大弹跳(评审共识)
   if (streak >= 5 && (state === "playing" || state === "choice")) {
-    const pop = 1 + Math.max(0, streakTimer - 1.35) * 1.6;
+    const pop = 1 + Math.max(0, streakTimer - 1.35) * 0.8 + Math.max(0, killFlash) * 4;
     ctx.save();
     ctx.textAlign = "center";
     ctx.fillStyle = streakTier >= 3 ? "#ff8a5d" : "#ffd166";
-    ctx.font = `bold ${Math.round((15 + Math.min(streak, 80) * 0.08) * pop)}px monospace`;
-    ctx.fillText(`${streak} 连杀`, WIDTH / 2, 82);
+    ctx.font = `bold ${Math.round((11 + Math.min(streak, 80) * 0.05) * pop)}px monospace`;
+    ctx.fillText(`${streak} 连杀`, WIDTH / 2, 78);
     ctx.restore();
     ctx.textAlign = "left";
   }
@@ -5608,6 +5605,24 @@ function draw() {
     ctx.fillText(`骨之涂装:${boneNow ? boneNow.name : "默认白骨"}`, qx0 + 14, py0 + 76);
     ctx.fillStyle = "#c8c2d4";
     ctx.fillText(`称号:${bestTitle() ? "「" + bestTitle().name + "」" : "无"}`, qx0 + 14, py0 + 102);
+    // 构筑与状态(美术批: 武器构筑从 HUD 常驻标签移到这里)
+    ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
+    ctx.fillRect(qx0, py0 + 142, 240, 104);
+    ctx.strokeStyle = "#5a5468";
+    ctx.strokeRect(qx0, py0 + 142, 240, 104);
+    ctx.fillStyle = "#7ea8ff";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText("构筑与状态", qx0 + 14, py0 + 166);
+    ctx.font = "12px monospace";
+    ctx.fillStyle = "#e8e2d4";
+    [
+      weaponSummary(player),
+      ...(activeContract ? [`契约「${activeContract.name}」`] : []),
+      ...(hotdogStock > 0 ? [`热狗储备 ×${hotdogStock}(残血自动吃)`] : []),
+      ...(dailyMode ? ["每日挑战进行中"] : []),
+    ]
+      .slice(0, 3)
+      .forEach((line, i) => ctx.fillText(line, qx0 + 14, py0 + 190 + i * 22));
     // 小贴士: half mechanics, half memes — refreshed on every pause
     if (pauseTip) {
       ctx.fillStyle = "#9a93ab";
