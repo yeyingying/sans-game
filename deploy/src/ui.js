@@ -1358,7 +1358,7 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       if (lock) ctx.filter = "brightness(0.28)"; // locked: silhouette
-      const glow = { ukb: "#a55dff", hard: "#5db9ff" }[c.id];
+      const glow = { ukb: "#a55dff", hard: "#5db9ff", insanity: "#d92535" }[c.id];
       if (glow && !lock) {
         ctx.shadowColor = glow;
         ctx.shadowBlur = 22;
@@ -1410,7 +1410,9 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
 
   if (diffs) drawDifficultyRow(ctx, width, height, diffs);
 
-  // confirm button (shared rect with weapon select)
+  // confirm button (shared rect with weapon select);
+  // 选中锁定角色时变成购买按钮("动词+结果")
+  const selLock = locks[characters[selected]?.id];
   const btn = confirmButtonRect(width, height);
   ctx.fillStyle = "#2e2748";
   ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
@@ -1419,7 +1421,8 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
-  ctx.fillText("确 定", width / 2, btn.y + 29);
+  if (selLock) drawIconLabel(ctx, ICONS.coin, "10000 解锁", width / 2, btn.y + 31, 18, 6);
+  else ctx.fillText("确 定", width / 2, btn.y + 29);
   drawBackButton(ctx, width, height);
   ctx.restore();
 }

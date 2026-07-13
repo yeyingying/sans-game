@@ -487,6 +487,168 @@ export const WEAPONS = {
       { bones: 20, ring: 110, dmgMult: 2.4, rateMult: 0.55 },
     ],
   },
+  // ---- Insanity(血疯线)weapons ----------------------------------------------
+  // 深红=决心过量;八把全部围绕"禁锢/处刑"的疯狂节奏
+  ifist: {
+    id: "ifist",
+    name: "血色重拳",
+    tag: "爆发击飞",
+    desc: "重拳轰出小型爆炸,击飞范围内敌人,落地禁锢3秒,升级加拳围和击飞距离",
+    color: "#ff4d5e",
+    enhance: { desc: "被击飞的敌人撞到敌人时爆炸", detail: "重复选择增加爆炸半径" },
+    evolve: {
+      name: "血色扣杀",
+      desc: "GET DUNKED ON——撞墙撞怪必爆",
+      tier: { dmgMult: 4.2, rateMult: 0.65, blast: 140, fling: 260, bind: 4 },
+    },
+    tiers: [
+      { blast: 70, fling: 160, bind: 3, dmgMult: 1.8, rateMult: 0.4 },
+      { blast: 76, fling: 180, bind: 3, dmgMult: 2.0, rateMult: 0.42 },
+      { blast: 84, fling: 200, bind: 3, dmgMult: 2.2, rateMult: 0.45 },
+      { blast: 92, fling: 220, bind: 3, dmgMult: 2.5, rateMult: 0.48 },
+      { blast: 100, fling: 240, bind: 3, dmgMult: 2.8, rateMult: 0.5 },
+    ],
+  },
+  ipounce: {
+    id: "ipounce",
+    name: "扑杀",
+    tag: "锁定骑乘",
+    desc: "扑住敌人连续撕咬,期间减伤90%,敌人死亡才罢休,升级加撕咬频率",
+    color: "#d92535",
+    enhance: { desc: "起跳时拖最多3个近身敌人一起禁锢", detail: "重复选择 +1 敌人上限" },
+    evolve: {
+      name: "轮回噬咬",
+      desc: "目标死亡立即锁定下一只,最多3连扑",
+      tier: { tick: 1.6, interval: 0.45, guard: 0.95, chain: 3, rateMult: 0.34 },
+    },
+    tiers: [
+      { tick: 0.9, interval: 0.6, guard: 0.9, chain: 1, rateMult: 0.22 },
+      { tick: 1.0, interval: 0.56, guard: 0.9, chain: 1, rateMult: 0.24 },
+      { tick: 1.1, interval: 0.52, guard: 0.9, chain: 1, rateMult: 0.26 },
+      { tick: 1.25, interval: 0.48, guard: 0.9, chain: 1, rateMult: 0.28 },
+      { tick: 1.4, interval: 0.45, guard: 0.9, chain: 1, rateMult: 0.3 },
+    ],
+  },
+  iblaster: {
+    id: "iblaster",
+    name: "龙骨狂轰",
+    tag: "随机炮阵",
+    desc: "头顶召唤龙骨炮轰向随机方向,不索敌,升级加炮数",
+    color: "#b31226",
+    enhance: { desc: "每门龙骨炮轰击次数 +1", detail: "重复选择再 +1 次" },
+    evolve: {
+      name: "乱码狂轰",
+      desc: "W.D.的符文尖啸——10门齐鸣,每门连轰两次",
+      tier: { count: 10, volleys: 2, dmgMult: 3.6, rateMult: 0.6 },
+    },
+    tiers: [
+      { count: 5, volleys: 1, dmgMult: 2.2, rateMult: 0.35 },
+      { count: 6, volleys: 1, dmgMult: 2.4, rateMult: 0.38 },
+      { count: 7, volleys: 1, dmgMult: 2.6, rateMult: 0.4 },
+      { count: 8, volleys: 1, dmgMult: 2.8, rateMult: 0.42 },
+      { count: 9, volleys: 1, dmgMult: 3.0, rateMult: 0.45 },
+    ],
+  },
+  ihook: {
+    id: "ihook",
+    name: "骨刺跳跃",
+    tag: "突进爆破",
+    desc: "骨刺钉住最近的敌人,借力跃过去引爆,跳跃全程无敌,升级加爆炸次数",
+    color: "#c93a5a",
+    enhance: { desc: "落点随机竖起骨头", detail: "重复选择增加骨头数量" },
+    evolve: {
+      name: "猩红捷径",
+      desc: "sans的捷径,染了色——连跳3段,落点连环爆",
+      tier: { jumps: 3, blasts: 2, dmgMult: 3.8, rateMult: 0.6 },
+    },
+    tiers: [
+      { jumps: 1, blasts: 1, dmgMult: 2.0, rateMult: 0.4 },
+      { jumps: 1, blasts: 1, dmgMult: 2.2, rateMult: 0.42 },
+      { jumps: 1, blasts: 2, dmgMult: 2.4, rateMult: 0.45 },
+      { jumps: 1, blasts: 2, dmgMult: 2.6, rateMult: 0.48 },
+      { jumps: 1, blasts: 3, dmgMult: 2.8, rateMult: 0.5 },
+    ],
+  },
+  ipull: {
+    id: "ipull",
+    name: "拉近爆破",
+    tag: "处刑连爆",
+    desc: "把最近的敌人拽到面前,在它身上连环起爆,升级加爆炸次数",
+    color: "#e01030",
+    enhance: { desc: "爆炸附带轻微击退", detail: "重复选择增加击退力度" },
+    evolve: {
+      name: "决心灼烧",
+      desc: "过量的决心在体内点燃——6连爆+灼烧",
+      tier: { blasts: 6, burn: 2, dmgMult: 3.2, rateMult: 0.58 },
+    },
+    tiers: [
+      { blasts: 2, burn: 0, dmgMult: 1.5, rateMult: 0.45 },
+      { blasts: 2, burn: 0, dmgMult: 1.65, rateMult: 0.48 },
+      { blasts: 3, burn: 0, dmgMult: 1.8, rateMult: 0.5 },
+      { blasts: 3, burn: 0, dmgMult: 1.95, rateMult: 0.52 },
+      { blasts: 4, burn: 0, dmgMult: 2.1, rateMult: 0.55 },
+    ],
+  },
+  ihand: {
+    id: "ihand",
+    name: "手掌幻影",
+    tag: "握合禁锢",
+    desc: "掷出手掌幻影,飞行后猛然握合,高额伤害并禁锢,升级略增幻影体型",
+    color: "#ff7a6b",
+    enhance: { desc: "脚下同时伸出一只幻影手", detail: "重复选择增加体型" },
+    evolve: {
+      name: "加斯特之手",
+      desc: "洞穿的手掌自虚空合围——前后双手",
+      tier: { size: 2.0, bind: 2.5, twin: true, dmgMult: 5.0, rateMult: 0.55 },
+    },
+    tiers: [
+      { size: 1.2, bind: 1.5, twin: false, dmgMult: 3.0, rateMult: 0.3 },
+      { size: 1.35, bind: 1.5, twin: false, dmgMult: 3.3, rateMult: 0.32 },
+      { size: 1.5, bind: 1.5, twin: false, dmgMult: 3.6, rateMult: 0.35 },
+      { size: 1.65, bind: 1.5, twin: false, dmgMult: 3.9, rateMult: 0.38 },
+      { size: 1.8, bind: 1.5, twin: false, dmgMult: 4.2, rateMult: 0.4 },
+    ],
+  },
+  irain: {
+    id: "irain",
+    name: "骨雨",
+    tag: "范围压制",
+    desc: "在四周随机砸下50根骨头,升级增加骨头数量",
+    color: "#a01822",
+    enhance: { desc: "骨头体积 +100%", detail: "重复选择再 +20%" },
+    evolve: {
+      name: "糟糕时光",
+      desc: "you're gonna have a bad time——3秒骨幕不停歇",
+      tier: { bones: 140, duration: 3, dmgMult: 1.5, rateMult: 0.5 },
+    },
+    tiers: [
+      { bones: 50, duration: 0.9, dmgMult: 0.8, rateMult: 0.28 },
+      { bones: 58, duration: 0.9, dmgMult: 0.9, rateMult: 0.3 },
+      { bones: 68, duration: 1.0, dmgMult: 1.0, rateMult: 0.32 },
+      { bones: 78, duration: 1.0, dmgMult: 1.1, rateMult: 0.34 },
+      { bones: 90, duration: 1.1, dmgMult: 1.2, rateMult: 0.36 },
+    ],
+  },
+  ispike: {
+    id: "ispike",
+    name: "分裂骨刺",
+    tag: "点名分裂",
+    desc: "怪物脚下刺出骨刺,命中后炸裂成小骨刺,升级加目标和分裂数",
+    color: "#ff5d73",
+    enhance: { desc: "分裂骨命中后追加小爆炸", detail: "重复选择增加半径,上限=主爆" },
+    evolve: {
+      name: "审判乱葬",
+      desc: "审判厅的地板下,埋着所有失败的时间线",
+      tier: { targets: 6, splits: 8, dmgMult: 3.0, rateMult: 0.62 },
+    },
+    tiers: [
+      { targets: 2, splits: 4, dmgMult: 1.4, rateMult: 0.42 },
+      { targets: 2, splits: 4, dmgMult: 1.55, rateMult: 0.45 },
+      { targets: 3, splits: 5, dmgMult: 1.7, rateMult: 0.48 },
+      { targets: 3, splits: 5, dmgMult: 1.85, rateMult: 0.5 },
+      { targets: 4, splits: 6, dmgMult: 2.0, rateMult: 0.52 },
+    ],
+  },
   // ---- Hard-mode weapons ----------------------------------------------------
   dash: {
     id: "dash",
@@ -655,6 +817,8 @@ export const CHARACTERS = [
   { id: "ukb", name: "因果报应", color: "#c59bff", desc: "紫光神秘骷髅，禁锢与反震的掌控者" },
   { id: "horror", name: "恐惧传说", color: "#ff5d5d", desc: "猎手骷髅，巨骨与飞斧的狂宴" },
   { id: "hard", name: "困难模式", color: "#5db9ff", desc: "蓝光缠身，极限攻势的化身" },
+  // 血疯线:决心过量实验体——解锁价与商店总价同级,是账号的长线目标
+  { id: "insanity", name: "Insanity", color: "#d92535", desc: "决心过量实验体，禁锢与处刑的疯宴", cost: 10000 },
 ];
 
 export const WEAPON_LISTS = {
@@ -698,6 +862,16 @@ export const WEAPON_LISTS = {
     WEAPONS.ringlaser,
     WEAPONS.turret,
   ],
+  insanity: [
+    WEAPONS.ifist,
+    WEAPONS.ipounce,
+    WEAPONS.iblaster,
+    WEAPONS.ihook,
+    WEAPONS.ipull,
+    WEAPONS.ihand,
+    WEAPONS.irain,
+    WEAPONS.ispike,
+  ],
 };
 
 export const WEAPON_LIST = WEAPON_LISTS.sans;
@@ -732,6 +906,13 @@ export function createWeaponInstance(id) {
     plaser: null, // purple laser state
     shieldT: 0, // remaining shield uptime
     chainTargets: [], // enemies currently being dragged in
+    flings: [], // insanity 血色重拳: enemies mid-flight
+    pounce: null, // insanity 扑杀: leap/ride state (locks the player)
+    igb: null, // insanity 龙骨炮 volley
+    hook: null, // insanity 骨刺跳跃 state (locks the player)
+    ipullBurst: null, // insanity 拉近爆破 scheduled blasts
+    hands: [], // insanity 手掌幻影 in flight
+    ipending: [], // insanity 分裂骨刺 scheduled child spikes
     enhance: 0, // stacks of the weapon's exclusive enhancement card
     evolved: false, // awakened form (max tier + 3 enhance stacks required)
     enhanceTick: 0,
@@ -968,6 +1149,50 @@ export function getDashInfo(inst) {
   return inst.dashState;
 }
 
+// ---- Insanity helpers -------------------------------------------------------
+// 扑杀与骨刺跳跃都会锁定玩家本体,二者互斥(用户原案裁定)
+export function insanityBusy(player) {
+  for (const i of player.weapons) {
+    if (i.id === "ipounce" && i.pounce) return "ipounce";
+    if (i.id === "ihook" && i.hook) return "ihook";
+  }
+  return null;
+}
+
+export function getPounceInfo(inst) {
+  if (inst.id !== "ipounce" || !inst.pounce) return null;
+  return inst.pounce;
+}
+
+export function getHookInfo(inst) {
+  if (inst.id !== "ihook" || !inst.hook) return null;
+  return inst.hook;
+}
+
+export function getIGBState(inst) {
+  if (inst.id !== "iblaster" || !inst.igb) return null;
+  const g = inst.igb;
+  const firing = g.t >= 0.45 && g.t < 0.9;
+  return {
+    t: g.t,
+    firing,
+    blasters: g.blasters.map((b) => ({
+      x: b.ox,
+      y: b.oy,
+      angle: b.angle,
+      alpha: g.t < 0.2 ? g.t / 0.2 : g.t >= 0.95 ? Math.max(0, 1 - (g.t - 0.95) / 0.3) : 1,
+      beam: firing
+        ? { x1: b.ox, y1: b.oy, x2: b.ox + Math.cos(b.angle) * 760, y2: b.oy + Math.sin(b.angle) * 760, width: 26 }
+        : null,
+    })),
+  };
+}
+
+export function getHandFx(inst) {
+  if (inst.id !== "ihand") return [];
+  return inst.hands;
+}
+
 export function getMegaBone(player, inst) {
   if (inst.id !== "megabone" || !inst.mega) return null;
   const t = inst.mega.t;
@@ -1144,6 +1369,487 @@ function updateInstance(player, inst, dt, world) {
     }
     if (!findNearestEnemy(player.x, player.y, effRange + 120, enemies)) return;
     inst.laserState = { t: 0, baseAngle: Math.random() * Math.PI * 2 };
+    return;
+  }
+
+  // ---- Insanity weapons -----------------------------------------------------
+  if (weapon.id === "ifist") {
+    // 在途击飞体推进(独立于冷却)
+    if (inst.flings.length) {
+      const stillFlying = [];
+      for (const f of inst.flings) {
+        f.t += dt;
+        const prog = Math.min(f.t / f.dur, 1);
+        f.e.x = f.fx + f.dx * f.dist * prog;
+        f.e.y = Math.min(Math.max(f.fy + f.dy * f.dist * prog, world.bounds.top), world.bounds.bottom);
+        f.e.rootTimer = Math.max(f.e.rootTimer, 0.1); // 飞行中不许行动
+        // 强化: 撞上其他敌人时爆炸(每个飞行体只炸一次)
+        if (!f.exploded && (inst.enhance > 0 || inst.evolved)) {
+          for (const o of enemies) {
+            if (o === f.e || o.boss) continue;
+            if (circleHit(f.e.x, f.e.y, 20, o.x, o.y, o.radius)) {
+              const r = inst.evolved ? 56 : 40 + 14 * Math.max(0, inst.enhance - 1);
+              world.spawnBlast({ x: f.e.x, y: f.e.y, dmg: weaponDmg(player, tier.dmgMult * 0.6), blast: r, color: "#ff4d5e" });
+              f.exploded = true;
+              break;
+            }
+          }
+        }
+        if (prog >= 1) {
+          // 撞墙(上下边界)必爆——进化限定
+          if (inst.evolved && !f.exploded && (f.e.y <= world.bounds.top + 2 || f.e.y >= world.bounds.bottom - 2)) {
+            world.spawnBlast({ x: f.e.x, y: f.e.y, dmg: weaponDmg(player, tier.dmgMult * 0.6), blast: 56, color: "#ff4d5e" });
+          }
+          f.e.applyRoot(tier.bind); // 落地禁锢
+        } else stillFlying.push(f);
+      }
+      inst.flings = stillFlying;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    const t = findNearestEnemy(player.x, player.y, Math.min(effRange, 170), enemies);
+    if (!t) return;
+    const ang = Math.atan2(t.y - player.y, t.x - player.x);
+    const px = player.x + Math.cos(ang) * 34;
+    const py = player.y + Math.sin(ang) * 34;
+    world.spawnBlast({ x: px, y: py, dmg: weaponDmg(player, tier.dmgMult), blast: tier.blast, color: "#ff4d5e" });
+    for (const e of enemies) {
+      if (e.boss) continue;
+      if (circleHit(px, py, tier.blast, e.x, e.y, e.radius)) {
+        const d = Math.hypot(e.x - px, e.y - py) || 1;
+        inst.flings.push({
+          e,
+          fx: e.x,
+          fy: e.y,
+          dx: (e.x - px) / d,
+          dy: (e.y - py) / d,
+          dist: tier.fling,
+          t: 0,
+          dur: 0.26, // 快速向后飞出
+          exploded: false,
+        });
+      }
+    }
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+    return;
+  }
+
+  if (weapon.id === "ipounce") {
+    if (inst.pounce) {
+      const p = inst.pounce;
+      const e = p.e;
+      // 目标已消失/死亡
+      if (!e || e.hp <= 0) {
+        if (inst.evolved && p.chainLeft > 0) {
+          const next = findNearestEnemy(player.x, player.y, 260, enemies.filter((x) => !x.boss));
+          if (next) {
+            inst.pounce = { phase: "leap", e: next, t: 0, fx: player.x, fy: player.y, chainLeft: p.chainLeft - 1, tickT: 0, rideT: 0 };
+            return;
+          }
+        }
+        inst.pounce = null;
+        inst.cooldown = Math.max(1.5, 1 / (player.fireRate * tier.rateMult));
+        return;
+      }
+      player.guardBonus = Math.max(player.guardBonus, tier.guard); // 90%/95% 减伤
+      if (p.phase === "leap") {
+        p.t += dt;
+        const prog = Math.min(p.t / 0.22, 1);
+        player.x = p.fx + (e.x - p.fx) * prog;
+        player.y = p.fy + (e.y - p.fy) * prog;
+        e.rootTimer = Math.max(e.rootTimer, 0.3);
+        if (prog >= 1) {
+          p.phase = "ride";
+          // 强化: 起跳落定时拖近身敌人一起禁锢
+          if (inst.enhance > 0) {
+            const cap = 3 + (inst.enhance - 1);
+            const near = enemies
+              .filter((o) => o !== e && !o.boss && Math.hypot(o.x - e.x, o.y - e.y) < 190)
+              .sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y))
+              .slice(0, cap);
+            near.forEach((o, i) => {
+              const a = (i / Math.max(1, near.length)) * Math.PI * 2;
+              o.x = e.x + Math.cos(a) * (e.radius + o.radius + 10);
+              o.y = Math.min(Math.max(e.y + Math.sin(a) * (e.radius + o.radius + 10), world.bounds.top), world.bounds.bottom);
+              o.applyRoot(1.5);
+              p.extras = p.extras || [];
+              p.extras.push(o);
+            });
+          }
+        }
+        return;
+      }
+      // ride: 骑在目标身上连续撕咬
+      p.rideT += dt;
+      p.tickT += dt;
+      player.x = e.x;
+      player.y = e.y - e.radius - 8;
+      e.rootTimer = Math.max(e.rootTimer, 0.2);
+      if (p.tickT >= tier.interval) {
+        p.tickT = 0;
+        e.takeDamage(weaponDmg(player, tier.tick));
+        for (const o of p.extras || []) if (o.hp > 0) o.takeDamage(weaponDmg(player, tier.tick * 0.6));
+      }
+      if (p.rideT >= 4) {
+        // 骑乘上限: 血厚精英骑不死就下来,防无敌拖延
+        inst.pounce = null;
+        inst.cooldown = Math.max(1.5, 1 / (player.fireRate * tier.rateMult));
+      }
+      return;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    if (insanityBusy(player)) return; // 骨刺跳跃进行中不可扑
+    const t = findNearestEnemy(player.x, player.y, effRange + 90, enemies.filter((e) => !e.boss));
+    if (!t) return;
+    inst.pounce = { phase: "leap", e: t, t: 0, fx: player.x, fy: player.y, chainLeft: inst.evolved ? tier.chain - 1 : 0, tickT: 0, rideT: 0 };
+    return;
+  }
+
+  if (weapon.id === "iblaster") {
+    if (inst.igb) {
+      const g = inst.igb;
+      g.t += dt;
+      for (const b of g.blasters) {
+        b.ox = player.x + b.offX; // 炮阵跟随头顶
+        b.oy = player.y - 84 + b.offY;
+      }
+      if (g.t >= 0.45 && g.t < 0.9) {
+        const dmg = weaponDmg(player, tier.dmgMult);
+        for (const b of g.blasters) {
+          const x2 = b.ox + Math.cos(b.angle) * 760;
+          const y2 = b.oy + Math.sin(b.angle) * 760;
+          for (const e of enemies) {
+            if (g.hitSet.has(e.id)) continue;
+            if (distPointSegment(e.x, e.y, b.ox, b.oy, x2, y2) < 14 + e.radius) {
+              if (e.takeDamage(dmg)) g.hitSet.add(e.id);
+            }
+          }
+        }
+      }
+      if (g.t >= 1.1) {
+        const totalVolleys = tier.volleys + (inst.enhance > 0 ? inst.enhance : 0);
+        if (g.volley + 1 < totalVolleys) {
+          // 下一轮齐射: 方向重掷,跳过长前摇
+          g.volley += 1;
+          g.t = 0.2;
+          g.hitSet.clear();
+          for (const b of g.blasters) b.angle = Math.random() * Math.PI * 2;
+        } else {
+          inst.igb = null;
+          inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+        }
+      }
+      return;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    if (!findNearestEnemy(player.x, player.y, effRange + 260, enemies)) return;
+    const blasters = [];
+    for (let i = 0; i < tier.count; i++) {
+      blasters.push({
+        offX: (i - (tier.count - 1) / 2) * 42,
+        offY: -Math.abs(i - (tier.count - 1) / 2) * 8, // 头顶弧形排开
+        ox: player.x,
+        oy: player.y - 84,
+        angle: Math.random() * Math.PI * 2, // 不索敌,方向由疯狂决定
+      });
+    }
+    inst.igb = { t: 0, volley: 0, blasters, hitSet: new Set() };
+    return;
+  }
+
+  if (weapon.id === "ihook") {
+    if (inst.hook) {
+      const h = inst.hook;
+      h.t += dt;
+      player.invuln = Math.max(player.invuln, 0.1); // 跳跃全程无敌
+      const prog = Math.min(h.t / 0.24, 1);
+      player.x = h.fx + (h.tx - h.fx) * prog;
+      player.y = h.fy + (h.ty - h.fy) * prog;
+      h.trail.push({ x: player.x, y: player.y, t: 0 });
+      for (const tr of h.trail) tr.t += dt;
+      h.trail = h.trail.filter((tr) => tr.t < 0.2);
+      if (prog >= 1) {
+        const dmg = weaponDmg(player, tier.dmgMult);
+        for (let i = 0; i < tier.blasts; i++) {
+          world.spawnSpike({ x: h.tx, y: h.ty, dmg, delay: 0.08 + i * 0.16, wave: 64, knockback: 90, noBone: true, color: "#c93a5a" });
+        }
+        // 强化: 落点随机竖起骨头
+        if (inst.enhance > 0) {
+          const bones = 2 + (inst.enhance - 1);
+          for (let i = 0; i < bones; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 26 + Math.random() * 44;
+            world.spawnSpike({ x: h.tx + Math.cos(a) * r, y: h.ty + Math.sin(a) * r, dmg: dmg * 0.6, delay: 0.2 + Math.random() * 0.2, color: "#c93a5a" });
+          }
+        }
+        h.jumpsLeft -= 1;
+        const next = h.jumpsLeft > 0 ? findNearestEnemy(player.x, player.y, 240, enemies.filter((e) => !e.boss)) : null;
+        if (next) {
+          h.fx = player.x;
+          h.fy = player.y;
+          h.tx = next.x;
+          h.ty = next.y;
+          h.t = 0;
+        } else {
+          inst.hook = null;
+          inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+        }
+      }
+      return;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    if (insanityBusy(player)) return; // 扑杀进行中不可跳
+    const t = findNearestEnemy(player.x, player.y, 240, enemies.filter((e) => !e.boss)); // 索敌上限240,别太远
+    if (!t) return;
+    inst.hook = { t: 0, fx: player.x, fy: player.y, tx: t.x, ty: t.y, jumpsLeft: inst.evolved ? tier.jumps : 1, trail: [] };
+    return;
+  }
+
+  if (weapon.id === "ipull") {
+    if (inst.ipullBurst) {
+      const b = inst.ipullBurst;
+      b.t += dt;
+      // 拉拽阶段
+      if (b.t < 0.18 && b.e.hp > 0) {
+        const prog = b.t / 0.18;
+        b.e.x = b.ex + (player.x + b.dirX * 42 - b.ex) * prog;
+        b.e.y = Math.min(Math.max(b.ey + (player.y + b.dirY * 42 - b.ey) * prog, world.bounds.top), world.bounds.bottom);
+        b.e.rootTimer = Math.max(b.e.rootTimer, 0.15);
+        return;
+      }
+      // 连环起爆(跟着目标走)
+      if (b.fired < tier.blasts && b.t >= 0.18 + b.fired * 0.17) {
+        const bx = b.e.hp > 0 ? b.e.x : b.lx;
+        const by = b.e.hp > 0 ? b.e.y : b.ly;
+        b.lx = bx;
+        b.ly = by;
+        world.spawnBlast({ x: bx, y: by, dmg: weaponDmg(player, tier.dmgMult), blast: 52, color: "#e01030" });
+        // 强化: 爆炸附带轻微击退
+        if (inst.enhance > 0) {
+          const push = 26 + 12 * (inst.enhance - 1);
+          for (const o of enemies) {
+            if (circleHit(bx, by, 52, o.x, o.y, o.radius) && !o.boss) {
+              const d = Math.hypot(o.x - bx, o.y - by) || 1;
+              o.x += ((o.x - bx) / d) * push;
+              o.y = Math.min(Math.max(o.y + ((o.y - by) / d) * push, world.bounds.top), world.bounds.bottom);
+            }
+          }
+        }
+        b.fired += 1;
+        return;
+      }
+      if (b.fired >= tier.blasts) {
+        // 进化: 决心灼烧余伤
+        if (inst.evolved && tier.burn > 0 && b.e.hp > 0) {
+          b.burnT = (b.burnT || 0) + dt;
+          if (b.burnT < tier.burn) {
+            b.burnTick = (b.burnTick || 0) + dt;
+            if (b.burnTick >= 0.4) {
+              b.burnTick = 0;
+              b.e.takeDamage(weaponDmg(player, tier.dmgMult * 0.25));
+            }
+            return;
+          }
+        }
+        inst.ipullBurst = null;
+        inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+      }
+      return;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    const t = findNearestEnemy(player.x, player.y, effRange + 150, enemies.filter((e) => !e.boss));
+    if (!t) return;
+    const d = Math.hypot(t.x - player.x, t.y - player.y) || 1;
+    inst.ipullBurst = { t: 0, e: t, ex: t.x, ey: t.y, lx: t.x, ly: t.y, dirX: (t.x - player.x) / d, dirY: (t.y - player.y) / d, fired: 0 };
+    return;
+  }
+
+  if (weapon.id === "ihand") {
+    if (inst.hands.length) {
+      const alive = [];
+      for (const h of inst.hands) {
+        h.t += dt;
+        if (h.phase === "fly") {
+          h.x += h.vx * dt;
+          h.y += h.vy * dt;
+          if (h.t >= h.flyT) {
+            h.phase = "clench";
+            h.t = 0;
+            const r = 26 * h.size;
+            const dmg = weaponDmg(player, tier.dmgMult);
+            for (const e of enemies) {
+              if (circleHit(h.x, h.y, r, e.x, e.y, e.radius)) {
+                e.takeDamage(dmg);
+                e.applyRoot(tier.bind);
+              }
+            }
+            world.spawnBlast({ x: h.x, y: h.y, dmg: 0, blast: r, color: "#ff7a6b" }); // 纯视觉冲击圈
+          }
+          alive.push(h);
+        } else if (h.t < 0.35) alive.push(h); // 握合定格 0.35s 后消失
+      }
+      inst.hands = alive;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    const t = findNearestEnemy(player.x, player.y, effRange + 120, enemies);
+    if (!t) return;
+    const ang = Math.atan2(t.y - player.y, t.x - player.x);
+    const speed = 300;
+    const dist = Math.min(Math.hypot(t.x - player.x, t.y - player.y) + 20, effRange + 120);
+    inst.hands.push({
+      x: player.x,
+      y: player.y,
+      vx: Math.cos(ang) * speed,
+      vy: Math.sin(ang) * speed,
+      t: 0,
+      flyT: dist / speed, // 快速飞行一会后握住
+      size: tier.size,
+      phase: "fly",
+    });
+    // 进化: 前后双手合围
+    if (inst.evolved && tier.twin) {
+      inst.hands.push({
+        x: t.x + Math.cos(ang) * 90,
+        y: t.y + Math.sin(ang) * 90,
+        vx: -Math.cos(ang) * speed,
+        vy: -Math.sin(ang) * speed,
+        t: 0,
+        flyT: 90 / speed,
+        size: tier.size,
+        phase: "fly",
+      });
+    }
+    // 强化: 脚下伸出幻影手
+    if (inst.enhance > 0) {
+      inst.hands.push({
+        x: player.x,
+        y: player.y + 10,
+        vx: 0,
+        vy: 0,
+        t: 0,
+        flyT: 0.18,
+        size: 1.0 + 0.25 * (inst.enhance - 1),
+        phase: "fly",
+        foot: true,
+      });
+    }
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+    return;
+  }
+
+  if (weapon.id === "irain") {
+    if (inst.irainState) {
+      const r = inst.irainState;
+      r.t += dt;
+      const shouldHave = Math.min(r.bones, Math.floor((r.t / r.dur) * r.bones));
+      const dmg = weaponDmg(player, tier.dmgMult);
+      while (r.spawned < shouldHave) {
+        r.spawned += 1;
+        const a = Math.random() * Math.PI * 2;
+        const rr = 60 + Math.random() * 280;
+        world.spawnSpike({
+          x: player.x + Math.cos(a) * rr,
+          y: Math.min(Math.max(player.y + Math.sin(a) * rr, world.bounds.top), world.bounds.bottom),
+          dmg,
+          delay: 0.3,
+          fall: true, // 从天而降
+          boneSize: Math.round(22 * r.sizeMult),
+          color: "#a01822",
+        });
+      }
+      if (r.t >= r.dur) {
+        inst.irainState = null;
+        inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+      }
+      return;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    if (!findNearestEnemy(player.x, player.y, effRange + 240, enemies)) return;
+    inst.irainState = {
+      t: 0,
+      dur: tier.duration,
+      bones: tier.bones,
+      spawned: 0,
+      sizeMult: inst.enhance > 0 ? 2 + 0.2 * (inst.enhance - 1) : 1,
+    };
+    return;
+  }
+
+  if (weapon.id === "ispike") {
+    // 已排程的分裂骨刺
+    if (inst.ipending.length) {
+      const later = [];
+      for (const s of inst.ipending) {
+        s.t -= dt;
+        if (s.t <= 0) {
+          world.spawnSpike(s.opts);
+        } else later.push(s);
+      }
+      inst.ipending = later;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    const targets = enemies
+      .filter((e) => Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170)
+      .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))
+      .slice(0, tier.targets);
+    if (!targets.length) return;
+    const dmg = weaponDmg(player, tier.dmgMult);
+    const mainBlastR = 48;
+    for (const t of targets) {
+      world.spawnSpike({
+        x: t.x,
+        y: t.y,
+        dmg,
+        delay: 0.14,
+        color: "#ff5d73",
+        blast: { radius: mainBlastR, dmg: dmg * 0.7, color: "#ff5d73" }, // 命中后爆炸
+      });
+      // 分裂成小骨刺(强化: 命中追加小爆,上限=主爆)
+      const childBlast =
+        inst.enhance > 0
+          ? { radius: Math.min(30 + 10 * (inst.enhance - 1), mainBlastR), dmg: dmg * 0.4, color: "#ff5d73" }
+          : null;
+      for (let i = 0; i < tier.splits; i++) {
+        const a = (i / tier.splits) * Math.PI * 2 + Math.random() * 0.6;
+        const rr = 34 + Math.random() * 30;
+        inst.ipending.push({
+          t: 0.34 + Math.random() * 0.12,
+          opts: {
+            x: t.x + Math.cos(a) * rr,
+            y: Math.min(Math.max(t.y + Math.sin(a) * rr, world.bounds.top), world.bounds.bottom),
+            dmg: dmg * 0.5,
+            delay: 0.12,
+            boneSize: 14,
+            color: "#ff5d73",
+            ...(childBlast ? { blast: childBlast } : {}),
+          },
+        });
+      }
+    }
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
     return;
   }
 

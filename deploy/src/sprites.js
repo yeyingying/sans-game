@@ -1609,11 +1609,25 @@ const GB_FIRE_MAP = [
 export const GB_IDLE = spriteFromMap(GB_IDLE_MAP);
 export const GB_FIRE = spriteFromMap(GB_FIRE_MAP);
 
+// Insanity: 夹克染成深红(决心的颜色)——AU 起源是 Gaster 的决心注入实验
+const INSANITY_WALK = {};
+for (const dir of Object.keys(SANS_WALK)) {
+  INSANITY_WALK[dir] = SANS_WALK[dir].map((f) =>
+    recolorSprite(f, {
+      [HOOD]: "#a01822",
+      [HOOD_DARK]: "#5e0c12",
+      [SLIPPER]: "#e08585",
+      [SLIPPER_DARK]: "#a04848",
+    }),
+  );
+}
+
 export const WALK_SETS = {
   sans: SANS_WALK,
   ukb: SANS_WALK, // same look as sans; a purple glow is added at draw time
   horror: HORROR_WALK,
   hard: SANS_WALK, // hard mode: sans look with a blue glow at draw time
+  insanity: INSANITY_WALK,
 };
 
 // ---- Enemies ------------------------------------------------------------
@@ -2008,6 +2022,42 @@ export const PROJECTILE_BONE = sprite(8, 8, [
 export const PROJECTILE_BONE_BLUE = tintSprite(PROJECTILE_BONE, "#4f9dff");
 export const PROJECTILE_BONE_PURPLE = tintSprite(PROJECTILE_BONE, "#9a5df0");
 export const PROJECTILE_BONE_RED = tintSprite(PROJECTILE_BONE, "#e04545");
+// Insanity(血疯线): 深红=决心过量的颜色,比恐惧传说的亮红更沉
+export const PROJECTILE_BONE_CRIMSON = tintSprite(PROJECTILE_BONE, "#b31226", 0.72);
+
+// Insanity 的手掌幻影(加斯特之手系):张开→握合两帧,洞孔是 Gaster 的正史特征
+const IHAND_OPEN_MAP = [
+  "..C..C..C..",
+  ".CWC.CWC.CW",
+  ".CWCCCWCCCW",
+  "..CWWWWWWC.",
+  "C.CWWKKWWC.",
+  "CWCWWKKWWC.",
+  ".CWWWWWWWC.",
+  "..CWWWWWC..",
+  "...CWWWC...",
+  "....CWC....",
+  "....CWC....",
+];
+const IHAND_CLENCH_MAP = [
+  "...........",
+  "...CCCCC...",
+  "..CWWWWWC..",
+  ".CWWWWWWWC.",
+  ".CWWKKWWWC.",
+  ".CWWKKWWWC.",
+  ".CWWWWWWWC.",
+  "..CWWWWWC..",
+  "...CWWWC...",
+  "....CWC....",
+  "....CWC....",
+];
+const ihandPalette = { C: "#b31226", W: "#f2ead8", K: "#0a0810" };
+export const IHAND_OPEN = iconFromMap(IHAND_OPEN_MAP, ihandPalette);
+export const IHAND_CLENCH = iconFromMap(IHAND_CLENCH_MAP, ihandPalette);
+// 深红龙骨炮:复用 GB 帧,决心红覆膜
+export const GB_IDLE_CRIMSON = tintSprite(GB_IDLE, "#b31226", 0.38);
+export const GB_FIRE_CRIMSON = tintSprite(GB_FIRE, "#b31226", 0.38);
 
 // ---- Pickups ---------------------------------------------------------
 // Inverted hearts (monster-soul style): point at the top, lobes below.

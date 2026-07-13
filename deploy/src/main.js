@@ -20,9 +20,14 @@ import {
   PROJECTILE_BONE_BLUE,
   PROJECTILE_BONE_PURPLE,
   PROJECTILE_BONE_RED,
+  PROJECTILE_BONE_CRIMSON,
   PROJECTILE_AXE,
   GB_IDLE,
   GB_FIRE,
+  GB_IDLE_CRIMSON,
+  GB_FIRE_CRIMSON,
+  IHAND_OPEN,
+  IHAND_CLENCH,
   PICKUP_XP,
   ICONS,
   drawPixelIcon,
@@ -48,6 +53,10 @@ import {
   getMegaBone,
   getGBState,
   getRingFx,
+  getIGBState,
+  getHandFx,
+  getHookInfo,
+  getPounceInfo,
   getTurretBones,
   createWeaponInstance,
   applyLevelUpBonus,
@@ -59,6 +68,7 @@ import { ECHOES, CHAR_ECHOES, ALL_ECHOES, ECHO_BUD, ECHO_BLOOM, echoUnlocked, un
 import {
   getCoins,
   addCoins,
+  spendCoins,
   UPGRADES,
   upgradeLevel,
   upgradeCost,
@@ -128,7 +138,7 @@ import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, canc
 import { utPrompt, utNotice } from "./dialog.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
-const GAME_VERSION = "s1-20260713"; // 震地骨阵阵地半径封顶 FIELD_MAX=260
+const GAME_VERSION = "s1-20260714"; // 新角色 Insanity(血疯线)上线,八武器+10000G解锁
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
@@ -351,9 +361,33 @@ const PLAYER_SPRITES = {
   ukb: WALK_SETS.ukb.down[0],
   horror: WALK_SETS.horror.down[0],
   hard: WALK_SETS.hard.down[0],
+  insanity: WALK_SETS.insanity.down[0],
 };
 // characters that radiate a glow, and its color
-const CHAR_GLOWS = { ukb: "#a55dff", hard: "#5db9ff" };
+const CHAR_GLOWS = { ukb: "#a55dff", hard: "#5db9ff", insanity: "#d92535" };
+
+// ---- Insanity 解锁(10000G 买断,账号长线目标) --------------------------------
+function insanityOwned() {
+  return localStorage.getItem("own_insanity") === "1";
+}
+function charLocksNow() {
+  return insanityOwned()
+    ? {}
+    : { insanity: { hint: "10000 金币买断", progress: `钱包 ${getCoins()} / 10000` } };
+}
+// 选中锁定角色时,确认键=购买;返回 true 表示这次输入已被购买流吃掉
+function tryBuySelectedChar() {
+  const c = CHARACTERS[selectedChar];
+  if (!charLocksNow()[c.id]) return false;
+  if (spendCoins(10000)) {
+    localStorage.setItem("own_insanity", "1");
+    sfxFanfare();
+    utNotice({ title: "Insanity 已解锁", hint: "决心过量实验体,加入了你的选择。" });
+  } else {
+    sfxHurt();
+  }
+  return true;
+}
 
 let state = "title"; // title | charselect | select | playing | paused | choice | gameover | credits | shop | codex | bossclear
 let selectedChar = 0;
@@ -2603,6 +2637,7 @@ function handleCanvasTap(pos) {
       }
     }
     if (inRect(pos, confirmButtonRect(WIDTH, HEIGHT))) {
+      if (tryBuySelectedChar()) return; // 锁定角色: 确认键先走购买
       selectedWeapon = 0;
       state = "select";
       rollContracts();
@@ -2840,6 +2875,7 @@ window.addEventListener("keydown", (e) => {
     if (k === "arrowleft" || k === "arrowright") selectedChar = (selectedChar + 1) % n;
     else if (k >= "1" && k <= String(n)) selectedChar = Number(k) - 1;
     else if (k === " " || k === "enter") {
+      if (tryBuySelectedChar()) return; // 锁定角色: 确认键先走购买
       selectedWeapon = 0;
       state = "select";
       rollContracts();
@@ -4117,6 +4153,7 @@ function drawBone(cx, cy, size, angle, sprite = null) {
 
 function spikeBoneSprite(sp) {
   if (sp.color === "#ff5d5d" || sp.color === "#ff8a8a") return PROJECTILE_BONE_RED;
+  if (sp.color === "#a01822" || sp.color === "#c93a5a" || sp.color === "#ff5d73") return PROJECTILE_BONE_CRIMSON;
   if (sp.root > 0) return PROJECTILE_BONE_BLUE;
   if (sp.wave || sp.color === "#c59bff") return PROJECTILE_BONE_PURPLE;
   return skinnedBone();
@@ -4890,6 +4927,60 @@ function draw() {
             ctx.restore();
           }
         }
+      } else if (inst.id === "iblaster") {
+        const g = getIGBState(inst);
+        if (g) {
+          for (const b of g.blasters) {
+            if (b.beam) {
+              ctx.save();
+              ctx.lineCap = "round";
+              ctx.strokeStyle = "rgba(217, 37, 53, 0.4)";
+              ctx.lineWidth = b.beam.width + 10;
+              ctx.beginPath();
+              ctx.moveTo(b.beam.x1, b.beam.y1);
+              ctx.lineTo(b.beam.x2, b.beam.y2);
+              ctx.stroke();
+              ctx.strokeStyle = "#ffdade";
+              ctx.lineWidth = b.beam.width * 0.55;
+              ctx.beginPath();
+              ctx.moveTo(b.beam.x1, b.beam.y1);
+              ctx.lineTo(b.beam.x2, b.beam.y2);
+              ctx.stroke();
+              ctx.restore();
+            }
+            ctx.save();
+            ctx.globalAlpha = b.alpha;
+            ctx.translate(b.x, b.y);
+            ctx.rotate(b.angle - Math.PI / 2);
+            ctx.imageSmoothingEnabled = false;
+            const spr = b.beam ? GB_FIRE_CRIMSON : GB_IDLE_CRIMSON;
+            const gw = 44;
+            const gh = (spr.height / spr.width) * gw;
+            ctx.drawImage(spr, -gw / 2, -gh / 2, gw, gh);
+            ctx.restore();
+          }
+        }
+      } else if (inst.id === "ihand") {
+        for (const h of getHandFx(inst)) {
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          const spr = h.phase === "clench" ? IHAND_CLENCH : IHAND_OPEN;
+          const hw = 52 * h.size;
+          ctx.globalAlpha = h.phase === "clench" ? Math.max(0, 1 - h.t / 0.35) : 0.92;
+          ctx.drawImage(spr, h.x - hw / 2, h.y - hw / 2, hw, hw);
+          ctx.restore();
+        }
+      } else if (inst.id === "ihook") {
+        const h = getHookInfo(inst);
+        if (h) {
+          for (const tr of h.trail) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, 1 - tr.t / 0.2) * 0.5;
+            ctx.fillStyle = "#d92535";
+            ctx.fillRect(tr.x - 8, tr.y - 8, 16, 16);
+            ctx.restore();
+          }
+        }
       } else if (inst.id === "ringlaser") {
         for (const fx of getRingFx(inst)) {
           ctx.save();
@@ -5098,7 +5189,9 @@ function draw() {
       ctx.shadowBlur = 18;
     } else if (CHAR_GLOWS[player.character]) {
       ctx.shadowColor = CHAR_GLOWS[player.character];
-      ctx.shadowBlur = 16;
+      // 扑杀骑乘期间身体冒红光(用户原案),平时是普通角色辉光
+      const pouncing = player.character === "insanity" && player.weapons.some((i) => getPounceInfo(i));
+      ctx.shadowBlur = pouncing ? 26 + Math.sin(elapsed * 20) * 8 : 16;
     }
     if (activeInv) {
       // whitening pulse while the earned i-frames last
@@ -5588,7 +5681,7 @@ function draw() {
       selectedChar,
       PLAYER_SPRITES,
       Object.fromEntries(CHARACTERS.map((c) => [c.id, bestScoreOf(c.id)])),
-      {}, // 角色已全部免费开放(死代码 charLocks 已删,2026-07-12 提交A)
+      charLocksNow(), // Insanity 10000G 买断,其余免费
       diffPills(),
       Object.fromEntries(
         CHARACTERS.map((c) => {
