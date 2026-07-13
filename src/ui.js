@@ -1605,18 +1605,18 @@ export function drawHud(ctx, width, player, elapsed, weaponLabel, healFlash = 0)
   ctx.restore();
 }
 
-export function drawCenterText(ctx, width, height, lines, yOffset = 0) {
+export function drawCenterText(ctx, width, height, lines, yOffset = 0, lineH = 34) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.72)";
   ctx.fillRect(0, 0, width, height);
   ctx.textAlign = "center";
   ctx.fillStyle = "#f2ead8";
-  let y = height / 2 - ((lines.length - 1) * 26) / 2 + yOffset;
+  let y = height / 2 - ((lines.length - 1) * lineH) / 2 + yOffset;
   for (const line of lines) {
     ctx.font = line.font || "20px monospace";
     ctx.fillStyle = line.color || "#f2ead8";
     ctx.fillText(line.text, width / 2, y);
-    y += 34;
+    y += lineH;
   }
   ctx.restore();
 }
