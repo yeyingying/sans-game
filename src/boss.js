@@ -199,6 +199,11 @@ export function makeBossEnemy(x, y) {
     applyRoot() {
       return false; // the boss cannot be rooted
     },
+    disarmTimer: 0,
+    cannotAttack: false,
+    applyDisarm() {
+      return false; // 天意免疫缴械(黑客结局体系);缺这个方法曾让缴械波及Boss时TypeError卡死
+    },
     takeDamage(d) {
       if (this.invulnTimer > 0) return false;
       this.hp -= d;

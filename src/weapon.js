@@ -1661,7 +1661,7 @@ function updateInstance(player, inst, dt, world) {
           world.spawnBlast({ x: f.e.x, y: f.e.y, dmg, blast: tier.blast, color: "#c8d2e8" });
           for (const o of enemies) {
             if (circleHit(f.e.x, f.e.y, tier.blast, o.x, o.y, o.radius)) {
-              o.applyDisarm(Infinity);
+              o.applyDisarm?.(Infinity);
               if (inst.enhance > 0) o.applyRoot(2 + 0.5 * (inst.enhance - 1));
               if (inst.evolved && tier.bonusRoot) o.applyRoot(tier.bonusRoot);
             }
@@ -1766,7 +1766,7 @@ function updateInstance(player, inst, dt, world) {
       e.x += ((e.x - player.x) / d) * tier.push;
       e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * tier.push, world.bounds.top), world.bounds.bottom);
       e.applyRoot(1.2 + (inst.evolved ? tier.bonusRoot : 0));
-      e.applyDisarm(Infinity);
+      e.applyDisarm?.(Infinity);
       if (e.boss || e.championProfile) continue; // 处决只对普通/精英
       const line = (e.elite ? 0.2 : 0.5) + execBonus;
       if (e.hp / e.maxHp < line) {
@@ -1797,7 +1797,7 @@ function updateInstance(player, inst, dt, world) {
               const d = Math.hypot(e.x - player.x, e.y - player.y) || 1;
               e.x += ((e.x - player.x) / d) * 60;
               e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * 60, world.bounds.top), world.bounds.bottom);
-              if (inst.enhance > 0) e.applyDisarm(5 + 2 * (inst.enhance - 1));
+              if (inst.enhance > 0) e.applyDisarm?.(5 + 2 * (inst.enhance - 1));
             }
           }
         }
@@ -1923,7 +1923,7 @@ function updateInstance(player, inst, dt, world) {
       return;
     }
     const hosts = enemies
-      .filter((e) => Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170)
+      .filter((e) => !e.boss && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170) // Boss不当免伤宿主,但吃邻近炸点的溅射
       .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))
       .slice(0, tier.targets);
     if (!hosts.length) return;
@@ -1937,12 +1937,12 @@ function updateInstance(player, inst, dt, world) {
           // 宿主免伤——强化后反而吃 200%+效果(用户原案)
           if (inst.enhance > 0) {
             o.takeDamage(Math.round(dmg * mult * (2 + 0.5 * (inst.enhance - 1))));
-            o.applyDisarm(Infinity);
+            o.applyDisarm?.(Infinity);
           }
           continue;
         }
         o.takeDamage(Math.round(dmg * mult));
-        o.applyDisarm(Infinity);
+        o.applyDisarm?.(Infinity);
         if (!chained && o !== host) chained = o;
       }
       return chained;

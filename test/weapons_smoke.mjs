@@ -101,6 +101,32 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
     if (w.id === "hmacro") player.weapons.push(createWeaponInstance("hslash"));
     const enemies = [];
     for (let i = 0; i < 24; i++) enemies.push(fakeEnemy(300 + Math.random() * 400, 140 + Math.random() * 320));
+    // 天意契约实体: 复刻 boss.js 手写对象的最小接口(曾因缺 applyDisarm 让缴械武器 TypeError 卡死)
+    enemies.push({
+      id: "boss",
+      x: 520,
+      y: 300,
+      hp: 5000,
+      maxHp: 5000,
+      radius: 30,
+      boss: true,
+      elite: false,
+      championProfile: null,
+      rootTimer: 0,
+      rootImmune: 0,
+      orbitTimer: 0,
+      laserTick: 0,
+      slowTimer: 0,
+      hitFlash: 0,
+      applyRoot() {
+        return false;
+      },
+      takeDamage(d) {
+        if (!(d >= 0)) throw new Error("NaN damage vs boss: " + d);
+        this.hp -= d;
+        return true;
+      },
+    });
     const spikes = [];
     const world = {
       enemies,
@@ -129,6 +155,7 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
         updateWeapons(player, 1 / 60, world);
         // 阵亡清场+补怪,模拟真实节奏
         for (let i = enemies.length - 1; i >= 0; i--) {
+          if (enemies[i].boss) { if (enemies[i].hp <= 0) enemies[i].hp = 5000; continue; }
           if (enemies[i].hp <= 0) {
             enemies.splice(i, 1);
             enemies.push(fakeEnemy(300 + Math.random() * 400, 140 + Math.random() * 320));
