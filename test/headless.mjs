@@ -166,7 +166,7 @@ function run(seconds, onFrame) {
   );
   check(
     "spare / temmie / shop denial lines exist",
-    N.spareNarration("杰瑞").includes("EXP +0") && N.TEM_LINE.includes("Temmie") && N.shopDenyLine("maxed") === "* 它已经尽力了。",
+    N.spareNarration("杰瑞").includes("EXP +0") && N.temLine().includes("Temmie") && N.shopDenyLine("maxed") === "* 它已经尽力了。",
   );
   check(
     "share roast: jerry execution outranks everything",

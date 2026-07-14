@@ -787,7 +787,7 @@ export function drawEchoRead(ctx, width, height, echo, charsShown, bloomSprite) 
   ctx.textAlign = "center";
   ctx.fillStyle = "#6bd0ff";
   ctx.font = "bold 22px monospace";
-  ctx.fillText(`「${echo.title}」`, width / 2, height / 2 - 158);
+  ctx.fillText(`「${pick(echo, "title")}」`, width / 2, height / 2 - 158);
   // the flower listens with you
   ctx.imageSmoothingEnabled = false;
   ctx.save();
@@ -809,7 +809,7 @@ export function drawEchoRead(ctx, width, height, echo, charsShown, bloomSprite) 
   ctx.fillStyle = "#f2ead8";
   ctx.font = "15px monospace";
   let remaining = charsShown;
-  echo.lines.forEach((line, i) => {
+  pick(echo, "lines").forEach((line, i) => {
     if (remaining <= 0) return;
     const shown = line.slice(0, Math.max(0, remaining));
     remaining -= line.length;
@@ -818,7 +818,7 @@ export function drawEchoRead(ctx, width, height, echo, charsShown, bloomSprite) 
   ctx.textAlign = "center";
   ctx.fillStyle = "#7d8698";
   ctx.font = "12px monospace";
-  ctx.fillText("点击/Enter 继续 · Esc 返回花田", width / 2, by + bh + 34);
+  ctx.fillText(t("点击/Enter 继续 · Esc 返回花田", "Click/Enter to continue · Esc back to the field"), width / 2, by + bh + 34);
   ctx.restore();
 }
 
@@ -1085,23 +1085,23 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
       ctx.textAlign = "right";
       ctx.fillStyle = "#6f8aa8";
       ctx.font = "11px monospace";
-      ctx.fillText(`「${chosen.note}」——裂缝外`, detail.x + detail.w - 16, detail.y + 28);
+      ctx.fillText(t(`「${chosen.note}」——裂缝外`, `'${chosen.note}' — the rift`), detail.x + detail.w - 16, detail.y + 28);
       ctx.textAlign = "left";
     }
     ctx.fillStyle = "#9a93ab";
     ctx.font = "11px monospace";
-    ctx.fillText(`${chosen.region} · ${chosen.title} · 累计击杀 ${chosen.kills}`, detail.x + 130, detail.y + 50);
+    ctx.fillText(`${chosen.region} · ${chosen.title} · ${t("累计击杀", "Total kills")} ${chosen.kills}`, detail.x + 130, detail.y + 50);
     ctx.fillStyle = "#d8d1e2";
     ctx.font = "12px monospace";
     ctx.fillText(chosen.lore, detail.x + 130, detail.y + 78);
     ctx.fillStyle = chosen.color;
     ctx.font = "bold 12px monospace";
-    ctx.fillText(`本作能力：${chosen.skill}`, detail.x + 130, detail.y + 108);
+    ctx.fillText(`${t("本作能力", "In-game power")}：${chosen.skill}`, detail.x + 130, detail.y + 108);
     if (chosen.elite) {
       ctx.fillStyle = "#ffd166";
       ctx.font = "11px monospace";
       ctx.fillText(
-        chosen.champion ? `${chosen.unlock} · 第 11 轮起循环并继续强化` : `${chosen.unlock} · 屠杀难度进入处决态`,
+        chosen.champion ? `${chosen.unlock} · ${t("第 11 轮起循环并继续强化", "loops from round 11, still scaling")}` : `${chosen.unlock} · ${t("屠杀难度进入处决态", "Executioner form on GENOCIDE")}`,
         detail.x + 130,
         detail.y + 132
       );
@@ -1120,10 +1120,10 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.font = "bold 30px monospace";
     ctx.fillText("？", width / 2, detail.y + 52);
     ctx.font = "13px monospace";
-    ctx.fillText(chosen?.elite ? chosen.unlock : "在战斗中击败一次后解锁完整档案", width / 2, detail.y + 86);
+    ctx.fillText(chosen?.elite ? chosen.unlock : t("在战斗中击败一次后解锁完整档案", "Defeat it once in battle to unlock the full dossier"), width / 2, detail.y + 86);
     ctx.fillStyle = "#6b6578";
     ctx.font = "11px monospace";
-    ctx.fillText("怪物的名字、来历与能力仍被黑暗遮住", width / 2, detail.y + 112);
+    ctx.fillText(t("怪物的名字、来历与能力仍被黑暗遮住", "Its name, story and powers are still hidden in the dark"), width / 2, detail.y + 112);
   }
 
   // ACT → 检查: the classic Check line, white text under the dossier

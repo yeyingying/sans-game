@@ -168,16 +168,16 @@ import {
   codexNote,
   pickPauseTip,
   pickRelic,
-  SIX_SOULS_LINE,
+  sixSoulsLine,
   codexCheck,
-  FUN_GLITCH_SAVEPOINT,
-  GASTER_GHOST_LINE,
-  GASTER_GHOST_SUB,
-  FUN_FLOWER_LINE,
+  funGlitchSavepoint,
+  gasterGhostLine,
+  gasterGhostSub,
+  funFlowerLine,
   spareNarration,
-  TEM_LINE,
+  temLine,
   shopDenyLine,
-  BOSS_ANTHEM_LINE,
+  bossAnthemLine,
   pickPapyrusLetter,
   coachLine,
 } from "./narrative.js";
@@ -554,7 +554,7 @@ let deathQuote = null; // a remembered echo line shown on the gameover card
 function unlockEchoToast(id) {
   if (!unlockEcho(id)) return;
   const e = ALL_ECHOES.find((x) => x.id === id);
-  lastNewEchoes.push(e.title);
+  lastNewEchoes.push(pick(e, "title"));
   // the field is in full bloom: the golden flower chooses you
   if (unlockedEchoCount() >= ECHOES.length) {
     if (grantCosmetic("goldenflower")) {
@@ -587,10 +587,16 @@ function queueTipOnce(flag, title, lines) {
 
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
 const ENEMY_NAMES = Object.fromEntries(BASE_MONSTERS.map((m) => [m.type, m.name]));
+// canon EN names live here (codex.js is Codex's file); named elites/champions
+// fall back to their zh profile name until codex.js grows nameEn
+const ENEMY_NAMES_EN = { slime: "Froggit", bat: "Whimsun", ghost: "Vegetoid", tank: "Jerry", red: "Loox", orange: "Madjick", blue: "Woshua", purple: "Icecap" };
+function enemyName(type) {
+  return t(ENEMY_NAMES[type] || "怪物", ENEMY_NAMES_EN[type] || ENEMY_NAMES[type] || "a monster");
+}
 function enemyDisplayName(e) {
-  if (e.championProfile) return e.championProfile.name;
-  if (e.eliteProfile) return `${e.eliteTier >= 3 ? "处决态·" : ""}${e.eliteProfile.name}`;
-  return (e.elite ? "精英·" : "") + (ENEMY_NAMES[e.type] || "怪物");
+  if (e.championProfile) return pick(e.championProfile, "name");
+  if (e.eliteProfile) return `${e.eliteTier >= 3 ? t("处决态·", "Executioner ") : ""}${pick(e.eliteProfile, "name")}`;
+  return (e.elite ? t("精英·", "Elite ") : "") + enemyName(e.type);
 }
 let lastHitBy = null; // most recent damage source
 let lastHitKind = null; // pool key for the killer's death line (type/elite/boss/hazard)
@@ -1340,7 +1346,10 @@ function settleGame(kind) {
     } else if (runOutcome === "endlessDeath" && roundTimer <= 0 && roundBossSpawned && !roundBossDown) {
       nearMiss = `差一点!击倒首领就能结算第 ${endlessRound} 轮`;
     } else if (runOutcome === "death" && !bossDefeated && elapsed < bossAppearAt() && bossAppearAt() - elapsed <= 45) {
-      nearMiss = `差一点!再活 ${Math.ceil(bossAppearAt() - elapsed)} 秒就能见到天意侵蚀Sans`;
+      nearMiss = t(
+        `差一点!再活 ${Math.ceil(bossAppearAt() - elapsed)} 秒就能见到天意侵蚀Sans`,
+        `SO close! ${Math.ceil(bossAppearAt() - elapsed)}s more and you'd have met Corrupted Sans`
+      );
     } else if (!newRecord && lastBest > 0 && lastScore >= lastBest * 0.8) {
       nearMiss = `差一点!距离新纪录只有 ${lastBest - lastScore + 1} 分`;
     }
@@ -1376,14 +1385,14 @@ function settleGame(kind) {
     .filter((x) => x.lvl < x.u.max && !x.gate && x.cost <= getCoins())
     .sort((a, b) => a.cost - b.cost)[0];
   if (runOutcome === "victory" && diffClearedNow > diffClearedBefore && diffClearedNow < 3) {
-    gameoverCta = { label: `挑 战 ${DIFFICULTIES[diffClearedNow + 1].name}`, act: "char" };
+    gameoverCta = { label: t(`挑 战 ${DIFFICULTIES[diffClearedNow + 1].name}`, `CHALLENGE ${pick(DIFFICULTIES[diffClearedNow + 1], "name")}`), act: "char" };
   } else if (runOutcome !== "victory" && affordable) {
-    gameoverCta = { label: "去 变 强", act: "shop" }; // 商品名放教练句,按钮不截断
-    if (coachAdvice) coachAdvice += `(「${affordable.u.name}」已经买得起了)`;
+    gameoverCta = { label: t("去 变 强", "POWER UP"), act: "shop" }; // 商品名放教练句,按钮不截断
+    if (coachAdvice) coachAdvice += t(`(「${affordable.u.name}」已经买得起了)`, ` (you can already afford '${pick(affordable.u, "name")}')`);
   } else if (nearMiss) {
-    gameoverCta = { label: "⟳ 再 次 挑 战", act: "char" };
+    gameoverCta = { label: t("⟳ 再 次 挑 战", "⟳ TRY AGAIN"), act: "char" };
   } else {
-    gameoverCta = { label: "⟳ 再 来 一 局", act: "char" };
+    gameoverCta = { label: t("⟳ 再 来 一 局", "⟳ ONE MORE RUN"), act: "char" };
   }
   if (gameoverCta.act !== "shop" && coachAdvice) {
     const nextBuy = UPGRADES
@@ -1391,7 +1400,7 @@ function settleGame(kind) {
       .filter((x) => x.lvl < x.u.max && !x.gate)
       .sort((a, b) => a.cost - b.cost)[0];
     const gap = nextBuy ? nextBuy.cost - getCoins() : 0;
-    if (nextBuy && gap > 0 && gap <= 90) coachAdvice += `(还差 ${gap} 金币就能拿下「${nextBuy.u.name}」)`;
+    if (nextBuy && gap > 0 && gap <= 90) coachAdvice += t(`(还差 ${gap} 金币就能拿下「${nextBuy.u.name}」)`, ` (${gap}G short of '${pick(nextBuy.u, "name")}')`);
   }
   // 审判纪元: first-time milestones open a story chapter before the results
   chapterQueue = unseenChapters({
@@ -1525,7 +1534,7 @@ const QUEST_KIND_DESC = {
   coins: (q) => t(`拾取 ${q.target} 枚金币`, `Pick up ${q.target} coins`),
   candy: (q) => t(`吃下 ${q.target} 颗怪物糖`, `Eat ${q.target} monster candies`),
   elites: (q) => t(`击败 ${q.target} 名精英`, `Defeat ${q.target} elites`),
-  boss: () => t(`击败一次天意侵蚀Sans`, `Defeat the corrupted Sans once`),
+  boss: () => t(`击败一次天意侵蚀Sans`, `Defeat Corrupted Sans once`),
   round: (q) => t(`完成无尽审判第 ${q.target} 轮`, `Clear Judgement round ${q.target}`),
   streak: (q) => t(`达成一次 ${q.target} 连杀`, `Reach a ${q.target} kill streak`),
   evolve: () => t(`完成一次武器进化`, `Evolve a weapon once`),
@@ -1611,11 +1620,11 @@ function rollChestRewards() {
       // 六魂遗物: 机制型独特物件 — rogue-like 的 item 心跳,卡池永远给不了
       const relic = pickRelic(relics);
       if (relic) {
-        rewards.push({ label: `${relic.name}·${relic.soul}`, detail: relic.desc, color: relic.color, icon: ICONS.relic, apply: () => {
+        rewards.push({ label: `${pick(relic, "name")}·${pick(relic, "soul")}`, detail: pick(relic, "desc"), color: relic.color, icon: ICONS.relic, apply: () => {
           relics[relic.id] = true;
           if (relic.id === "patience") player.invulnMult = 1.25;
           sfxEquip();
-          candyBanner = { text: `${relic.line}(${relic.desc})`, t: 3.2 };
+          candyBanner = { text: `${pick(relic, "line")}(${pick(relic, "desc")})`, t: 3.2 };
           if (Object.keys(relics).length >= 6) {
             // 六魂共鸣: the collection closes with one full-screen judgment
             let reaped = 0;
@@ -1627,7 +1636,7 @@ function rollChestRewards() {
             }
             killFlash = 0.35;
             sfxFanfare();
-            candyBanner = { text: SIX_SOULS_LINE, t: 4 };
+            candyBanner = { text: sixSoulsLine(), t: 4 };
           }
         }});
       } else {
@@ -2151,7 +2160,7 @@ function startGame() {
     t: 0,
   };
   // FUN 66: the savepoint speaks in entry seventeen
-  if (funValue === 66) savepointNote.text = FUN_GLITCH_SAVEPOINT;
+  if (funValue === 66) savepointNote.text = funGlitchSavepoint();
 }
 
 // ---- 15s buff choices -----------------------------------------------------
@@ -2754,7 +2763,7 @@ function handleCanvasTap(pos) {
           const it = items[i];
           // 门槛原因不再常驻条目上,点击时在这里给完整解释(复用已定稿文案)
           shopMsg = {
-            text: it.lvl >= it.max ? shopDenyLine("maxed") : it.gate ? `* 但什么都没有发生。(${it.gate})` : shopDenyLine("broke"),
+            text: it.lvl >= it.max ? shopDenyLine("maxed") : it.gate ? t(`* 但什么都没有发生。(${it.gate})`, `* But nothing happened. (${it.gate})`) : shopDenyLine("broke"),
             t: 2.2,
           };
         }
@@ -3535,7 +3544,7 @@ function update(dt) {
   if (!bossFight && !bossDefeated && elapsed >= bossAppearAt()) {
     bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H, getDifficulty().id);
     fireBark("boss");
-    candyBanner = { text: BOSS_ANTHEM_LINE, t: 3.2 }; // Megalovania = 国歌,B站条件反射
+    candyBanner = { text: bossAnthemLine(), t: 3.2 }; // Megalovania = 国歌,B站条件反射;EN = bad time
     enemies.length = 0;
     pickups.length = 0;
     enemies.push(bossFight.boss);
@@ -3672,7 +3681,7 @@ function update(dt) {
         explosions.push(new Explosion(hz.x, hz.y, 75, "#ff5d5d"));
         if (circleHit(hz.x, hz.y, 75, player.x, player.y, player.radius)) {
           if (player.takeDamage(12 + 4 * endlessRound)) {
-            lastHitBy = "审判领域";
+            lastHitBy = t("审判领域", "the Judgement Zone");
             lastHitKind = "hazard";
           }
         }
@@ -3723,7 +3732,7 @@ function update(dt) {
         x: clamp(player.x + (Math.random() - 0.5) * 560, camX + 40, camX + WIDTH - 40),
         y: clamp(player.y + (Math.random() - 0.5) * 360, WALL_H + 50, HEIGHT - 40),
         t: 0,
-        line: funValue === 100 ? FUN_FLOWER_LINE : pickFlowerLine(), // FUN 100
+        line: funValue === 100 ? funFlowerLine() : pickFlowerLine(), // FUN 100
         heard: false,
       };
     }
@@ -3756,7 +3765,7 @@ function update(dt) {
         y: clamp(player.y + (Math.random() - 0.5) * 300, WALL_H + 50, HEIGHT - 40),
         t: 0,
       };
-      candyBanner = { text: TEM_LINE, t: 3.2 };
+      candyBanner = { text: temLine(), t: 3.2 };
       sfxType();
     }
   }
@@ -3769,7 +3778,7 @@ function update(dt) {
       if (sv.nearT >= 1.5) {
         sv.state = "bow"; // the SPARE lands: bow, gift, leave
         sv.bowT = 0;
-        candyBanner = { text: spareNarration(ENEMY_NAMES[sv.type] || "怪物"), t: 3.2 };
+        candyBanner = { text: spareNarration(enemyName(sv.type)), t: 3.2 };
         pickups.push(new Pickup(sv.x, sv.y, "candy", {}));
         sfxCandy();
       } else if (sv.t > 18) {
@@ -4030,7 +4039,7 @@ function update(dt) {
     if (bossFight.done) enemies = enemies.filter((e) => !e.boss);
     // boss attacks apply damage inside bossFight.update — tag them here
     if (player.hp < hpBeforeBoss - 0.001) {
-      lastHitBy = "天意侵蚀Sans";
+      lastHitBy = t("天意侵蚀Sans", "Corrupted Sans");
       lastHitKind = "boss";
     }
     // 竞技止血 (2026-07-12): stage score/kills/time freeze the frame the boss
@@ -5531,7 +5540,7 @@ function draw() {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffd93d"; // yellow name = sparable, since 2015
     ctx.font = "bold 12px monospace";
-    ctx.fillText(`✳ ${ENEMY_NAMES[sv.type] || "怪物"}`, 0, -28);
+    ctx.fillText(`✳ ${enemyName(sv.type)}`, 0, -28);
     ctx.restore();
     ctx.textAlign = "left";
   }
@@ -5672,7 +5681,9 @@ function draw() {
     const a = Math.min(1, candyBanner.t / 0.5);
     ctx.save();
     ctx.globalAlpha = a;
-    const bw = 480;
+    ctx.font = "bold 14px monospace";
+    // EN lines run wider than CJK — grow the box like the savepoint frame does
+    const bw = Math.max(480, Math.min(WIDTH - 24, ctx.measureText(candyBanner.text).width + 44));
     ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
     ctx.fillRect(WIDTH / 2 - bw / 2, HEIGHT - 92, bw, 34);
     ctx.strokeStyle = "#7cf28a";
@@ -5932,8 +5943,8 @@ function draw() {
         elite: false,
         champion: false,
         ghost: true,
-        ghostLine: GASTER_GHOST_LINE,
-        ghostSub: GASTER_GHOST_SUB,
+        ghostLine: gasterGhostLine(),
+        ghostSub: gasterGhostSub(),
       });
     }
     const weaponRows = CHARACTERS.map((c) => {
@@ -6150,8 +6161,8 @@ function draw() {
       WIDTH,
       HEIGHT,
       ALL_ECHOES.map((e) => ({
-        title: e.title,
-        hint: e.hint,
+        title: pick(e, "title"),
+        hint: pick(e, "hint"),
         unlocked: echoUnlocked(e.id),
         color: e.color || "#6bd0ff",
         bud: e.color ? tintedEcho(ECHO_BUD, e.color) : ECHO_BUD,
@@ -6476,9 +6487,9 @@ function draw() {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffd166";
     ctx.font = "bold 24px monospace";
-    const cLines = chapterShow.chapter.lines;
+    const cLines = pick(chapterShow.chapter, "lines");
     const y0 = HEIGHT / 2 - 30 - cLines.length * 17;
-    ctx.fillText(chapterShow.chapter.title, WIDTH / 2, y0 - 44);
+    ctx.fillText(pick(chapterShow.chapter, "title"), WIDTH / 2, y0 - 44);
     ctx.font = "16px monospace";
     for (let i = 0; i <= chapterShow.line; i++) {
       const full = cLines[i];
@@ -6894,7 +6905,7 @@ function loop(now) {
       echoRead.chars = want;
       sfxType();
     }
-    const total = echoRead.echo.lines.reduce((s, l) => s + l.length, 0);
+    const total = pick(echoRead.echo, "lines").reduce((s, l) => s + l.length, 0);
     if (echoRead.chars >= total) echoRead.done = true;
   }
   setMovementEnabled(state === "playing" && introBlack <= 0);

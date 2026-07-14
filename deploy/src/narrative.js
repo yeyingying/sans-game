@@ -3,6 +3,16 @@
 // 纯文案与选取逻辑,不碰战斗状态;死亡计数与章节进度自己持久化。
 // 第一批148条已用户过目批准;第二批(Boss对话/章节/访客/网感扩充池)
 // 按用户"你设计的部分都可以做完+结合B站UT社群网感"授权实现。改措辞需过用户。
+//
+// 英文层(2026-07-14):不是翻译,是按英文UT社区语感的再创作——中文玩B站梗
+// (弹幕/国歌/典中典),英文玩英文圈梗(bad time/get dunked on/Jerry/hOI)。
+// 每个池都有 _EN 镜像,导出函数内部按 currentLang() 切换,调用方无感知。
+// EN 文案改措辞同样需过用户。
+import { currentLang } from "./i18n.js";
+
+const EN = () => currentLang() === "en";
+// pool/map/string switcher: zh stays the source of truth, en mirrors it
+const L = (zh, en) => (EN() && en != null ? en : zh);
 
 // ---- 开局存档点箴言 ---------------------------------------------------------
 
@@ -27,6 +37,30 @@ const SAVE_GENERIC = [
   "* 世界在你脚下嗡嗡作响,像一台老旧的机器。你充满了决心。",
   "* 你把外套的领子竖了起来。仪式感使你充满了决心。",
   "* 无论重来多少次,这里都记得你。你充满了决心。",
+];
+
+// EN savepoints ride the canon "(... fills you with determination.)" form
+const SAVE_GENERIC_EN = [
+  "* (The hall is empty but for your footsteps. You're filled with determination.)",
+  "* (Your bones are polished to a shine. You're filled with determination.)",
+  "* (A draft blows in from a crack no one can see. Determination.)",
+  "* (You skipped dinner again. Hunger fills you with determination.)",
+  "* (Dust drifts slowly through a beam of light. You're filled with determination.)",
+  "* (Someone, far away, is playing a piano. Or it's dripping water. Determination.)",
+  "* (You check your pockets. Nothing there. Nothing missing. Determination.)",
+  "* (The air smells like snow. You're filled with determination.)",
+  "* (You take a deep breath. Skeletons don't have lungs. You do it anyway.)",
+  "* (A star-shaped light flickers. It seems to have been waiting for you.)",
+  "* (The underground is quiet tonight. Too quiet. You're filled with determination.)",
+  "* (You practice your smile. Perfect. Not that you have another expression.)",
+  "* (Another day full of monsters. You're filled with determination.)",
+  "* (You hear your heartbeat. Wait. You don't have a heart. Still determined.)",
+  "* (A flower's shadow lies on the floor. There is no flower. Determination.)",
+  "* (A voice says: turn back. You don't. You're filled with determination.)",
+  "* (You try counting the enemies. You give up. You're filled with determination.)",
+  "* (The world hums under your feet like an old machine. Determination.)",
+  "* (You pop your jacket collar. The ritual fills you with determination.)",
+  "* (However many resets, this place remembers you. You're filled with determination.)",
 ];
 
 const SAVE_CHAR = {
@@ -56,6 +90,33 @@ const SAVE_CHAR = {
   ],
 };
 
+const SAVE_CHAR_EN = {
+  sans: [
+    "* (You yawn. Probably no naps tonight. You're filled with determination.)",
+    "* (You think of a great bone pun. You decide to live long enough to tell it.)",
+    "* (You picture a red scarf waving in the wind. You're filled with determination.)",
+    "* (Beyond the rift they call this timeline 'Classic'. Sounds like home.)",
+  ],
+  ukb: [
+    "* (The scales sway gently behind you. Many debts come due tonight.)",
+    "* (Karma is never late. It just takes a number. You call the numbers.)",
+    "* (You don't hate them. You just deliver the results. Determination.)",
+    "* (Beyond the rift they call you 'Karma'. You weigh the name. It holds.)",
+  ],
+  horror: [
+    "* (The hole in your skull doesn't hurt tonight. That's a good sign.)",
+    "* (So hungry. But they come first. You're filled with determination.)",
+    "* (Someone is waiting for you to bring food home. Determination.)",
+    "* (Someone beyond the rift said 'Horror'. Sounds right. Sounds like a name.)",
+  ],
+  hard: [
+    "* (The rules get harder tonight. Good. You're filled with determination.)",
+    "* (The world raised the difficulty without asking you. Determination.)",
+    "* (Blue sparks jump between your fingers. Fast enough, or not at all.)",
+    "* (Beyond the rift they call you 'Hard Mode'. Being remembered isn't bad.)",
+  ],
+};
+
 // B站UT社区对四条时间线的圈内称呼,挂在选人页角色名上方
 const AU_TAGS = {
   sans: "「本家」",
@@ -64,12 +125,26 @@ const AU_TAGS = {
   hard: "「官方隐藏难度」",
 };
 
+// EN community calls the timelines by their AU names, no brackets
+const AU_TAGS_EN = {
+  sans: "UNDERTALE",
+  ukb: "KARMA",
+  horror: "HORRORTALE",
+  hard: "HARD MODE",
+};
+
 export function charAuTag(charId) {
-  return AU_TAGS[charId] || null;
+  return L(AU_TAGS, AU_TAGS_EN)[charId] || null;
 }
 
 // Megalovania 在B站的名字只有一个:国歌。Boss进场即奏国歌。
-export const BOSS_ANTHEM_LINE = "* 国歌响起。裂缝外,全体起立。";
+// EN 圈的对应条件反射是那句 bad time。
+const BOSS_ANTHEM_ZH = "* 国歌响起。裂缝外,全体起立。";
+const BOSS_ANTHEM_EN = "* The opening notes play. You're gonna have a bad time.";
+
+export function bossAnthemLine() {
+  return L(BOSS_ANTHEM_ZH, BOSS_ANTHEM_EN);
+}
 
 // ---- 帕子的信: 第五访客,全社区的白月光 --------------------------------------
 // 全大写热情文体是他的签名;恐传线只收到一封空信——B站玩家知道为什么
@@ -81,10 +156,17 @@ const PAPYRUS_LETTERS = [
 ];
 const PAPYRUS_LETTER_HORROR = "* 信纸是空的。只有一行小字:『他还好吗?』";
 
+const PAPYRUS_LETTERS_EN = [
+  "* 'HUMAN!! YOUR FORM HAS IMPROVED!! — THE GREAT PAPYRUS'",
+  "* 'MY BROTHER PRAISED YOU. WHILE NAPPING!! — PAPYRUS'",
+  "* 'IF I CAN DO IT, SO CAN YOU!! — THE GREAT PAPYRUS'",
+];
+const PAPYRUS_LETTER_HORROR_EN = "* The page is blank. One small line: 'is he okay?'";
+
 // -> {text, heal}: normal letters ship with spaghetti, the empty one doesn't
 export function pickPapyrusLetter(charId) {
-  if (charId === "horror") return { text: PAPYRUS_LETTER_HORROR, heal: false };
-  return { text: pickFrom(PAPYRUS_LETTERS), heal: true };
+  if (charId === "horror") return { text: L(PAPYRUS_LETTER_HORROR, PAPYRUS_LETTER_HORROR_EN), heal: false };
+  return { text: pickFrom(L(PAPYRUS_LETTERS, PAPYRUS_LETTERS_EN)), heal: true };
 }
 
 const SAVE_DIFFICULTY = [
@@ -111,7 +193,32 @@ const SAVE_DIFFICULTY = [
   ],
 ];
 
+const SAVE_DIFFICULTY_EN = [
+  [
+    "* (The ruins lie ahead. Their shadow looms, filling you with determination.)",
+    "* (Same old recipe. You're filled with determination.)",
+    "* (Tonight, just survive. You're filled with determination.)",
+  ],
+  [
+    "* (The monsters' eyes have changed. They're determined too. That's bad.)",
+    "* (The air hangs heavier. You grip your weapon, filled with determination.)",
+    "* (House rules here: one mistake costs half your HP. Determination.)",
+  ],
+  [
+    "* (The floor is hot underfoot. The way back has been welded shut.)",
+    "* (Courage is cheap here. Survive first. Then talk about determination.)",
+    "* (Laughter echoes from deep below. You decide to laugh louder.)",
+  ],
+  [
+    "* (The corridor is empty. They're waiting deeper down. Determination.)",
+    "* (You count the next dust before this dust settles. That is genocide.)",
+    "* (No save point welcomes you on this route. This one is the exception. And the last.)",
+    "* (You feel nothing. That's the part that should scare you. You're filled with... something.)",
+  ],
+];
+
 const SAVE_FIRST_RUN = "* 很久很久以前,一个孩子爬上了埃伯特山。而你的故事,从这里开始。你充满了决心。";
+const SAVE_FIRST_RUN_EN = "* (Long ago, a child climbed Mt. Ebott. Your story starts here. Determination.)";
 
 const SAVE_DEATH_STREAK = [
   "* 你已经倒下很多次了。可你还是回来了。这本身就是决心。",
@@ -120,9 +227,21 @@ const SAVE_DEATH_STREAK = [
   "* 保持决心。这句话是说给现在的你听的。",
 ];
 
+const SAVE_DEATH_STREAK_EN = [
+  "* (You've fallen so many times. And yet, here you are. That IS determination.)",
+  "* (Failures don't count. As long as you're standing here, they were practice.)",
+  "* (That voice is telling you to give up again. You put it on mute.)",
+  "* (Stay determined. That one's for you, right now.)",
+];
+
 const SAVE_BOSS_CLEARED = [
   "* 你曾让天意低头。怪物们都记得那一晚。你充满了决心。",
   "* 打败过Boss的人,走路都带风。你充满了决心。",
+];
+
+const SAVE_BOSS_CLEARED_EN = [
+  "* (You made fate itself back down once. The monsters remember that night.)",
+  "* (Boss-slayers walk different. You're filled with determination.)",
 ];
 
 const SAVE_DAILY = [
@@ -131,9 +250,20 @@ const SAVE_DAILY = [
   "* 命运今天掷了一把新骰子。你捡起来看了看,你充满了决心。",
 ];
 
+const SAVE_DAILY_EN = [
+  "* (Today's underground isn't yesterday's. You're filled with determination.)",
+  "* (Every challenger in the world walks this same corridor today.)",
+  "* (Fate rolled new dice today. You pick them up and look. Determination.)",
+];
+
 const SAVE_ECHO_RICH = [
   "* 回声花在你经过时轻轻晃动。它们认得你。你充满了决心。",
   "* 你听过太多故事,多到足以写完自己的这一篇。你充满了决心。",
+];
+
+const SAVE_ECHO_RICH_EN = [
+  "* (The echo flowers sway as you pass. They know you. Determination.)",
+  "* (You've heard enough stories to finish writing your own.)",
 ];
 
 // B站UT社群网感池:弹幕/骨傲天/初见杀/热狗摊这一挂,低权重混入通用池,
@@ -149,25 +279,38 @@ const SAVE_MEME = [
   "* 初见杀只对初见有效。而你,已经不是初见了。你充满了决心。",
 ];
 
+// EN meme pool: the 2015-and-forever fandom canon — sans undertale, bad time,
+// megalovania hums, hot dogs. Same low weight, same rule: jokes never outrank awe.
+const SAVE_MEME_EN = [
+  "* (Beyond the rift, someone is drawing you. Frame by frame. Slowly. With care.)",
+  "* (A familiar melody drifts in. Someone wrote new words over your story again.)",
+  "* (A comment floats past, far away: 'this game made me cry in 2015'. Determination.)",
+  "* (Someone bet 10G you won't last five minutes. You intend to collect.)",
+  "* (The legend of sans undertale continues tonight. You're filled with determination.)",
+  "* (Somewhere, someone hums nine familiar notes. You're filled with determination.)",
+  "* (The hot dog stand is closed today. Fine. The shift starts now.)",
+  "* (Blind runs die to that one. You're not blind anymore. Determination.)",
+];
+
 function pickFrom(pool) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // ctx: {charId, difficultyId, isDaily, firstRun, deathStreak, bossCleared, echoCount}
 export function pickSavepointQuote(ctx = {}) {
-  if (ctx.firstRun) return SAVE_FIRST_RUN;
+  if (ctx.firstRun) return L(SAVE_FIRST_RUN, SAVE_FIRST_RUN_EN);
   // weighted pool-of-pools: situational lines win often enough to feel seen,
   // the generic pool keeps repeat runs from going stale
   const pools = [
-    [SAVE_GENERIC, 6],
-    [SAVE_CHAR[ctx.charId] || [], 3],
-    [SAVE_DIFFICULTY[ctx.difficultyId] || SAVE_DIFFICULTY[0], 3],
-    [SAVE_MEME, 2.5],
+    [L(SAVE_GENERIC, SAVE_GENERIC_EN), 6],
+    [L(SAVE_CHAR, SAVE_CHAR_EN)[ctx.charId] || [], 3],
+    [L(SAVE_DIFFICULTY, SAVE_DIFFICULTY_EN)[ctx.difficultyId] || L(SAVE_DIFFICULTY, SAVE_DIFFICULTY_EN)[0], 3],
+    [L(SAVE_MEME, SAVE_MEME_EN), 2.5],
   ];
-  if (ctx.deathStreak >= 3) pools.push([SAVE_DEATH_STREAK, 6]);
-  if (ctx.isDaily) pools.push([SAVE_DAILY, 4]);
-  if (ctx.bossCleared) pools.push([SAVE_BOSS_CLEARED, 1.5]);
-  if (ctx.echoCount >= 10) pools.push([SAVE_ECHO_RICH, 1.5]);
+  if (ctx.deathStreak >= 3) pools.push([L(SAVE_DEATH_STREAK, SAVE_DEATH_STREAK_EN), 6]);
+  if (ctx.isDaily) pools.push([L(SAVE_DAILY, SAVE_DAILY_EN), 4]);
+  if (ctx.bossCleared) pools.push([L(SAVE_BOSS_CLEARED, SAVE_BOSS_CLEARED_EN), 1.5]);
+  if (ctx.echoCount >= 10) pools.push([L(SAVE_ECHO_RICH, SAVE_ECHO_RICH_EN), 1.5]);
   const usable = pools.filter(([pool]) => pool.length);
   let total = 0;
   for (const [, w] of usable) total += w;
@@ -176,7 +319,7 @@ export function pickSavepointQuote(ctx = {}) {
     roll -= w;
     if (roll <= 0) return pickFrom(pool);
   }
-  return pickFrom(SAVE_GENERIC);
+  return pickFrom(L(SAVE_GENERIC, SAVE_GENERIC_EN));
 }
 
 // ---- 角色局内絮语 bark ------------------------------------------------------
@@ -225,8 +368,52 @@ const BARKS = {
   },
 };
 
+// sans/horror keep canon lowercase; ukb reads like a court, hard like a system
+const BARKS_EN = {
+  sans: {
+    evolve: "* oh, it does that now? neat.",
+    elite: "* big guy. brittle bones.",
+    lowhp: "* welp. maybe i try now. once.",
+    streak25: "* i'm not even trying. really.",
+    boss: "* calling it a night? nah. it just started.",
+    chest: "* free stuff? my favorite price.",
+    candy: "* not a hot dog. it'll do.",
+    endless: "* overtime, huh. double pay, right?",
+  },
+  ukb: {
+    evolve: "* The verdict has been upgraded.",
+    elite: "* No name outweighs the scales.",
+    lowhp: "* Karma cuts both ways... noted.",
+    streak25: "* Twenty-five debts. One payment.",
+    boss: "* 'Fate', it says. Fate pays taxes here.",
+    chest: "* An advance. It will be collected.",
+    candy: "* Sweet. Not a capital offense.",
+    endless: "* The court does not adjourn.",
+  },
+  horror: {
+    evolve: "* sharper now... heh. heh.",
+    elite: "* big one... two meals, easy.",
+    lowhp: "* hurts... hunger hurts more.",
+    streak25: "* can't stop... can't stop.",
+    boss: "* nice sturdy head... lemme check.",
+    candy: "* good. more. MORE.",
+    chest: "* food inside...? no? taking it anyway.",
+    endless: "* more...? good. all of it stays.",
+  },
+  hard: {
+    evolve: "* The weapon caught up to me. Barely.",
+    elite: "* 'Elite'? The bar is low.",
+    lowhp: "* The edge of the limit. My home turf.",
+    streak25: "* Twenty-five. Warm-up complete.",
+    boss: "* You're the final exam? Don't be easy.",
+    chest: "* The reward is irrelevant. Accepted.",
+    candy: "* Resupplied. Resume the sprint.",
+    endless: "* Harder? Now we're talking.",
+  },
+};
+
 export function barkFor(charId, event) {
-  return BARKS[charId]?.[event] || null;
+  return L(BARKS, BARKS_EN)[charId]?.[event] || null;
 }
 
 // ---- 死亡台词按凶手 ---------------------------------------------------------
@@ -318,6 +505,89 @@ const DEATH_BY_KILLER = {
   champion_lemon_bread: ["* 欢迎来到特殊地狱。柠檬味,微甜,回口发苦。"],
 };
 
+const DEATH_BY_KILLER_EN = {
+  slime: [
+    "* Ribbit. (It seems to be expressing condolences.)",
+    "* You lost to the gentlest monster in the ruins. It feels worse than you do.",
+    "* It tried to tell you the rules. You didn't listen.",
+  ],
+  bat: [
+    "* It apologized the entire time it was killing you.",
+    "* Slain by the most timid monster underground. You're both surprised.",
+    "* It flew away crying. You stayed down.",
+  ],
+  ghost: [
+    "* You didn't eat your greens. So the greens ate you.",
+    "* 'Eat your vegetables.' Its parting words to you.",
+    "* A balanced diet has defeated you.",
+  ],
+  tank: [
+    "* Jerry.",
+    "* You died to Jerry. This will follow you forever.",
+    "* Everyone ditches Jerry. Tonight, Jerry won.",
+    "* Killed by Jerry. Screenshot it. Nobody will believe you.",
+  ],
+  red: [
+    "* It asked you not to pick on it. You picked on it.",
+    "* It just wanted to be treated nicely. You looked at it with a weapon.",
+    "* When it charged, you finally got a good look at it.",
+  ],
+  orange: [
+    "* The incantation finished. You never got a word in.",
+    "* It took a bow. The only audience left was your dust.",
+    "* The trick: it had a spare life. You didn't.",
+  ],
+  blue: [
+    "* You have been thoroughly cleaned. Soul included.",
+    "* It looked at the dust on the floor, sighed, and started sweeping again.",
+    "* Cleaning complete. That included you.",
+  ],
+  purple: [
+    "* You could have at least complimented the hat.",
+    "* You never once looked at its hat. It noticed.",
+    "* The hat is still here. You aren't.",
+  ],
+  boss: [
+    "* Fate doesn't explain itself. It just falls.",
+    "* It looked at you on behalf of something higher. Then you fell.",
+    "* In those empty white sockets, you saw how this ends.",
+    "* Don't take it hard. Even he is just a puppet that got chosen.",
+    "* You had a bad time. Exactly as promised.",
+    "* GET DUNKED ON — no. He doesn't say that anymore.",
+  ],
+  hazard: [
+    "* When the red circle lights up, that ground stops being yours.",
+    "* The judgement isn't about you. It's about everyone who stands still.",
+    "* You were standing on the verdict.",
+  ],
+  elite: [
+    "* Its name goes into the archive. Your dust doesn't.",
+    "* Strong met strong. Tonight it was stronger.",
+    "* The golden ring is still pulsing. Like a salute.",
+    "* A blind-run kill. Next time, you'll know the pattern.",
+  ],
+  elite_final_froggit: ["* Ribbit. (It understands now. You clearly don't.)"],
+  elite_whimsalot: ["* This time, it didn't close its eyes. You did."],
+  elite_astigmatism: ["* Obedience test: failed."],
+  elite_parsnik: ["* It promised you sweetness. The last bite was real."],
+  elite_moldessa: ["* Its face is scrambled. Your dodge was worse."],
+  elite_migospel: ["* The clown took its final bow. The clown was you all along."],
+  elite_aaron: ["* Cause of death: twelve abs and a wink. ;)"],
+  elite_pyrope: ["* It just wanted to ride some heat. You WERE the heat."],
+  elite_memoryhead: ["* 'You have been added to the group chat.' There is no leave button."],
+  elite_reaper_bird: ["* Stitched from three wishes that never came true. Yours made four."],
+  champion_greater_dog: ["* It just wanted pets. You could not survive the affection."],
+  champion_mad_dummy: ["* It screamed at you for a full round. You cracked first."],
+  champion_knight_knight: ["* The lullaby is over. Good night."],
+  champion_muffet: ["* One spider tea: 9999G. Your life: accepted as payment."],
+  champion_royal_guards: ["* They confessed mid-battle. You died as the romantic backdrop."],
+  champion_mettaton_ex: ["* RATINGS THROUGH THE ROOF! Thank you for that dramatic finish, darling."],
+  champion_glyde: ["* It declined to reveal its damage numbers. They were sufficient."],
+  champion_so_sorry: ["* 'Sorry! Sorry! So sorry—' It apologized. It did not stop."],
+  champion_endogeny: ["* You tried counting the dogs. Halfway through, you joined the data."],
+  champion_lemon_bread: ["* Welcome to your special hell. Lemon-scented. Faintly sweet."],
+};
+
 const DEATH_MILESTONES = {
   1: "* 你死了。但在这个世界,这从来不是结束。",
   3: "* 第三次了。有个声音开始帮你记笔记。",
@@ -327,12 +597,22 @@ const DEATH_MILESTONES = {
   50: "* 五十次。地下世界开始怀疑,到底谁在折磨谁。",
 };
 
+const DEATH_MILESTONES_EN = {
+  1: "* You died. In this world, that has never been the end.",
+  3: "* Third time. Somewhere, a voice starts taking notes.",
+  5: "* You're learning every way there is to fall. That's not all bad.",
+  10: "* Ten. The flowers in the field kept one bloom for each.",
+  20: "* Twenty deaths. Enough determination, all told, to fill a soul.",
+  50: "* Fifty. The underground is starting to wonder who's tormenting whom.",
+};
+
 export function pickDeathLine(kind, totalDeaths) {
-  const milestone = DEATH_MILESTONES[totalDeaths] || null;
+  const milestone = L(DEATH_MILESTONES, DEATH_MILESTONES_EN)[totalDeaths] || null;
   // named elites/champions carry their codex key; unknown ones borrow the
   // generic elite pool so future codex batches never fall silent
   const named = (kind || "").startsWith("elite_") || (kind || "").startsWith("champion_");
-  const pool = DEATH_BY_KILLER[kind] || (named ? DEATH_BY_KILLER.elite : null);
+  const killers = L(DEATH_BY_KILLER, DEATH_BY_KILLER_EN);
+  const pool = killers[kind] || (named ? killers.elite : null);
   // a milestone death always tells you the number; otherwise the killer speaks
   if (milestone && (!pool || Math.random() < 0.5)) return milestone;
   return pool ? pickFrom(pool) : milestone;
@@ -367,10 +647,43 @@ const LOVE_BRACKETS = [
   ]],
 ];
 
+const LOVE_BRACKETS_EN = [
+  [150, [
+    "* Your LOVE barely grew. On nights like these, mercy is harder than murder.",
+    "* Barely any kills. Looking for a pacifist route? There isn't one here. But you looked. That matters.",
+  ]],
+  [400, [
+    "* Your LOVE rose a little. Enough to survive this world. Not enough to forget why.",
+    "* A hundred-some swings. Steady hands, warm heart. Keep that balance.",
+  ]],
+  [800, [
+    "* LOVE is climbing steadily. You've stopped remembering their faces. They remember yours.",
+    "* Hundreds of monsters turned to dust. You call it survival. Tonight, that still holds.",
+  ]],
+  [1500, [
+    "* Your LOVE is high now. Hurting is easy. Being hurt is hard. That isn't strength. That's distance.",
+    "* The judge at the end of the hall asks one question first: was all of it necessary?",
+  ]],
+  [2500, [
+    "* EXP. Execution Points. LOVE. Level Of Violence. Now you know how they're really spelled.",
+    "* A thousand kills. Dust settles on your coat, yet you feel lighter. Something is leaving you.",
+  ]],
+  [Infinity, [
+    "* Your LOVE silenced even the judge. He closed the file and said: sit down. let's talk.",
+    "* At this number, monsters stop running from you. Running takes hope.",
+  ]],
+];
+
 const LOVE_GENOCIDE = [
   "* 这里没有评语。屠杀不需要观众。",
   "* 你数不清了。它们数得清。每一粒尘,都记得自己的名字。",
   "* 审判者本想列出你的罪状。纸不够长。它只写了两个字:回头。",
+];
+
+const LOVE_GENOCIDE_EN = [
+  "* No comments here. A genocide doesn't need an audience.",
+  "* You lost count. They didn't. Every grain of dust remembers its own name.",
+  "* The judge meant to list your sins. The paper ran out. He wrote two words: turn back.",
 ];
 
 const LOVE_VICTORY_CODA = [
@@ -378,22 +691,30 @@ const LOVE_VICTORY_CODA = [
   "* Boss化尘的地方,留下了一颗白色的心。它没有怪你。这最难。",
 ];
 
+const LOVE_VICTORY_CODA_EN = [
+  "* But you won. Even fate lowered its head. May the victory be worth its price.",
+  "* Where he turned to dust, a white heart remained. It doesn't blame you. That's the hard part.",
+];
+
 const LOVE_ENDLESS_CODA = "* 审判进行到第五轮之后,已经没人记得最初的罪名。包括法庭自己。";
+const LOVE_ENDLESS_CODA_EN = "* Past round five, nobody remembers the original charge. Not even the court.";
 
 const LOVE_RETREAT = "* 你选择在还能选择的时候离开。地下世界很少有人懂这个道理。";
+const LOVE_RETREAT_EN = "* You left while leaving was still a choice. Few down here ever learn that.";
 
 // -> {lines: [...]}, 首行为主评语,后续为加缀
 export function pickLoveJudgment({ kills = 0, difficultyId = 0, outcome = "death", rounds = 0 } = {}) {
-  if (outcome === "retreat") return { lines: [LOVE_RETREAT] };
+  if (outcome === "retreat") return { lines: [L(LOVE_RETREAT, LOVE_RETREAT_EN)] };
   const lines = [];
   if (difficultyId >= 3) {
-    lines.push(pickFrom(LOVE_GENOCIDE));
+    lines.push(pickFrom(L(LOVE_GENOCIDE, LOVE_GENOCIDE_EN)));
   } else {
-    const [, pool] = LOVE_BRACKETS.find(([cap]) => kills < cap) || LOVE_BRACKETS[LOVE_BRACKETS.length - 1];
+    const brackets = L(LOVE_BRACKETS, LOVE_BRACKETS_EN);
+    const [, pool] = brackets.find(([cap]) => kills < cap) || brackets[brackets.length - 1];
     lines.push(pickFrom(pool));
   }
-  if (outcome === "victory") lines.push(pickFrom(LOVE_VICTORY_CODA));
-  if (rounds >= 5) lines.push(LOVE_ENDLESS_CODA);
+  if (outcome === "victory") lines.push(pickFrom(L(LOVE_VICTORY_CODA, LOVE_VICTORY_CODA_EN)));
+  if (rounds >= 5) lines.push(L(LOVE_ENDLESS_CODA, LOVE_ENDLESS_CODA_EN));
   return { lines };
 }
 
@@ -463,16 +784,50 @@ const BOSS_LINES = {
   },
 };
 
+// sans's intro riffs the judgement-hall speech; p2 is the bad time, verbatim mood
+const BOSS_LINES_EN = {
+  sans: {
+    intro: "* 'beautiful day outside. perfect for turning to dust.'",
+    mercy: "* 'don't look at me like that. it won't let me stop.'",
+    p2: "* 'from here on out... you're gonna have a bad time.'",
+    death: "* 'heh... so that's what getting dodged feels like.'",
+    half: "* 'the classic me. ...you got the happier timeline.'",
+  },
+  ukb: {
+    intro: "* 'Karma came knocking? No. Tonight, I AM karma.'",
+    mercy: "* 'The scales will not let me accept that mercy.'",
+    p2: "* 'The reckoning turns to page two.'",
+    death: "* 'The books... finally balance.'",
+    half: "* 'The Karma me. Your ledger is as heavy as mine.'",
+  },
+  horror: {
+    intro: "* 'you've been hungry for years too. i can smell it.'",
+    mercy: "* 'mercy? that stuff... doesn't fill you up.'",
+    p2: "* 'then NOBODY eats tonight!'",
+    death: "* 'tonight... you all finally eat well...'",
+    half: "* 'the horror me. ...you got thin too.'",
+  },
+  hard: {
+    intro: "* 'Rules loaded. Blind-run kill: begin.'",
+    mercy: "* 'Loading complete. Your options have been disabled.'",
+    p2: "* 'Phase two. Difficulty: beyond HELL.'",
+    death: "* 'Challenge passed... your save file has been kept.'",
+    half: "* 'The hidden-difficulty me. We're both unfinished chapters.'",
+  },
+};
+
 export function bossLineFor(charId, moment) {
-  return BOSS_LINES[charId]?.[moment] || null;
+  return L(BOSS_LINES, BOSS_LINES_EN)[charId]?.[moment] || null;
 }
 
 // ---- L3: 审判纪元章节过场(里程碑首达时全屏逐行打字机) ----------------------
+// titleEn/linesEn 由渲染处 pick(),保持数据导出形状不变
 
 export const CHAPTERS = [
   {
     id: "ch1",
     title: "审判纪元 · 第一章 「白心」",
+    titleEn: "The Judgement Era · Chapter I — The White Heart",
     lines: [
       "* 白色的心停在你手心,像一片不会融化的雪。",
       "* 它不挣扎,也不怨恨。它只是,终于可以休息了。",
@@ -480,10 +835,18 @@ export const CHAPTERS = [
       "* 是「必须战斗」这件事本身。",
       "* ——第一纪元,就此闭卷。你充满了决心。",
     ],
+    linesEn: [
+      "* The white heart rests in your palm, like snow that won't melt.",
+      "* It doesn't struggle. It doesn't resent. It finally gets to rest.",
+      "* And suddenly you understand: fate never corrupted the bones —",
+      "* it corrupted the idea that you MUST fight.",
+      "* — Thus closes the First Era. You're filled with determination.",
+    ],
   },
   {
     id: "ch2",
     title: "审判纪元 · 第二章 「裂缝」",
+    titleEn: "The Judgement Era · Chapter II — The Rift",
     lines: [
       "* 第二次让天意低头,世界裂开了一道细小的缝。",
       "* 缝隙外传来无数飘过的声音:",
@@ -492,10 +855,19 @@ export const CHAPTERS = [
       "* 有观众的战斗,连尘埃都落得更慢一些。",
       "* ——第二纪元:被注视者。你充满了决心。",
     ],
+    linesEn: [
+      "* The second time fate bowed, a hairline crack opened in the world.",
+      "* Countless voices drift in from beyond it:",
+      "* 'GET DUNKED ON' 'bad time incoming' 'ez'",
+      "* You can't understand them. But they've been watching all along.",
+      "* With an audience, even dust falls a little slower.",
+      "* — Second Era: The Watched. You're filled with determination.",
+    ],
   },
   {
     id: "ch3",
     title: "审判纪元 · 第三章 「天平」",
+    titleEn: "The Judgement Era · Chapter III — The Scales",
     lines: [
       "* 第三次。天平从云层里降下,悬在走廊正中央。",
       "* 一端,是你救不了的;另一端,是你杀掉的。",
@@ -503,10 +875,18 @@ export const CHAPTERS = [
       "* 审判者合上记录:「LV再高,今天也判不了你。」",
       "* ——第三纪元:平衡。你,还是你。",
     ],
+    linesEn: [
+      "* The third time. Scales descend from the clouds, mid-corridor.",
+      "* One side: those you couldn't save. The other: those you killed.",
+      "* They swayed for a long, long time. Then stopped dead center.",
+      "* The judge closed the record: 'Whatever your LV, no sentence today.'",
+      "* — Third Era: Balance. Despite everything, it's still you.",
+    ],
   },
   {
     id: "ch4",
     title: "审判纪元 · 第四章 「尘」",
+    titleEn: "The Judgement Era · Chapter IV — Dust",
     lines: [
       "* 没有欢呼。没有结算音乐。",
       "* 连裂缝外的声音,都安静了。",
@@ -515,10 +895,19 @@ export const CHAPTERS = [
       "* 你伸手把它擦掉了。灰尘沾了满手。",
       "* ——第四纪元:尘归尘。愿你还记得自己的名字。",
     ],
+    linesEn: [
+      "* No cheering. No victory music.",
+      "* Even the voices beyond the rift have gone quiet.",
+      "* On the wall at the corridor's end, one old sentence:",
+      "* 'In this world, it's kill or be killed.'",
+      "* You reach out and wipe it away. The dust coats your hand.",
+      "* — Fourth Era: Dust to dust. May you still remember your name.",
+    ],
   },
   {
     id: "ch5",
     title: "审判纪元 · 终章 「守望」",
+    titleEn: "The Judgement Era · Finale — The Watcher",
     lines: [
       "* 图鉴的最后一页翻过去,背面还有一行小字:",
       "* 「谢谢你认真看完了每一个怪物。",
@@ -526,6 +915,14 @@ export const CHAPTERS = [
       "* 一只小白狗不知从哪里冒出来,趴在书页上睡着了。",
       "* 你决定不叫醒它。传说,写下这一切的就是它。",
       "* ——终章:守望者。这个世界,交给你看管了。",
+    ],
+    linesEn: [
+      "* The last page of the codex turns. On its back, a small line:",
+      "* 'Thank you for really looking at every monster.",
+      "*   Each one had a name. Each one is remembered.'",
+      "* A little white dog appears from nowhere and sleeps on the page.",
+      "* You decide not to wake it. Legend says it wrote all of this.",
+      "* — Finale: The Watcher. This world is in your care now.",
     ],
   },
 ];
@@ -569,8 +966,14 @@ const DOG_LINES = [
   "* 狗神路过,看了一眼战况,满意地打了个哈欠。",
 ];
 
+const DOG_LINES_EN = [
+  "* A small white dog crosses the battlefield. Every attack politely detours.",
+  "* The Annoying Dog stole a bone, felt bad, and left you a coin.",
+  "* The Dog God passed by, surveyed the battle, and yawned approvingly.",
+];
+
 export function pickDogLine() {
-  return pickFrom(DOG_LINES);
+  return pickFrom(L(DOG_LINES, DOG_LINES_EN));
 }
 
 // 冠军出场宣言: shown in the UT narration box the moment a round champion
@@ -588,28 +991,44 @@ const CHAMPION_ENTRANCES = {
   soSorry: "* 「抱歉抱歉,借过——」抱歉怪撞进战场,画稿撒了一地。",
 };
 
+// EN entrances lean on canon catchphrases; 'ships it' is the fandom's 锁死
+const CHAMPION_ENTRANCES_EN = {
+  greaterDog: "* Greater Dog bounds in. The rift outside goes 'AWWW'.",
+  madDummy: "* 'I! HATE! YOU!' Mad Dummy is levitating with rage.",
+  knightKnight: "* Knight Knight hums a lullaby. Do NOT fall asleep.",
+  muffet: "* 'Ahuhuhu~' Muffet arrives. Today's special: all your G.",
+  royalGuards: "* RG 01 & 02 enter side by side. The rift ships it.",
+  endogeny: "* Countless tails wag at once. Dog levels: critical.",
+  lemonBread: "* 'Welcome to my special hell.'",
+  mettatonEx: "* 'OHHH YES!' Prime time is LIVE, darlings!",
+  glyde: "* Glyde enters, offended by the lack of applause.",
+  soSorry: "* 'Sorry! Coming through—' So Sorry drops his art everywhere.",
+};
+
 export function championEntrance(championId) {
-  return CHAMPION_ENTRANCES[championId] || null;
+  return L(CHAMPION_ENTRANCES, CHAMPION_ENTRANCES_EN)[championId] || null;
 }
 
 // ---- 分享卡「裂缝外锐评」: one gray line of community judgement -------------
 // priority chain: the juiciest angle wins; generic pools keep repeats fresh
+// zh=弹幕锐评腔, en=chat verdict腔;分支逻辑两边共用,只换嘴皮子
 
 export function pickShareRoast({ outcome, deathKind, survived = 0, clearTime = 0, maxStreak = 0, rounds = 0, hpPct = 0, kills = 0, difficultyId = 0 } = {}) {
-  if (deathKind === "tank") return "* 裂缝外锐评:死于杰瑞。公开处刑。";
-  if (outcome === "victory" && difficultyId >= 3) return "* 裂缝外锐评:打完这把,记得卸载保平安。";
-  if ((outcome === "death" || outcome === "quit") && kills === 0) return "* 裂缝外锐评:云玩家,实锤了。";
-  if ((outcome === "death" || outcome === "quit") && survived < 15) return "* 裂缝外锐评:开幕雷击。";
-  if (outcome === "victory" && clearTime <= 350) return "* 裂缝外锐评:这手速,建议直播。";
-  if (outcome === "victory" && hpPct >= 0.99) return "* 裂缝外锐评:满血通关,手元警告。";
-  if ((outcome === "death" || outcome === "quit") && survived < 60) return "* 裂缝外锐评:下饭,但下的是我。";
-  if (maxStreak >= 50) return "* 裂缝外锐评:割草机成精了。";
-  if (rounds >= 8) return "* 裂缝外锐评:建议直接投稿,标题我都想好了。";
-  if (rounds >= 5) return "* 裂缝外锐评:肝帝认证,泪目。";
-  if (outcome === "retreat") return "* 裂缝外锐评:见好就收,高手。";
+  const R = (zh, en) => (EN() ? "* Chat verdict: " + en : "* 裂缝外锐评:" + zh);
+  if (deathKind === "tank") return R("死于杰瑞。公开处刑。", "died to Jerry. Public execution.");
+  if (outcome === "victory" && difficultyId >= 3) return R("打完这把,记得卸载保平安。", "maybe uninstall. For your own good.");
+  if ((outcome === "death" || outcome === "quit") && kills === 0) return R("云玩家,实锤了。", "certified backseat gamer.");
+  if ((outcome === "death" || outcome === "quit") && survived < 15) return R("开幕雷击。", "speedran the losing part.");
+  if (outcome === "victory" && clearTime <= 350) return R("这手速,建议直播。", "hands. This player has hands.");
+  if (outcome === "victory" && hpPct >= 0.99) return R("满血通关,手元警告。", "no-hit?! Clip it or it didn't happen.");
+  if ((outcome === "death" || outcome === "quit") && survived < 60) return R("下饭,但下的是我。", "content. You are the content.");
+  if (maxStreak >= 50) return R("割草机成精了。", "the lawnmower has become self-aware.");
+  if (rounds >= 8) return R("建议直接投稿,标题我都想好了。", "touch grass. After one more round.");
+  if (rounds >= 5) return R("肝帝认证,泪目。", "certified grinder. o7");
+  if (outcome === "retreat") return R("见好就收,高手。", "knowing when to leave IS the skill.");
   if (outcome === "victory")
-    return pickFrom(["* 裂缝外锐评:正常发挥,收藏了。", "* 裂缝外锐评:爷的决心,回来了。"]);
-  return pickFrom(["* 裂缝外锐评:典。", "* 裂缝外锐评:差亿点点。", "* 裂缝外锐评:重开,这把有了。"]);
+    return pickFrom([R("正常发挥,收藏了。", "clean run. Bookmarked."), R("爷的决心,回来了。", "determination levels restored.")]);
+  return pickFrom([R("典。", "F."), R("差亿点点。", "SO close. Painfully close."), R("重开,这把有了。", "run it back. This one's yours.")]);
 }
 
 // ---- 图鉴「裂缝外批注」: one-line community graffiti per codex entry --------
@@ -646,8 +1065,39 @@ const CODEX_NOTES = {
   champion_lemon_bread: "地狱也有柠檬味。",
 };
 
+const CODEX_NOTES_EN = {
+  slime: "Beginner's nightmare, veteran's warm-up.",
+  bat: "It said sorry first.",
+  ghost: "Mom was right.",
+  tank: "Jerry.",
+  red: "It asked nicely. Once.",
+  orange: "Don't clap before the curtain.",
+  blue: "Bath water: perfect temperature.",
+  purple: "Nice hat (said under duress).",
+  elite_final_froggit: "PhD in Ribbitology.",
+  elite_whimsalot: "It stopped crying. We didn't.",
+  elite_astigmatism: "Obedience test in progress.",
+  elite_parsnik: "Champion of empty promises.",
+  elite_moldessa: "Face parts roam freely.",
+  elite_migospel: "The clown was... never mind.",
+  elite_aaron: ";)",
+  elite_pyrope: "Heat is life.",
+  elite_memoryhead: "Do not answer that call.",
+  elite_reaper_bird: "A patchwork of last wishes.",
+  champion_greater_dog: "Cause of death: AWWW.",
+  champion_mad_dummy: "Started it. Had a point though.",
+  champion_knight_knight: "Sleep-aid streamer. Do not disturb.",
+  champion_muffet: "Everyone owes her 9999G.",
+  champion_royal_guards: "It's canon now. We all saw it.",
+  champion_mettaton_ex: "The legs are real.",
+  champion_glyde: "Stats private. Ego public.",
+  champion_so_sorry: "He really did apologize every time.",
+  champion_endogeny: "Every dog in there is a good dog.",
+  champion_lemon_bread: "Hell has a lemon flavor.",
+};
+
 export function codexNote(key) {
-  return CODEX_NOTES[key] || null;
+  return L(CODEX_NOTES, CODEX_NOTES_EN)[key] || null;
 }
 
 // ---- 图鉴「检查」行: the ACT→Check ritual, UT's most recognizable text form --
@@ -684,29 +1134,71 @@ const CODEX_CHECKS = {
   champion_lemon_bread: "* 柠檬面包 — ATK 21 DEF 13 — 欢迎回家。这不是问候,是判决。",
 };
 
+const CODEX_CHECKS_EN = {
+  slime: "* Froggit — ATK 4 DEF 5 — Ribbit. (Its whole script. Its whole life.)",
+  bat: "* Whimsun — ATK 5 DEF 0 — Touch it once and you'll both feel guilty.",
+  ghost: "* Vegetoid — ATK 6 DEF 6 — Balanced nutrition. Balanced stats.",
+  tank: "* Jerry — ATK 0 DEF 30 — Jerry.",
+  red: "* Loox — ATK 6 DEF 6 — Don't pick on it. It asked first.",
+  orange: "* Madjick — ATK 8 DEF 4 — Everything's in the hat, except a way out.",
+  blue: "* Woshua — ATK 7 DEF 5 — Wants to clean you. Starting with your soul.",
+  purple: "* Icecap — ATK 7 DEF 7 — Without the hat it's nothing. It knows.",
+  elite_final_froggit: "* Final Froggit — ATK 10 DEF 10 — Ribbited to the end of the road. Enlightened.",
+  elite_whimsalot: "* Whimsalot — ATK 11 DEF 5 — This time, it won't close its eyes.",
+  elite_astigmatism: "* Astigmatism — ATK 12 DEF 6 — Look at it. That's an order.",
+  elite_parsnik: "* Parsnik — ATK 12 DEF 8 — Sweet. The venomous kind of sweet.",
+  elite_moldessa: "* Moldessa — ATK 11 DEF 9 — The face is a mess. The knifework isn't.",
+  elite_migospel: "* Migospel — ATK 12 DEF 7 — Someone laughs last. It won't be you.",
+  elite_aaron: "* Aaron — ATK 13 DEF 6 — Every muscle winks. ;)",
+  elite_pyrope: "* Pyrope — ATK 14 DEF 5 — The boiling point is the selling point.",
+  elite_memoryhead: "* Memoryhead — ATK ? DEF ? — DATA CORRUPTED. DATA CORRUPTED. DATA CORRUPTED.",
+  elite_reaper_bird: "* Reaper Bird — ATK ?? DEF ?? — Check failed: subject is three memories. Can't focus.",
+  champion_greater_dog: "* Greater Dog — ATK 15 DEF 12 — It wants to play. Its 'play' weighs two tons.",
+  champion_mad_dummy: "* Mad Dummy — ATK 16 DEF ? — You cannot win the argument. Don't try.",
+  champion_knight_knight: "* Knight Knight — ATK 18 DEF 15 — The lullaby is for you.",
+  champion_muffet: "* Muffet — ATK 17 DEF 10 — Time to pay up, dearie~",
+  champion_royal_guards: "* RG 01 & 02 — ATK 18 DEF 18 — Matching stats. Matching hearts.",
+  champion_mettaton_ex: "* Mettaton EX — ATK 19 DEF 12 — Higher ratings, higher kicks.",
+  champion_glyde: "* Glyde — ATK ?? DEF ?? — It covered up the Check results.",
+  champion_so_sorry: "* So Sorry — ATK 15 DEF 9 — Apologizes slower than it wrecks things.",
+  champion_endogeny: "* Endogeny — ATK 20 DEF 14 — Dog × N detected. N is still growing.",
+  champion_lemon_bread: "* Lemon Bread — ATK 21 DEF 13 — 'Welcome home.' Not a greeting. A verdict.",
+};
+
 export function codexCheck(key) {
-  return CODEX_CHECKS[key] || null;
+  return L(CODEX_CHECKS, CODEX_CHECKS_EN)[key] || null;
 }
 
 // ---- FUN值 / Gaster 暗线: canon entry 17, zero memes, pure mystery ----------
+// EN 直接引 canon 原文(DARK DARKER YET DARKER),两边圈子都秒懂
 
-export const FUN_GLITCH_SAVEPOINT = "* 黑暗,更黑,愈发黑暗。■■■■■■。";
-export const GASTER_GHOST_LINE = "* 他在你看到这行字之前,就已经走了。";
-export const GASTER_GHOST_SUB = "(第十七号记录,不属于本图鉴。)";
-export const FUN_FLOWER_LINE = "……不要回头。";
+export function funGlitchSavepoint() {
+  return L("* 黑暗,更黑,愈发黑暗。■■■■■■。", "* DARK. DARKER. YET DARKER. ■■■■■■.");
+}
+export function gasterGhostLine() {
+  return L("* 他在你看到这行字之前,就已经走了。", "* He was gone before you finished reading this line.");
+}
+export function gasterGhostSub() {
+  return L("(第十七号记录,不属于本图鉴。)", "(Entry number seventeen does not belong in this codex.)");
+}
+export function funFlowerLine() {
+  return L("……不要回头。", "...do not turn around.");
+}
 
 // ---- 黄色饶恕 / Temmie / 商店空交互 -----------------------------------------
 
 export function spareNarration(name) {
-  return `* 你饶恕了${name}。EXP +0。但有些东西 +1。`;
+  return EN() ? `* You spared ${name}. EXP +0. But something went +1.` : `* 你饶恕了${name}。EXP +0。但有些东西 +1。`;
 }
 
-export const TEM_LINE = "* 哦咿!!!我系Temmie!!!(Temmie在剧烈震动)";
+export function temLine() {
+  return L("* 哦咿!!!我系Temmie!!!(Temmie在剧烈震动)", "* hOI!!! i'm tEMMIE!!! (Temmie is vibrating intensely.)");
+}
 
 export function shopDenyLine(reason) {
-  if (reason === "maxed") return "* 它已经尽力了。";
-  if (reason === "gated") return "* 但什么都没有发生。(前置未满足)";
-  return "* 你的钱包空空如也。连灰尘都没有。";
+  if (reason === "maxed") return L("* 它已经尽力了。", "* It has already done its best.");
+  if (reason === "gated") return L("* 但什么都没有发生。(前置未满足)", "* But nothing happened. (Requirements not met.)");
+  return L("* 你的钱包空空如也。连灰尘都没有。", "* Your wallet is empty. Not even dust in there.");
 }
 
 // ---- 裂缝外攻略组: one actionable line after a pre-boss death ---------------
@@ -716,18 +1208,44 @@ export function coachLine({ kind = null, survived = 0, kills = 0, moveSpeed = 0,
   // 死因分流(提交A): 操作死因给操作建议,数值死因才推属性——
   // 绝不让所有死亡都变成「继续刷攻击」
   let line;
-  if (kind === "boss") line = "* 裂缝外攻略组:把「决心之心」买满再来,血厚才看得清 Boss 的出招。";
-  else if (kind === "hazard") line = "* 裂缝外攻略组:审判领域只烧站着不动的人,红圈亮就走。";
+  if (kind === "boss")
+    line = L(
+      "* 裂缝外攻略组:把「决心之心」买满再来,血厚才看得清 Boss 的出招。",
+      "* Strat corner: max 'Heart of DT' — more HP, more time to read the boss."
+    );
+  else if (kind === "hazard")
+    line = L(
+      "* 裂缝外攻略组:审判领域只烧站着不动的人,红圈亮就走。",
+      "* Strat corner: red zones only burn the standing-still. Light up? Leave."
+    );
   else if ((kind || "").startsWith("elite_") || (kind || "").startsWith("champion_"))
-    line = "* 裂缝外攻略组:精英的红圈亮起后必爆,先跑位,再输出。";
-  else if (survived < 90) line = "* 裂缝外攻略组:开局贴边走,别扎怪堆;90 秒后才是真正的考试。";
+    line = L(
+      "* 裂缝外攻略组:精英的红圈亮起后必爆,先跑位,再输出。",
+      "* Strat corner: elite red rings always detonate. Move first, shoot second."
+    );
+  else if (survived < 90)
+    line = L(
+      "* 裂缝外攻略组:开局贴边走,别扎怪堆;90 秒后才是真正的考试。",
+      "* Strat corner: hug edges early, avoid packs; the real exam starts at 90s."
+    );
   else if (survived >= 180 && kills < survived * 1.1)
-    line = "* 裂缝外攻略组:输出跟不上刷怪节奏——卡优先攻击攻速,武器满阶记得凑觉醒。";
+    line = L(
+      "* 裂缝外攻略组:输出跟不上刷怪节奏——卡优先攻击攻速,武器满阶记得凑觉醒。",
+      "* Strat corner: DPS fell behind — attack/speed cards, awaken maxed weapons."
+    );
   else if (moveSpeed > 0 && moveSpeed < 210)
-    line = "* 裂缝外攻略组:是被贴脸磨死的——「疾行之靴」或选卡加移速,先跑得掉。";
-  else line = "* 裂缝外攻略组:选卡优先攻速和移速——活着,才有输出。";
+    line = L(
+      "* 裂缝外攻略组:是被贴脸磨死的——「疾行之靴」或选卡加移速,先跑得掉。",
+      "* Strat corner: ground down point-blank — Swift Boots or speed cards first."
+    );
+  else
+    line = L(
+      "* 裂缝外攻略组:选卡优先攻速和移速——活着,才有输出。",
+      "* Strat corner: attack speed and move speed first — alive IS the damage."
+    );
   // 商店目标并入此处(评审裁决: 不在永久成长块单列,同屏只留一条指引)
-  if (shopGapName && shopGap > 0 && shopGap <= 90) line += `(还差 ${shopGap} 金币就能拿下「${shopGapName}」)`;
+  if (shopGapName && shopGap > 0 && shopGap <= 90)
+    line += EN() ? ` (${shopGap}G short of '${shopGapName}')` : `(还差 ${shopGap} 金币就能拿下「${shopGapName}」)`;
   return line;
 }
 
@@ -750,8 +1268,25 @@ const PAUSE_TIPS = [
   "右上角的倍速键不是鬼畜按钮。……但你可以试试。",
 ];
 
+const PAUSE_TIPS_EN = [
+  "Blue attacks: don't move. Really. Don't.",
+  "Orange means keep moving. Memorize it backwards, die twice.",
+  "Bad chest luck isn't your fault. Pity is on the way.",
+  "Jerry isn't strong. But Jerry is Jerry.",
+  "Low HP? Monster candy is sweet.",
+  "Keep the streak, keep the XP. Just like you, afraid to stop.",
+  "Shop power never dilutes. That's math, not a pep talk.",
+  "Endless coins cut off after round 4. Past that, it's glory and knives.",
+  "Revives are pricey. Determination is priceless. (The Lab disagrees.)",
+  "Rules of the road: hug walls, watch red rings, don't greed the candy.",
+  "Stuck? Lower the difficulty. The only ones laughing are stuck too.",
+  "Today, too, stay determined.",
+  "Backseat gamers can't see this tip.",
+  "The speed button is not a meme button. ...Try it anyway.",
+];
+
 export function pickPauseTip() {
-  return pickFrom(PAUSE_TIPS);
+  return pickFrom(L(PAUSE_TIPS, PAUSE_TIPS_EN));
 }
 
 const FLOWER_LINES = [
@@ -772,19 +1307,39 @@ const FLOWER_LINES = [
   "……本家的,恐传的……都是好骨头……",
 ];
 
+// EN whispers: canon soundbites the fandom can finish from three words
+const FLOWER_LINES_EN = [
+  "...you're filled with determination... determination...",
+  "...it's a beautiful day outside...",
+  "...get dunked on... dunked on...",
+  "...sans undertale... sans undertale...",
+  "...hot dogs. 30G. water sausages...",
+  "...don't give him the ketchup... he drinks it straight...",
+  "...bark. ...bark bark.",
+  "...nine notes... you know the ones...",
+  "...the save point is right behind you... kidding...",
+  "...thank you for still listening...",
+  "...spider tea, 9999G... no refunds...",
+  "...OHHH YES... (you can tell who it learned that from.)",
+  "...butterscotch... or cinnamon...?",
+  "...NYEH HEH HEH!!... (a very good impression.)",
+  "...classic, horror... all good bones...",
+];
+
 export function pickFlowerLine() {
-  return pickFrom(FLOWER_LINES);
+  return pickFrom(L(FLOWER_LINES, FLOWER_LINES_EN));
 }
 
 // ---- 六魂遗物: 宝箱专属机制物件(数值朴素是UT本命梗——玩具刀攻击+3) ------
+// EN 名直接用 canon 物品名(Tough Glove/Ballet Shoes/Torn Notebook/Burnt Pan)
 
 export const RELICS = [
-  { id: "patience", name: "褪色丝带", soul: "耐心", color: "#7fd8e8", desc: "受击无敌时间 +25%", line: "* 系上它的人,总能等到下一个机会。" },
-  { id: "brave", name: "拳套", soul: "勇气", color: "#ff8a3d", desc: "连杀≥10 时伤害 +8%", line: "* 出拳之前,先相信自己打得中。" },
-  { id: "integrity", name: "芭蕾舞鞋", soul: "正直", color: "#5db9ff", desc: "移动中闪避 +4%", line: "* 舞步不会说谎。" },
-  { id: "persev", name: "旧笔记本", soul: "坚毅", color: "#c59bff", desc: "经验获取 +8%", line: "* 记下来的,就不会白走。" },
-  { id: "kind", name: "平底锅", soul: "善良", color: "#7cf28a", desc: "治疗效果 +15%", line: "* 用它做的饭,格外顶饿。" },
-  { id: "justice", name: "左轮空弹壳", soul: "正义", color: "#ffd93d", desc: "对精英伤害 +10%", line: "* 正义,专门瞄准大个子。" },
+  { id: "patience", name: "褪色丝带", nameEn: "Faded Ribbon", soul: "耐心", soulEn: "Patience", color: "#7fd8e8", desc: "受击无敌时间 +25%", descEn: "Hit invulnerability +25%", line: "* 系上它的人,总能等到下一个机会。", lineEn: "* Whoever wears it can always wait for the next chance." },
+  { id: "brave", name: "拳套", nameEn: "Tough Glove", soul: "勇气", soulEn: "Bravery", color: "#ff8a3d", desc: "连杀≥10 时伤害 +8%", descEn: "Damage +8% at streak ≥ 10", line: "* 出拳之前,先相信自己打得中。", lineEn: "* Believe the punch lands before you throw it." },
+  { id: "integrity", name: "芭蕾舞鞋", nameEn: "Ballet Shoes", soul: "正直", soulEn: "Integrity", color: "#5db9ff", desc: "移动中闪避 +4%", descEn: "Dodge +4% while moving", line: "* 舞步不会说谎。", lineEn: "* Dance steps don't lie." },
+  { id: "persev", name: "旧笔记本", nameEn: "Torn Notebook", soul: "坚毅", soulEn: "Perseverance", color: "#c59bff", desc: "经验获取 +8%", descEn: "XP gain +8%", line: "* 记下来的,就不会白走。", lineEn: "* What's written down was never walked in vain." },
+  { id: "kind", name: "平底锅", nameEn: "Burnt Pan", soul: "善良", soulEn: "Kindness", color: "#7cf28a", desc: "治疗效果 +15%", descEn: "Healing +15%", line: "* 用它做的饭,格外顶饿。", lineEn: "* Food from this pan sticks to your bones." },
+  { id: "justice", name: "左轮空弹壳", nameEn: "Empty Casing", soul: "正义", soulEn: "Justice", color: "#ffd93d", desc: "对精英伤害 +10%", descEn: "Damage vs elites +10%", line: "* 正义,专门瞄准大个子。", lineEn: "* Justice aims for the big ones." },
 ];
 
 export function pickRelic(owned) {
@@ -792,4 +1347,6 @@ export function pickRelic(owned) {
   return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
 }
 
-export const SIX_SOULS_LINE = "* 六魂共鸣!!人类的决心汇成一道审判,横扫了整个房间。";
+export function sixSoulsLine() {
+  return L("* 六魂共鸣!!人类的决心汇成一道审判,横扫了整个房间。", "* The SIX SOULS resonate!! One judgement sweeps the room.");
+}

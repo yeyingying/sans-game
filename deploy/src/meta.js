@@ -2,6 +2,8 @@
 // lifetime stats and character unlocks. Everything lives in localStorage so
 // every run leaves something behind — the core "one more run" hook.
 
+import { t } from "./i18n.js";
+
 const store =
   typeof localStorage !== "undefined"
     ? localStorage
@@ -67,9 +69,9 @@ export function upgradeGate(id) {
   // gates lag ONE tier behind the wall: the power that helps you beat a
   // difficulty is always grindable while you are stuck on it, but power
   // two tiers ahead can never be bought (2026-07-12 user design call)
-  if (lvl >= 2 && stats.bossKills < 1) return "通关普通难度后解锁";
-  if (lvl >= 3 && stats.diffCleared < 1) return "狂暴难度通关后解锁";
-  if (lvl >= 4 && stats.diffCleared < 2) return "地狱难度通关后解锁";
+  if (lvl >= 2 && stats.bossKills < 1) return t("通关普通难度后解锁", "Unlocks after a NORMAL clear");
+  if (lvl >= 3 && stats.diffCleared < 1) return t("狂暴难度通关后解锁", "Unlocks after a FURY clear");
+  if (lvl >= 4 && stats.diffCleared < 2) return t("地狱难度通关后解锁", "Unlocks after a HELL clear");
   return null;
 }
 

@@ -6,6 +6,7 @@
 import { PROJECTILE_BONE, PROJECTILE_BONE_RED, GB_IDLE, GB_FIRE, WALK_SETS } from "./sprites.js";
 import { circleHit } from "./utils.js";
 import { bossLineFor } from "./narrative.js";
+import { t } from "./i18n.js";
 
 export const BOSS_APPEAR_TIME = 300; // 5 minutes
 const BOSS_HP = 50000; // phase 1
@@ -404,7 +405,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           knockback(player, boss, 70, ctx);
         }
         if (this.t > 0.9) {
-          this.subtitleShow("* 天意侵蚀Sans出现了！", 3);
+          this.subtitleShow(t("* 天意侵蚀Sans出现了！", "* Corrupted Sans blocks the way!"), 3);
           this.startFight(1);
         }
       }
@@ -845,7 +846,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         if (this.t > 0.9) {
           this.step = 4;
           this.t = 0;
-          this.subtitleShow("* Sans 拒绝了仁慈", 2.5);
+          this.subtitleShow(t("* Sans 拒绝了仁慈", "* Sans refused your MERCY."), 2.5);
         }
       } else if (this.step === 4) {
         if (this.t > 0.6 && !this._mercySmash) {
