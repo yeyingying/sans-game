@@ -156,6 +156,8 @@ export class Enemy {
     this.strike = null;
     this.rootTimer = 0; // 禁锢: no move, no attack, invulnerability disabled
     this.rootImmune = 0; // diminishing returns: no new roots while this runs
+    this.disarmed = false; // 缴械(黑客结局): 永久不能攻击,渲染转黑白
+    this.disarmTimer = 0; // 临时缴械(冠军只吃3秒冻结,免疫永久版)
     this.slowTimer = 0; // 减速: half speed
     this.dmgAccum = 0; // damage batched into one floating number (main flushes)
     this.dmgFlushT = 0;
@@ -166,11 +168,34 @@ export class Enemy {
 
   // 禁锢 with diminishing returns: one root per window — while rootImmune
   // runs (the root itself + 2.5s), fresh roots are shrugged off.
-  applyRoot(sec) {
+  // permanent=true 时无视递减窗口(黑客结局的永久禁锢;冠军/天意除外)
+  applyRoot(sec, permanent = false) {
+    if (permanent && !this.boss && !this.championProfile) {
+      this.rootTimer = Infinity;
+      this.rootImmune = Infinity;
+      return true;
+    }
     if (this.rootImmune > 0) return false;
     this.rootTimer = Math.max(this.rootTimer, sec);
     this.rootImmune = sec + 2.5;
     return true;
+  }
+
+  // 缴械(2026-07-14 用户裁决): 普通/精英永久;冠军只吃3秒攻击冻结;
+  // 天意侵蚀Sans 完全免疫(它的攻击是boss.js剧本,冻结另议)
+  applyDisarm(sec = Infinity) {
+    if (this.boss) return false;
+    if (this.championProfile) {
+      this.disarmTimer = Math.max(this.disarmTimer, Math.min(Number.isFinite(sec) ? sec : 3, 3));
+      return true;
+    }
+    if (!Number.isFinite(sec)) this.disarmed = true;
+    else this.disarmTimer = Math.max(this.disarmTimer, sec);
+    return true;
+  }
+
+  get cannotAttack() {
+    return this.disarmed || this.disarmTimer > 0;
   }
 
   // All damage flows through here so spawn/revive invulnerability works
@@ -193,6 +218,7 @@ export class Enemy {
 
   update(dt, target) {
     if (this.rootImmune > 0) this.rootImmune -= dt;
+    if (this.disarmTimer > 0) this.disarmTimer -= dt;
     if (this.rootTimer > 0) {
       // rooted: no movement, no teleport progress; damage-gate timers still tick
       this.rootTimer -= dt;

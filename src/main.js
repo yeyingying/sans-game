@@ -57,6 +57,9 @@ import {
   getHandFx,
   getHookInfo,
   getPounceInfo,
+  getScytheSwing,
+  getSlashWaves,
+  getRideInfo,
   getTurretBones,
   createWeaponInstance,
   applyLevelUpBonus,
@@ -138,7 +141,7 @@ import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, canc
 import { utPrompt, utNotice } from "./dialog.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
-const GAME_VERSION = "s2-20260715"; // 商店曲线2.0→2.3(方案B,总价13855→20374)
+const GAME_VERSION = "s2-20260716"; // 新角色黑客结局+缴械体系上线
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
@@ -211,6 +214,7 @@ import {
   codexButtonRect,
   codexEntryRect,
   codexPageRect,
+  charPageArrowRect,
   drawCodexScreen,
   dailyButtonRect,
   leaderboardButtonRect,
@@ -363,27 +367,44 @@ const PLAYER_SPRITES = {
   horror: WALK_SETS.horror.down[0],
   hard: WALK_SETS.hard.down[0],
   insanity: WALK_SETS.insanity.down[0],
+  hacker: WALK_SETS.hacker.down[0],
 };
-// characters that radiate a glow, and its color
-const CHAR_GLOWS = { ukb: "#a55dff", hard: "#5db9ff", insanity: "#d92535" };
+// characters that radiate a glow, and its color(hacker=眼中红光的近似)
+const CHAR_GLOWS = { ukb: "#a55dff", hard: "#5db9ff", insanity: "#d92535", hacker: "#ff2d3d" };
+// 付费角色天性梯度(2026-07-14 用户裁决: 票价越高天性越强)
+const CHAR_NATURE = {
+  insanity: { dmg: 0.15, hp: 1.15 },
+  hacker: { dmg: 0.2, hp: 1.2 },
+};
 
-// ---- Insanity 解锁(10000G 买断,账号长线目标) --------------------------------
-function insanityOwned() {
-  return localStorage.getItem("own_insanity") === "1";
+// ---- 付费角色解锁(own_<id> 持久化;黑客结局另需地狱通关) ----------------------
+function charOwned(id) {
+  return localStorage.getItem("own_" + id) === "1";
 }
 function charLocksNow() {
-  return insanityOwned()
-    ? {}
-    : { insanity: { hint: "10000 金币买断", progress: `钱包 ${getCoins()}` } };
+  const locks = {};
+  for (const c of CHARACTERS) {
+    if (!c.cost || charOwned(c.id)) continue;
+    const gated = c.gate === "hell" && (getStats().diffCleared ?? -1) < 2;
+    locks[c.id] = gated
+      ? { hint: "地狱难度通关后可购", progress: `买断价 ${c.cost} 金币`, cost: c.cost, gated: true }
+      : { hint: `${c.cost} 金币买断`, progress: `钱包 ${getCoins()}`, cost: c.cost };
+  }
+  return locks;
 }
 // 选中锁定角色时,确认键=购买;返回 true 表示这次输入已被购买流吃掉
 function tryBuySelectedChar() {
   const c = CHARACTERS[selectedChar];
-  if (!charLocksNow()[c.id]) return false;
-  if (spendCoins(10000)) {
-    localStorage.setItem("own_insanity", "1");
+  const lock = charLocksNow()[c.id];
+  if (!lock) return false;
+  if (lock.gated) {
+    sfxHurt(); // 门槛未过: 先通关地狱
+    return true;
+  }
+  if (spendCoins(c.cost)) {
+    localStorage.setItem("own_" + c.id, "1");
     sfxFanfare();
-    utNotice({ title: "Insanity 已解锁", hint: "决心过量实验体,加入了你的选择。" });
+    utNotice({ title: `${c.name} 已解锁`, hint: c.id === "hacker" ? "黑屋的守门人,拿起了改写代码的权柄。" : "决心过量实验体,加入了你的选择。" });
   } else {
     sfxHurt();
   }
@@ -392,6 +413,21 @@ function tryBuySelectedChar() {
 
 let state = "title"; // title | charselect | select | playing | paused | choice | gameover | credits | shop | codex | bossclear
 let selectedChar = 0;
+// 选人分页(2026-07-14 用户裁决): 第1页本家四人,第2页付费「裂缝时间线」
+let charPage = 0;
+const CHAR_PAGES = () => [CHARACTERS.filter((c) => !c.cost), CHARACTERS.filter((c) => c.cost)];
+const CHAR_PAGE_LABELS = ["本家时间线", "裂缝时间线"];
+function charPageList() {
+  return CHAR_PAGES()[charPage];
+}
+function globalCharIndex(localI) {
+  return CHARACTERS.indexOf(charPageList()[localI]);
+}
+function switchCharPage(dir) {
+  const pages = CHAR_PAGES();
+  charPage = (charPage + dir + pages.length) % pages.length;
+  selectedChar = CHARACTERS.indexOf(pages[charPage][0]);
+}
 let selectedWeapon = 0;
 let timeScale = 1; // 1x -> 2x -> 3x, applies to the whole simulation
 let choiceOptions = [];
@@ -593,6 +629,34 @@ function gameoverDetailRect(w, h) {
 // 结算页只保留一个主行动) — big, gold, thumb-sized
 function restartButtonRect(w, h) {
   return IS_TOUCH ? { x: w / 2 - 140, y: h - 186, w: 280, h: 58 } : { x: w / 2 - 130, y: h - 164, w: 260, h: 48 };
+}
+
+// 缴械黑白化: 每张原图只算一次灰阶,WeakMap 缓存(黑客结局体系)
+const grayCache = new WeakMap();
+function grayscaleOf(spr) {
+  if (!spr) return spr;
+  const hit = grayCache.get(spr);
+  if (hit) return hit;
+  let out = spr;
+  try {
+    const c = document.createElement("canvas");
+    c.width = spr.width;
+    c.height = spr.height;
+    const g = c.getContext("2d");
+    g.drawImage(spr, 0, 0);
+    const img = g.getImageData(0, 0, c.width, c.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const y = Math.round(d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11);
+      d[i] = d[i + 1] = d[i + 2] = y;
+    }
+    g.putImageData(img, 0, 0);
+    out = c;
+  } catch {
+    /* headless/污染画布: 原图兜底 */
+  }
+  grayCache.set(spr, out);
+  return out;
 }
 
 // 结算印章(美术批 backlog 第4项): 结果不靠读字,一眼可辨——
@@ -808,6 +872,7 @@ function weaponLocks() {
   const locks = {};
   currentWeaponList().forEach((w, i) => {
     if (w.support) locks[i] = { hint: "辅助武器,无法单独开局", progress: "局内通过强化卡获得" };
+    if (w.choiceOnly) locks[i] = { hint: "局内技能,无法开局携带", progress: "战斗中通过选卡获得" };
   });
   return locks;
 }
@@ -932,11 +997,11 @@ function reset(weaponId) {
   player.character = currentCharacter().id;
   // 每日挑战 = 标准竞技:局外强化不进场,全服同一起跑线
   if (!dailyMode) applyMetaUpgrades(player); // permanent shop upgrades kick in from second zero
-  // Insanity 天性「决心过量」: 付费角色要配得上10000G——增伤+15%,生命+15%
-  // (2026-07-13 用户裁决: 花钱的角色至少要比本家厉害)
-  if (player.character === "insanity") {
-    player.dmgAmp += 0.15;
-    player.maxHp = Math.round(player.maxHp * 1.15);
+  // 付费角色天性(2026-07-13/14 用户裁决: 花钱的角色比本家强,票价越高越强)
+  const nature = CHAR_NATURE[player.character];
+  if (nature) {
+    player.dmgAmp += nature.dmg;
+    player.maxHp = Math.round(player.maxHp * nature.hp);
     player.hp = player.maxHp;
   }
   player.revives = 0; // armed in startGame from the consumable stock
@@ -1887,11 +1952,12 @@ function startDailyChallenge() {
   // the floor is already high); the player's own setting comes back after
   prevDifficultyId = getDifficulty().id;
   setDifficulty(0);
-  selectedChar = seed % CHARACTERS.length;
+  const dailyChars = CHARACTERS.map((c, i) => ({ c, i })).filter((x) => !x.c.cost);
+  selectedChar = dailyChars[seed % dailyChars.length].i;
   // daily never hands out a support weapon as the solo starter
   const dailyPool = currentWeaponList()
     .map((w, i) => ({ w, i }))
-    .filter((x) => !x.w.support);
+    .filter((x) => !x.w.support && !x.w.choiceOnly);
   selectedWeapon = dailyPool[(seed >>> 3) % dailyPool.length].i;
   dailyMode = true;
   Math.random = mulberry32(seed); // whole run becomes deterministic
@@ -2464,7 +2530,7 @@ function handleCanvasTap(pos) {
       return;
     }
     for (let i = 0; i < CHARACTERS.length; i++) {
-      if (inRect(pos, bookCharPillRect(i, WIDTH))) {
+      if (inRect(pos, bookCharPillRect(i, WIDTH, CHARACTERS.length))) {
         bookChar = i;
         bookSel = 0;
         sfxClick();
@@ -2631,17 +2697,26 @@ function handleCanvasTap(pos) {
       sfxClick();
       return;
     }
-    for (let i = 0; i < CHARACTERS.length; i++) {
-      if (inRect(pos, charBoxRect(i, WIDTH, HEIGHT, CHARACTERS.length))) {
+    for (const direction of [-1, 1]) {
+      if (inRect(pos, charPageArrowRect(direction, WIDTH))) {
+        switchCharPage(direction);
+        sfxClick();
+        return;
+      }
+    }
+    const pageChars = charPageList();
+    for (let i = 0; i < pageChars.length; i++) {
+      if (inRect(pos, charBoxRect(i, WIDTH, HEIGHT, pageChars.length))) {
+        const gi = globalCharIndex(i);
         // 锁定角色: 已选中时再点卡片 = 预览武器库(种草入口,买前先看货)
-        if (selectedChar === i && charLocksNow()[CHARACTERS[i].id]) {
+        if (selectedChar === gi && charLocksNow()[CHARACTERS[gi].id]) {
           selectedWeapon = 0;
           state = "select";
           rollContracts();
           sfxClick();
           return;
         }
-        selectedChar = i;
+        selectedChar = gi;
         sfxClick();
         return;
       }
@@ -2889,9 +2964,12 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (state === "charselect") {
-    const n = CHARACTERS.length;
-    if (k === "arrowleft" || k === "arrowright") selectedChar = (selectedChar + 1) % n;
-    else if (k >= "1" && k <= String(n)) selectedChar = Number(k) - 1;
+    const pageChars = charPageList();
+    const n = pageChars.length;
+    const localSel = Math.max(0, pageChars.indexOf(CHARACTERS[selectedChar]));
+    if (k === "arrowleft" || k === "arrowright") selectedChar = globalCharIndex((localSel + 1) % n);
+    else if (k === "[" || k === "]") switchCharPage(k === "[" ? -1 : 1);
+    else if (k >= "1" && k <= String(n)) selectedChar = globalCharIndex(Number(k) - 1);
     else if (k === " " || k === "enter") {
       if (tryBuySelectedChar()) return; // 锁定角色: 确认键先走购买
       selectedWeapon = 0;
@@ -3294,7 +3372,7 @@ function resolveEliteCast(e, cast) {
 }
 
 function updateEliteSkill(e, dt) {
-  if (!e.eliteProfile || e.rootTimer > 0) return;
+  if (!e.eliteProfile || e.rootTimer > 0 || e.cannotAttack) return;
   if (e.eliteProfile.skillId === "rush" && e.burstTimer > 0) {
     e.eliteTrail.push({ x: e.x, y: e.y, t: 0.32 });
     if (e.eliteTrail.length > 8) e.eliteTrail.shift();
@@ -3709,8 +3787,8 @@ function update(dt) {
       e.takeDamage(player.thorns);
       e.thornsTick = 0.5;
     }
-    // rooted enemies can't attack
-    if (e.rootTimer > 0) continue;
+    // rooted or disarmed enemies can't attack
+    if (e.rootTimer > 0 || e.cannotAttack) continue;
     if (e.contactTimer <= 0 && circleHit(e.x, e.y, e.attackRange, player.x, player.y, player.radius)) {
       e.contactTimer = e.contactInterval;
       if (shieldUp) {
@@ -4740,7 +4818,9 @@ function draw() {
       ? 3.8
       : { bat: 2.2, tank: 3.2, ghost: 2.9, blue: 2.8, red: 2.7, purple: 2.7, orange: 3.0 }[e.sprite] || 2.6;
     const profileSprite = CHAMPION_SPRITES[e.championProfile?.key || e.eliteProfile?.key];
-    const enemySprite = profileSprite || ENEMY_SPRITES[e.sprite];
+    let enemySprite = profileSprite || ENEMY_SPRITES[e.sprite];
+    // 缴械: 身体转黑白(灰阶精灵按原图缓存,不逐帧滤镜,保手机帧率)
+    if (e.cannotAttack) enemySprite = grayscaleOf(enemySprite);
     drawSprite(ctx, enemySprite, e.x, e.y, e.radius * spriteScale);
     if (flicker) ctx.restore();
     // root-immunity: small grey broken ring (diminishing returns active)
@@ -4999,6 +5079,41 @@ function draw() {
             ctx.fillRect(tr.x - 8, tr.y - 8, 16, 16);
             ctx.restore();
           }
+        }
+      } else if (inst.id === "hscythe") {
+        const sw = getScytheSwing(inst);
+        if (sw) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, 1 - sw.t / 0.28) * 0.85;
+          ctx.strokeStyle = "#f2ead8";
+          ctx.lineWidth = 10;
+          ctx.beginPath();
+          ctx.arc(player.x, player.y, sw.radius * Math.min(1, sw.t / 0.14), -0.6 + sw.t * 8, 1.2 + sw.t * 8);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else if (inst.id === "hslash") {
+        for (const w of getSlashWaves(inst)) {
+          ctx.save();
+          ctx.globalAlpha = 0.85;
+          ctx.strokeStyle = "#f2ead8";
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          const pa = Math.atan2(w.dirY, w.dirX);
+          ctx.arc(w.x, w.y, w.width / 2, pa - 1.1, pa + 1.1);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else if (inst.id === "hride") {
+        const r = getRideInfo(inst);
+        if (r) {
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.translate(player.x, player.y + 14);
+          ctx.rotate(Math.atan2(r.dirY, r.dirX) - Math.PI / 2);
+          const gw = 52;
+          ctx.drawImage(GB_IDLE, -gw / 2, -gw / 2, gw, (GB_IDLE.height / GB_IDLE.width) * gw);
+          ctx.restore();
         }
       } else if (inst.id === "ringlaser") {
         for (const fx of getRingFx(inst)) {
@@ -5692,23 +5807,28 @@ function draw() {
   } else if (state === "leaderboard") {
     drawLeaderboard(ctx, WIDTH, HEIGHT);
   } else if (state === "charselect") {
-    drawCharSelect(
-      ctx,
-      WIDTH,
-      HEIGHT,
-      CHARACTERS,
-      selectedChar,
-      PLAYER_SPRITES,
-      Object.fromEntries(CHARACTERS.map((c) => [c.id, bestScoreOf(c.id)])),
-      charLocksNow(), // Insanity 10000G 买断,其余免费
-      diffPills(),
-      Object.fromEntries(
-        CHARACTERS.map((c) => {
-          const k = getStats().charKills[c.id] || 0;
-          return [c.id, { lvl: masteryOf(k), kills: k, next: masteryNextAt(masteryOf(k)) }];
-        })
-      )
-    );
+    {
+      const pageChars = charPageList();
+      const localSel = Math.max(0, pageChars.indexOf(CHARACTERS[selectedChar]));
+      drawCharSelect(
+        ctx,
+        WIDTH,
+        HEIGHT,
+        pageChars,
+        localSel,
+        PLAYER_SPRITES,
+        Object.fromEntries(CHARACTERS.map((c) => [c.id, bestScoreOf(c.id)])),
+        charLocksNow(), // 付费角色买断(黑客另需地狱通关)
+        diffPills(),
+        Object.fromEntries(
+          CHARACTERS.map((c) => {
+            const k = getStats().charKills[c.id] || 0;
+            return [c.id, { lvl: masteryOf(k), kills: k, next: masteryNextAt(masteryOf(k)) }];
+          })
+        ),
+        { page: charPage, pages: 2, label: CHAR_PAGE_LABELS[charPage] }
+      );
+    }
   } else if (state === "select") {
     drawWeaponSelect(
       ctx,
@@ -5718,7 +5838,7 @@ function draw() {
       selectedWeapon,
       currentCharacter().name,
       weaponLocks(),
-      charLocksNow()[currentCharacter().id] ? 10000 : null // 预览模式: 确认键=买断
+      charLocksNow()[currentCharacter().id]?.gated ? null : charLocksNow()[currentCharacter().id]?.cost || null // 预览: 确认键=买断,门槛未过只看不卖
     );
     if (CONTRACTS_ENABLED) drawContractChips(ctx, WIDTH, HEIGHT, offeredContracts, selectedContract);
   } else if (state === "paused") {

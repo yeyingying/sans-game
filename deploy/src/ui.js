@@ -437,11 +437,11 @@ export function drawShareButton(ctx, width, height) {
 }
 
 // ---- 武器图鉴 (weapon manual) ------------------------------------------------
-export function bookCharPillRect(i, width) {
-  const w = 150;
-  const gap = 12;
-  const total = 4 * w + 3 * gap;
-  return { x: width / 2 - total / 2 + i * (w + gap), y: 64, w, h: 30 };
+export function bookCharPillRect(i, width, count = 4) {
+  const gap = 10;
+  const w = Math.min(150, Math.floor((width - 72 - gap * (count - 1)) / count));
+  const total = count * w + (count - 1) * gap;
+  return { x: width / 2 - total / 2 + i * (w + gap), y: 64, w, h: T(30, 40) };
 }
 
 export function bookRowRect(i, width, height) {
@@ -479,7 +479,7 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
   drawIconLabel(ctx, ICONS.weapon, "武 器 图 鉴", width / 2, 40, 22, 8);
 
   chars.forEach((c, i) => {
-    const r = bookCharPillRect(i, width);
+    const r = bookCharPillRect(i, width, chars.length);
     const on = i === charIdx;
     ctx.fillStyle = on ? "#2e2748" : "#161221";
     ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -488,7 +488,9 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = on ? c.color : "#8d8798";
     ctx.font = "bold 13px monospace";
-    ctx.fillText(c.name, r.x + r.w / 2, r.y + 20);
+    ctx.font = "bold 13px monospace";
+    while (parseInt(ctx.font) > 9 && ctx.measureText(c.name).width > r.w - 10) ctx.font = `bold ${parseInt(ctx.font) - 1}px monospace`;
+    ctx.fillText(c.name, r.x + r.w / 2, r.y + r.h / 2 + 5);
   });
 
   // left: weapon list
@@ -952,6 +954,12 @@ export function codexEntryRect(i, width) {
   return { x: width / 2 - total / 2 + (i % columns) * (w + gap), y: 78 + Math.floor(i / columns) * 84, w, h: 76 };
 }
 
+// 选人页的翻页箭头: 同图鉴尺寸,但放在副标题两侧(标题行让位)
+export function charPageArrowRect(direction, width) {
+  const b = codexPageRect(direction, width);
+  return { ...b, y: 84 };
+}
+
 export function codexPageRect(direction, width) {
   const w = T(40, 52);
   const h = T(30, 44);
@@ -1349,7 +1357,7 @@ function drawDifficultyRow(ctx, width, height, diffs) {
 }
 
 // locks: {charId: {hint, progress}} — present only for still-locked characters
-export function drawCharSelect(ctx, width, height, characters, selected, sprites, bests = {}, locks = {}, diffs = null, masteries = {}) {
+export function drawCharSelect(ctx, width, height, characters, selected, sprites, bests = {}, locks = {}, diffs = null, masteries = {}, pageInfo = null) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
   ctx.fillRect(0, 0, width, height);
@@ -1360,7 +1368,21 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.fillText("我做了一个Sans割草游戏.", width / 2, 66);
   ctx.fillStyle = "#f2ead8";
   ctx.font = "14px monospace";
-  ctx.fillText("选择你的角色", width / 2, 100);
+  ctx.fillText(pageInfo ? `${pageInfo.label} · ${pageInfo.page + 1}/${pageInfo.pages}` : "选择你的角色", width / 2, 100);
+  // 分页箭头(复用图鉴的放大箭头,下移让开标题): 本家 ⇄ 裂缝时间线
+  if (pageInfo && pageInfo.pages > 1) {
+    for (const direction of [-1, 1]) {
+      const b = charPageArrowRect(direction, width);
+      ctx.fillStyle = "#211a2c";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = "#7ea8ff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = "#f2ead8";
+      ctx.font = "bold 18px monospace";
+      ctx.fillText(direction < 0 ? "‹" : "›", b.x + b.w / 2, b.y + b.h / 2 + 6);
+    }
+  }
 
   for (let i = 0; i < characters.length; i++) {
     const c = characters[i];
@@ -1458,7 +1480,8 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
-  if (selLock) drawIconLabel(ctx, ICONS.coin, "10000 解锁", width / 2, btn.y + btn.h / 2 + 8, 18, 6);
+  if (selLock && selLock.gated) ctx.fillText("地狱通关后可购", width / 2, btn.y + btn.h / 2 + 7);
+  else if (selLock) drawIconLabel(ctx, ICONS.coin, `${selLock.cost} 解锁`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
   else ctx.fillText("确 定", width / 2, btn.y + btn.h / 2 + 7);
   drawBackButton(ctx, width, height);
   ctx.restore();

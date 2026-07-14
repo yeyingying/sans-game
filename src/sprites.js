@@ -1622,12 +1622,26 @@ for (const dir of Object.keys(SANS_WALK)) {
   );
 }
 
+// 黑客结局: 衣色暗淡的 sans(黑屋守门人),眼里红光在绘制时用红辉光近似
+const HACKER_WALK = {};
+for (const dir of Object.keys(SANS_WALK)) {
+  HACKER_WALK[dir] = SANS_WALK[dir].map((f) =>
+    recolorSprite(f, {
+      [HOOD]: "#3a4356",
+      [HOOD_DARK]: "#232a3a",
+      [SLIPPER]: "#8a8f9c",
+      [SLIPPER_DARK]: "#5c616e",
+    }),
+  );
+}
+
 export const WALK_SETS = {
   sans: SANS_WALK,
   ukb: SANS_WALK, // same look as sans; a purple glow is added at draw time
   horror: HORROR_WALK,
   hard: SANS_WALK, // hard mode: sans look with a blue glow at draw time
   insanity: INSANITY_WALK,
+  hacker: HACKER_WALK,
 };
 
 // ---- Enemies ------------------------------------------------------------

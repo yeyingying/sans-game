@@ -601,7 +601,7 @@ if (MODE === "normal") {
   {
     // character echoes: 8 entries, unique ids, mastery-gated unlock works
     const E = await import(new URL(`../src/echo.js?unit=${MODE}`, import.meta.url));
-    check("23 echoes total (10主线+10残响+3真实验室), ids unique", E.ALL_ECHOES.length === 23 && new Set(E.ALL_ECHOES.map((e) => e.id)).size === 23);
+    check("25 echoes total (10主线+12残响+3真实验室), ids unique", E.ALL_ECHOES.length === 25 && new Set(E.ALL_ECHOES.map((e) => e.id)).size === 25);
     check("char echo unlockable once", E.unlockEcho("horror1") === true && E.unlockEcho("horror1") === false);
     check("char echo joins quote pool", typeof E.randomEchoQuote() === "string");
   }

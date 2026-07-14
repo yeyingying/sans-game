@@ -649,6 +649,169 @@ export const WEAPONS = {
       { targets: 4, splits: 6, dmgMult: 2.4, rateMult: 0.52 },
     ],
   },
+  // ---- Hacker-ending(黑客结局)weapons ----------------------------------------
+  // 白骨=未渲染线框;全套围绕"改写代码":缴械/百分比/宏/物理滥用
+  hfling: {
+    id: "hfling",
+    name: "越界甩掷",
+    tag: "全屏清场",
+    desc: "把随机一侧的全部敌人甩向屏幕边缘,落点小爆炸,升级加爆炸半径",
+    color: "#e8ecf4",
+    enhance: { desc: "敌人飞行途中也会爆炸", detail: "重复选择提升爆炸频率" },
+    evolve: {
+      name: "越界删除",
+      desc: "OUT OF BOUNDS——边缘爆径翻倍,并反弹回场造成路径伤害",
+      tier: { blast: 52, edgeMult: 2, bounce: true, dmgMult: 5.4, rateMult: 0.5 },
+    },
+    tiers: [
+      { blast: 40, edgeMult: 1, bounce: false, dmgMult: 2.3, rateMult: 0.4 },
+      { blast: 43, edgeMult: 1, bounce: false, dmgMult: 2.6, rateMult: 0.42 },
+      { blast: 46, edgeMult: 1, bounce: false, dmgMult: 2.9, rateMult: 0.45 },
+      { blast: 49, edgeMult: 1, bounce: false, dmgMult: 3.25, rateMult: 0.48 },
+      { blast: 52, edgeMult: 1, bounce: false, dmgMult: 3.6, rateMult: 0.5 },
+    ],
+  },
+  hgrab: {
+    id: "hgrab",
+    name: "权限抓取",
+    tag: "缴械爆破",
+    desc: "抓住最近的敌人甩出,落地爆炸并永久缴械受波及者,升级加抓取数和爆径",
+    color: "#c8d2e8",
+    enhance: { desc: "爆炸额外附带 2 秒禁锢", detail: "重复选择 +0.5 秒" },
+    evolve: {
+      name: "权限回收",
+      desc: "他们的攻击函数,被注释掉了——抓3只,爆径+50%,另附1s禁锢",
+      tier: { grabs: 3, blast: 120, bonusRoot: 1, dmgMult: 5.8, rateMult: 0.52 },
+    },
+    tiers: [
+      { grabs: 1, blast: 56, bonusRoot: 0, dmgMult: 2.6, rateMult: 0.35 },
+      { grabs: 1, blast: 62, bonusRoot: 0, dmgMult: 2.95, rateMult: 0.38 },
+      { grabs: 2, blast: 68, bonusRoot: 0, dmgMult: 3.3, rateMult: 0.4 },
+      { grabs: 2, blast: 74, bonusRoot: 0, dmgMult: 3.65, rateMult: 0.42 },
+      { grabs: 3, blast: 80, bonusRoot: 0, dmgMult: 4.0, rateMult: 0.45 },
+    ],
+  },
+  hmacro: {
+    id: "hmacro",
+    name: "宏",
+    tag: "脚本连发",
+    desc: "立刻连续释放你已获得的全部其他技能,升级加释放次数",
+    color: "#9adcff",
+    choiceOnly: true, // 不可开局携带,只在局内选卡出现(用户原案)
+    enhance: { desc: "宏期间全部伤害 +50%", detail: "重复选择 +20%" },
+    evolve: {
+      name: "宏风暴",
+      desc: "一行脚本,全部技能——5连发,期间攻速+30%",
+      tier: { casts: 5, haste: 0.3, rateMult: 0.22 },
+    },
+    tiers: [
+      { casts: 3, haste: 0, rateMult: 0.16 },
+      { casts: 4, haste: 0, rateMult: 0.17 },
+      { casts: 5, haste: 0, rateMult: 0.18 },
+      { casts: 6, haste: 0, rateMult: 0.2 },
+      { casts: 7, haste: 0, rateMult: 0.22 },
+    ],
+  },
+  hscythe: {
+    id: "hscythe",
+    name: "删除镰刀",
+    tag: "百分比斩",
+    desc: "挥镰按目标最大生命比例结算:普通100%/精英50%/首领20%/天意5%,升级加刀径",
+    color: "#f2ead8",
+    enhance: { desc: "全部比例 +2.5%", detail: "最多叠加 10 次" },
+    evolve: {
+      name: "删除键",
+      desc: "DELETE——从存档里抹去;比例升至精英75/首领30/天意8",
+      tier: { blade: 195, p1: 0.75, p2: 0.3, p3: 0.08, rateMult: 0.52 },
+    },
+    tiers: [
+      { blade: 90, p1: 0.5, p2: 0.2, p3: 0.05, rateMult: 0.42 },
+      { blade: 100, p1: 0.5, p2: 0.2, p3: 0.05, rateMult: 0.45 },
+      { blade: 110, p1: 0.5, p2: 0.2, p3: 0.05, rateMult: 0.48 },
+      { blade: 120, p1: 0.5, p2: 0.2, p3: 0.05, rateMult: 0.5 },
+      { blade: 130, p1: 0.5, p2: 0.2, p3: 0.05, rateMult: 0.52 },
+    ],
+  },
+  hshock: {
+    id: "hshock",
+    name: "系统震荡",
+    tag: "控场处决",
+    desc: "以自身为心的无伤震荡:击退+禁锢+永久缴械;低血的普通/精英被永久禁锢",
+    color: "#dfe6f2",
+    enhance: { desc: "永久禁锢改为直接斩杀,斩杀线 +5%", detail: "最多叠加 5 次" },
+    evolve: {
+      name: "系统蓝屏",
+      desc: "BSOD——范围×1.6,击退×1.5,缴械必附2秒禁锢",
+      tier: { radius: 304, push: 300, bonusRoot: 2, rateMult: 0.38 },
+    },
+    tiers: [
+      { radius: 120, push: 120, bonusRoot: 0, rateMult: 0.3 },
+      { radius: 138, push: 140, bonusRoot: 0, rateMult: 0.32 },
+      { radius: 155, push: 160, bonusRoot: 0, rateMult: 0.34 },
+      { radius: 172, push: 180, bonusRoot: 0, rateMult: 0.36 },
+      { radius: 190, push: 200, bonusRoot: 0, rateMult: 0.38 },
+    ],
+  },
+  hride: {
+    id: "hride",
+    name: "龙骨骑乘",
+    tag: "冲锋后座",
+    desc: "骑上脚下召唤的龙骨炮冲锋撞开敌人,随后炮击并借后坐力弹回原地,升级加炮体",
+    color: "#dce8f0",
+    enhance: { desc: "被撞到的敌人缴械 5 秒", detail: "重复选择 +2 秒" },
+    evolve: {
+      name: "物理引擎滥用",
+      desc: "这不是漏洞,是特性——去程回程双撞,炮体+40%,炮击×2",
+      tier: { size: 90, chargeDmg: 4.3, fireDmg: 9.2, doublePass: true, rateMult: 0.4 },
+    },
+    tiers: [
+      { size: 46, chargeDmg: 2.4, fireDmg: 3.2, doublePass: false, rateMult: 0.32 },
+      { size: 50, chargeDmg: 2.7, fireDmg: 3.55, doublePass: false, rateMult: 0.34 },
+      { size: 55, chargeDmg: 3.0, fireDmg: 3.9, doublePass: false, rateMult: 0.36 },
+      { size: 59, chargeDmg: 3.3, fireDmg: 4.25, doublePass: false, rateMult: 0.38 },
+      { size: 64, chargeDmg: 3.6, fireDmg: 4.6, doublePass: false, rateMult: 0.4 },
+    ],
+  },
+  hslash: {
+    id: "hslash",
+    name: "半月斩",
+    tag: "穿透减速",
+    desc: "镰刀斩出快速飞行的剑气,命中减速5秒,升级加剑气宽度和射程",
+    color: "#f2ead8",
+    enhance: { desc: "额外挥舞 2 次", detail: "重复选择 +1 次" },
+    evolve: {
+      name: "降频斩",
+      desc: "把他们的帧率砍到5——三道扇形,命中先冻结0.5秒再减速",
+      tier: { width: 120, fan: 3, freeze: 0.5, dmgMult: 4.6, rateMult: 0.55 },
+    },
+    tiers: [
+      { width: 70, fan: 1, freeze: 0, dmgMult: 2.2, rateMult: 0.45 },
+      { width: 82, fan: 1, freeze: 0, dmgMult: 2.5, rateMult: 0.48 },
+      { width: 95, fan: 1, freeze: 0, dmgMult: 2.8, rateMult: 0.5 },
+      { width: 108, fan: 1, freeze: 0, dmgMult: 3.1, rateMult: 0.52 },
+      { width: 120, fan: 1, freeze: 0, dmgMult: 3.4, rateMult: 0.55 },
+    ],
+  },
+  htrojan: {
+    id: "htrojan",
+    name: "木马爆破",
+    tag: "宿主免伤",
+    desc: "在敌人身上引爆,宿主本身无伤,爆炸伤害其他敌人并缴械,升级加目标和爆径",
+    color: "#d8e2f0",
+    enhance: { desc: "宿主也吃 200% 伤害与缴械", detail: "重复选择 +50%" },
+    evolve: {
+      name: "木马引爆",
+      desc: "TROJAN——被缴械者也可作二级炸点,连锁一次",
+      tier: { targets: 6, blast: 86, chain: true, dmgMult: 5.2, rateMult: 0.52 },
+    },
+    tiers: [
+      { targets: 2, blast: 60, chain: false, dmgMult: 2.5, rateMult: 0.42 },
+      { targets: 2, blast: 66, chain: false, dmgMult: 2.8, rateMult: 0.45 },
+      { targets: 3, blast: 72, chain: false, dmgMult: 3.15, rateMult: 0.48 },
+      { targets: 3, blast: 79, chain: false, dmgMult: 3.5, rateMult: 0.5 },
+      { targets: 4, blast: 86, chain: false, dmgMult: 3.8, rateMult: 0.52 },
+    ],
+  },
   // ---- Hard-mode weapons ----------------------------------------------------
   dash: {
     id: "dash",
@@ -820,6 +983,8 @@ export const CHARACTERS = [
   { id: "hard", name: "困难模式", color: "#5db9ff", tags: ["蓝光", "极限攻势"], desc: "蓝光缠身，极限攻势的化身" },
   // 血疯线:决心过量实验体——解锁价与商店总价同级,是账号的长线目标
   { id: "insanity", name: "Insanity", color: "#d92535", tags: ["禁锢", "处刑"], desc: "决心过量实验体，天性增伤与生命+15%", cost: 10000 },
+  // 黑客结局:本体彩蛋黑屋守门人;付费天性梯度 15/15 → 20/20;需通关地狱
+  { id: "hacker", name: "黑客结局", color: "#e8ecf4", tags: ["缴械", "处决"], desc: "黑屋的守门人，天性增伤与生命+20%", cost: 15000, gate: "hell" },
 ];
 
 export const WEAPON_LISTS = {
@@ -873,6 +1038,16 @@ export const WEAPON_LISTS = {
     WEAPONS.irain,
     WEAPONS.ispike,
   ],
+  hacker: [
+    WEAPONS.hfling,
+    WEAPONS.hgrab,
+    WEAPONS.hmacro,
+    WEAPONS.hscythe,
+    WEAPONS.hshock,
+    WEAPONS.hride,
+    WEAPONS.hslash,
+    WEAPONS.htrojan,
+  ],
 };
 
 export const WEAPON_LIST = WEAPON_LISTS.sans;
@@ -914,6 +1089,11 @@ export function createWeaponInstance(id) {
     ipullBurst: null, // insanity 拉近爆破 scheduled blasts
     hands: [], // insanity 手掌幻影 in flight
     ipending: [], // insanity 分裂骨刺 scheduled child spikes
+    hflings: [], // hacker 甩飞体
+    hmacroState: null, // hacker 宏释放窗口
+    hswing: null, // hacker 镰刀挥舞动画
+    hrideState: null, // hacker 骑炮冲锋(锁定玩家)
+    hwaves: [], // hacker 半月斩剑气
     enhance: 0, // stacks of the weapon's exclusive enhancement card
     evolved: false, // awakened form (max tier + 3 enhance stacks required)
     enhanceTick: 0,
@@ -976,7 +1156,7 @@ export function weaponSummary(player, sep = " · ") {
 export function weaponDmg(player, mult) {
   // the single damage funnel: in-run amp cards AND the shop's independent
   // meta multiplier both live here so nothing ever bypasses either
-  return Math.max(1, Math.round(player.atk * mult * (player.dmgAmp || 1) * (player.metaDmg || 1) * (player.relicAmp || 1)));
+  return Math.max(1, Math.round(player.atk * mult * (player.dmgAmp || 1) * (player.metaDmg || 1) * (player.relicAmp || 1) * (player.macroBoost || 1)));
 }
 
 export function findNearestEnemy(x, y, range, enemies) {
@@ -1194,6 +1374,22 @@ export function getHandFx(inst) {
   return inst.hands;
 }
 
+// ---- Hacker render helpers ---------------------------------------------------
+export function getScytheSwing(inst) {
+  if (inst.id !== "hscythe" || !inst.hswing) return null;
+  return inst.hswing;
+}
+
+export function getSlashWaves(inst) {
+  if (inst.id !== "hslash") return [];
+  return inst.hwaves.filter((w) => w.delay <= 0);
+}
+
+export function getRideInfo(inst) {
+  if (inst.id !== "hride" || !inst.hrideState) return null;
+  return inst.hrideState;
+}
+
 export function getMegaBone(player, inst) {
   if (inst.id !== "megabone" || !inst.mega) return null;
   const t = inst.mega.t;
@@ -1370,6 +1566,385 @@ function updateInstance(player, inst, dt, world) {
     }
     if (!findNearestEnemy(player.x, player.y, effRange + 120, enemies)) return;
     inst.laserState = { t: 0, baseAngle: Math.random() * Math.PI * 2 };
+    return;
+  }
+
+  // ---- Hacker-ending weapons --------------------------------------------------
+  if (weapon.id === "hfling") {
+    if (inst.hflings.length) {
+      const alive = [];
+      for (const f of inst.hflings) {
+        f.t += dt;
+        const prog = Math.min(f.t / f.dur, 1);
+        f.e.x = f.fx + (f.tx - f.fx) * prog;
+        f.e.y = Math.min(Math.max(f.fy + (f.ty - f.fy) * prog, world.bounds.top), world.bounds.bottom);
+        f.e.rootTimer = Math.max(f.e.rootTimer, 0.1);
+        // 强化: 飞行途中周期爆炸
+        if (inst.enhance > 0) {
+          f.bombT = (f.bombT || 0) + dt;
+          const interval = Math.max(0.12, 0.26 - 0.04 * (inst.enhance - 1));
+          if (f.bombT >= interval) {
+            f.bombT = 0;
+            world.spawnBlast({ x: f.e.x, y: f.e.y, dmg: weaponDmg(player, tier.dmgMult * 0.4), blast: 30, color: "#f2ead8" });
+          }
+        }
+        if (prog >= 1) {
+          if (f.leg === "out") {
+            world.spawnBlast({
+              x: f.e.x,
+              y: f.e.y,
+              dmg: weaponDmg(player, tier.dmgMult),
+              blast: tier.blast * (inst.evolved ? tier.edgeMult : 1),
+              color: "#f2ead8",
+            });
+            if (inst.evolved && tier.bounce) {
+              // 越界删除: 反弹回场,回程作路径伤害
+              f.leg = "back";
+              f.fx = f.e.x;
+              f.fy = f.e.y;
+              f.tx = f.ox;
+              f.ty = f.oy;
+              f.t = 0;
+              f.hitSet = new Set();
+              alive.push(f);
+            }
+          }
+        } else {
+          if (f.leg === "back") {
+            for (const o of enemies) {
+              if (o === f.e || o.boss || f.hitSet.has(o.id)) continue;
+              if (circleHit(f.e.x, f.e.y, 22, o.x, o.y, o.radius)) {
+                if (o.takeDamage(weaponDmg(player, tier.dmgMult * 0.5))) f.hitSet.add(o.id);
+              }
+            }
+          }
+          alive.push(f);
+        }
+      }
+      inst.hflings = alive;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    // 随机一侧: 该侧全部敌人甩向对应屏幕边缘
+    const side = ["up", "down", "left", "right"][Math.floor(Math.random() * 4)];
+    const picked = enemies.filter((e) => {
+      if (e.boss) return false;
+      if (side === "up") return e.y < player.y;
+      if (side === "down") return e.y > player.y;
+      if (side === "left") return e.x < player.x;
+      return e.x > player.x;
+    });
+    if (!picked.length) return;
+    for (const e of picked) {
+      const tx = side === "left" ? player.x - 470 : side === "right" ? player.x + 470 : e.x;
+      const ty = side === "up" ? world.bounds.top : side === "down" ? world.bounds.bottom : e.y;
+      inst.hflings.push({ e, ox: e.x, oy: e.y, fx: e.x, fy: e.y, tx, ty, t: 0, dur: 0.3, leg: "out" });
+    }
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+    return;
+  }
+
+  if (weapon.id === "hgrab") {
+    if (inst.hflings.length) {
+      const alive = [];
+      for (const f of inst.hflings) {
+        f.t += dt;
+        const prog = Math.min(f.t / f.dur, 1);
+        f.e.x = f.fx + (f.tx - f.fx) * prog;
+        f.e.y = Math.min(Math.max(f.fy + (f.ty - f.fy) * prog, world.bounds.top), world.bounds.bottom);
+        f.e.rootTimer = Math.max(f.e.rootTimer, 0.1);
+        if (prog >= 1) {
+          // 落地爆炸: 伤害+永久缴械(冠军3s/天意免疫在applyDisarm里裁决)
+          const dmg = weaponDmg(player, tier.dmgMult);
+          world.spawnBlast({ x: f.e.x, y: f.e.y, dmg, blast: tier.blast, color: "#c8d2e8" });
+          for (const o of enemies) {
+            if (circleHit(f.e.x, f.e.y, tier.blast, o.x, o.y, o.radius)) {
+              o.applyDisarm(Infinity);
+              if (inst.enhance > 0) o.applyRoot(2 + 0.5 * (inst.enhance - 1));
+              if (inst.evolved && tier.bonusRoot) o.applyRoot(tier.bonusRoot);
+            }
+          }
+        } else alive.push(f);
+      }
+      inst.hflings = alive;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    const grabs = enemies
+      .filter((e) => !e.boss)
+      .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))
+      .slice(0, tier.grabs)
+      .filter((e) => Math.hypot(e.x - player.x, e.y - player.y) < effRange + 120);
+    if (!grabs.length) return;
+    for (const e of grabs) {
+      const a = Math.random() * Math.PI * 2;
+      inst.hflings.push({
+        e,
+        fx: e.x,
+        fy: e.y,
+        tx: player.x + Math.cos(a) * 230,
+        ty: Math.min(Math.max(player.y + Math.sin(a) * 230, world.bounds.top), world.bounds.bottom),
+        t: 0,
+        dur: 0.28,
+      });
+    }
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+    return;
+  }
+
+  if (weapon.id === "hmacro") {
+    if (inst.hmacroState) {
+      const m = inst.hmacroState;
+      m.t += dt;
+      // 宏窗口: 全部伤害吃增幅(唯一伤害漏斗里生效)
+      player.macroBoost = Math.max(player.macroBoost || 1, 1 + (inst.enhance > 0 ? 0.5 + 0.2 * (inst.enhance - 1) : 0));
+      if (m.t >= 0.35) {
+        m.t = 0;
+        m.wavesLeft -= 1;
+        for (const other of player.weapons) {
+          if (other === inst || other.id === "hmacro") continue; // 防递归(用户裁决3)
+          other.cooldown = 0; // 强制就绪,下一帧各自开火
+        }
+      }
+      if (m.wavesLeft <= 0) {
+        inst.hmacroState = null;
+        inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+      }
+      return;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    if (player.weapons.length <= 1) return; // 没有其他技能可放
+    if (!findNearestEnemy(player.x, player.y, effRange + 200, enemies)) return;
+    inst.hmacroState = { t: 0.35, wavesLeft: tier.casts };
+    return;
+  }
+
+  if (weapon.id === "hscythe") {
+    // Boss/冠军百分比节流计时(用户裁决2: 每2.5s至多结算一次)
+    for (const e of enemies) if (e.hackPct > 0) e.hackPct -= dt;
+    if (inst.hswing) {
+      inst.hswing.t += dt;
+      if (inst.hswing.t >= 0.28) inst.hswing = null;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    if (!findNearestEnemy(player.x, player.y, tier.blade + 40, enemies)) return;
+    const bonus = 0.025 * Math.min(inst.enhance, 10); // 强化上限10次(用户原案)
+    for (const e of enemies) {
+      if (!circleHit(player.x, player.y, tier.blade, e.x, e.y, e.radius)) continue;
+      const throttled = e.boss || e.championProfile;
+      if (throttled && e.hackPct > 0) continue;
+      const pct = (e.boss ? tier.p3 : e.championProfile ? tier.p2 : e.elite ? tier.p1 : 1.0) + bonus;
+      if (e.takeDamage(Math.max(1, Math.round(e.maxHp * pct))) && throttled) e.hackPct = 2.5;
+    }
+    inst.hswing = { t: 0, radius: tier.blade };
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+    return;
+  }
+
+  if (weapon.id === "hshock") {
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    if (!findNearestEnemy(player.x, player.y, tier.radius, enemies)) return;
+    world.spawnBlast({ x: player.x, y: player.y, dmg: 0, blast: tier.radius, color: "#dfe6f2" }); // 无伤,纯冲击视觉
+    const execBonus = 0.05 * Math.min(inst.enhance, 5); // 强化上限5次(用户原案)
+    for (const e of enemies) {
+      if (!circleHit(player.x, player.y, tier.radius, e.x, e.y, e.radius)) continue;
+      // 击退
+      const d = Math.hypot(e.x - player.x, e.y - player.y) || 1;
+      e.x += ((e.x - player.x) / d) * tier.push;
+      e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * tier.push, world.bounds.top), world.bounds.bottom);
+      e.applyRoot(1.2 + (inst.evolved ? tier.bonusRoot : 0));
+      e.applyDisarm(Infinity);
+      if (e.boss || e.championProfile) continue; // 处决只对普通/精英
+      const line = (e.elite ? 0.2 : 0.5) + execBonus;
+      if (e.hp / e.maxHp < line) {
+        if (inst.enhance > 0) e.takeDamage(e.hp + 99999); // 斩杀线
+        else e.applyRoot(0, true); // 永久禁锢
+      }
+    }
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+    return;
+  }
+
+  if (weapon.id === "hride") {
+    if (inst.hrideState) {
+      const r = inst.hrideState;
+      r.t += dt;
+      player.guardBonus = Math.max(player.guardBonus, 0.6);
+      const dur = r.phase === "charge" ? 0.45 : 0.3;
+      const prog = Math.min(r.t / dur, 1);
+      player.x = r.fx + (r.tx - r.fx) * prog;
+      player.y = Math.min(Math.max(r.fy + (r.ty - r.fy) * prog, world.bounds.top), world.bounds.bottom);
+      // 冲锋撞开+撞击伤害(回程仅进化)
+      if (r.phase === "charge" || (inst.evolved && tier.doublePass)) {
+        for (const e of enemies) {
+          if (e.boss || r.hitSet.has(e.id)) continue;
+          if (circleHit(player.x, player.y, tier.size * 0.8, e.x, e.y, e.radius)) {
+            if (e.takeDamage(weaponDmg(player, tier.chargeDmg))) {
+              r.hitSet.add(e.id);
+              const d = Math.hypot(e.x - player.x, e.y - player.y) || 1;
+              e.x += ((e.x - player.x) / d) * 60;
+              e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * 60, world.bounds.top), world.bounds.bottom);
+              if (inst.enhance > 0) e.applyDisarm(5 + 2 * (inst.enhance - 1));
+            }
+          }
+        }
+      }
+      if (prog >= 1) {
+        if (r.phase === "charge") {
+          // 炮击: 冲锋终点前方爆炸,后坐力送回原地
+          world.spawnBlast({
+            x: player.x + r.dirX * 70,
+            y: player.y + r.dirY * 70,
+            dmg: weaponDmg(player, tier.fireDmg),
+            blast: tier.size * 1.2,
+            color: "#f2ead8",
+          });
+          r.phase = "return";
+          r.fx = player.x;
+          r.fy = player.y;
+          r.tx = r.ox;
+          r.ty = r.oy;
+          r.t = 0;
+          r.hitSet = inst.evolved && tier.doublePass ? new Set() : r.hitSet;
+        } else {
+          inst.hrideState = null;
+          inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+        }
+      }
+      return;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    const t0 = findNearestEnemy(player.x, player.y, effRange + 200, enemies);
+    if (!t0) return;
+    // 朝当前朝向冲锋;没有明确朝向时朝最近的敌人
+    const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    let [dx, dy] = DIRS[player.dir] || [0, 1];
+    if (!player.moving) {
+      const d = Math.hypot(t0.x - player.x, t0.y - player.y) || 1;
+      dx = (t0.x - player.x) / d;
+      dy = (t0.y - player.y) / d;
+    }
+    inst.hrideState = {
+      phase: "charge",
+      t: 0,
+      ox: player.x,
+      oy: player.y,
+      fx: player.x,
+      fy: player.y,
+      tx: player.x + dx * 300,
+      ty: player.y + dy * 300,
+      dirX: dx,
+      dirY: dy,
+      hitSet: new Set(),
+    };
+    return;
+  }
+
+  if (weapon.id === "hslash") {
+    if (inst.hwaves.length) {
+      const alive = [];
+      for (const w of inst.hwaves) {
+        if (w.delay > 0) {
+          w.delay -= dt;
+          alive.push(w);
+          continue;
+        }
+        w.x += w.dirX * 430 * dt;
+        w.y += w.dirY * 430 * dt;
+        w.traveled += 430 * dt;
+        for (const e of enemies) {
+          if (w.hitSet.has(e.id)) continue;
+          if (circleHit(w.x, w.y, w.width / 2, e.x, e.y, e.radius)) {
+            if (e.takeDamage(weaponDmg(player, tier.dmgMult))) {
+              w.hitSet.add(e.id);
+              e.slowTimer = Math.max(e.slowTimer, 5);
+              if (inst.evolved && tier.freeze > 0) e.applyRoot(tier.freeze);
+            }
+          }
+        }
+        if (w.traveled < 520) alive.push(w);
+      }
+      inst.hwaves = alive;
+    }
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    const t = findNearestEnemy(player.x, player.y, effRange + 180, enemies);
+    if (!t) return;
+    const baseA = Math.atan2(t.y - player.y, t.x - player.x);
+    const swings = 1 + (inst.enhance > 0 ? 2 + (inst.enhance - 1) : 0);
+    const fan = inst.evolved ? tier.fan : 1;
+    for (let s = 0; s < swings; s++) {
+      for (let f = 0; f < fan; f++) {
+        const a = baseA + (fan > 1 ? (f - (fan - 1) / 2) * 0.35 : 0);
+        inst.hwaves.push({
+          x: player.x + Math.cos(a) * 26,
+          y: player.y + Math.sin(a) * 26,
+          dirX: Math.cos(a),
+          dirY: Math.sin(a),
+          width: tier.width,
+          traveled: 0,
+          delay: s * 0.18,
+          hitSet: new Set(),
+        });
+      }
+    }
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+    return;
+  }
+
+  if (weapon.id === "htrojan") {
+    if (inst.cooldown > 0) {
+      inst.cooldown -= dt;
+      return;
+    }
+    const hosts = enemies
+      .filter((e) => Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170)
+      .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))
+      .slice(0, tier.targets);
+    if (!hosts.length) return;
+    const dmg = weaponDmg(player, tier.dmgMult);
+    const blastAt = (cx, cy, host, mult) => {
+      world.spawnBlast({ x: cx, y: cy, dmg: 0, blast: tier.blast, color: "#d8e2f0" }); // 视觉
+      let chained = null;
+      for (const o of enemies) {
+        if (!circleHit(cx, cy, tier.blast, o.x, o.y, o.radius)) continue;
+        if (o === host) {
+          // 宿主免伤——强化后反而吃 200%+效果(用户原案)
+          if (inst.enhance > 0) {
+            o.takeDamage(Math.round(dmg * mult * (2 + 0.5 * (inst.enhance - 1))));
+            o.applyDisarm(Infinity);
+          }
+          continue;
+        }
+        o.takeDamage(Math.round(dmg * mult));
+        o.applyDisarm(Infinity);
+        if (!chained && o !== host) chained = o;
+      }
+      return chained;
+    };
+    for (const host of hosts) {
+      const c = blastAt(host.x, host.y, host, 1);
+      if (inst.evolved && tier.chain && c) blastAt(c.x, c.y, c, 0.6); // 二级炸点,只连锁一次
+    }
+    inst.cooldown = 1 / (player.fireRate * tier.rateMult);
     return;
   }
 
@@ -2993,6 +3568,7 @@ function updateInstance(player, inst, dt, world) {
 // world: { enemies, projectiles, spawnProjectile, spawnBomb, spawnSpike, spawnBlast }
 export function updateWeapons(player, dt, world) {
   player.shieldTimer = 0; // re-asserted below by an active shield weapon
+  player.macroBoost = 1; // 黑客宏窗口内由 hmacro 分支重设
   // 风车激光强化: extra damage reduction while the laser is on standby
   player.guardBonus = 0;
   for (const inst of player.weapons) {
