@@ -5975,7 +5975,7 @@ function draw() {
     if (pauseTip) {
       ctx.fillStyle = "#9a93ab";
       ctx.font = "12px monospace";
-      drawIconLabel(ctx, ICONS.tip, `小贴士:${pauseTip}`, WIDTH / 2, IS_TOUCH ? HEIGHT / 2 + 202 : py0 + 246 + 24, 15, 5);
+      drawIconLabel(ctx, ICONS.tip, `小贴士:${pauseTip}`, WIDTH / 2, quitButtonRect(WIDTH, HEIGHT).y + quitButtonRect(WIDTH, HEIGHT).h + 26, 15, 5); // 锚定退出按钮下方,桌面/触屏都不再被压
     }
     ctx.restore();
     ctx.textAlign = "center";
