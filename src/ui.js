@@ -325,14 +325,14 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
     // 排行榜 left the drawer — it is a primary button now. Header slots are
     // not clickable (main.js targets carry null at the same indices).
     const items = [
-      { label: `强化商店 · ${coins}`, color: "#ffd166", icon: ICONS.shop },
-      { label: `悬赏 ${questDone}`, color: "#ffd166", icon: ICONS.quest },
-      { label: "武器图鉴", color: "#c8c2d4", icon: ICONS.weapon },
-      { label: "成 长", header: true },
-      { label: `图鉴 ${codexPct}%`, color: "#7ea8ff", icon: ICONS.codex },
-      { label: `回响 ${echoCount}`, color: "#6bd0ff", icon: ICONS.flower },
-      { label: "存档码", color: "#8fd6ff", icon: ICONS.save },
-      { label: "收 藏", header: true },
+      { label: `${t("强化商店", "Upgrade Shop")} · ${coins}`, color: "#ffd166", icon: ICONS.shop },
+      { label: `${t("悬赏", "Bounties")} ${questDone}`, color: "#ffd166", icon: ICONS.quest },
+      { label: t("武器图鉴", "Weapon Codex"), color: "#c8c2d4", icon: ICONS.weapon },
+      { label: t("成 长", "GROWTH"), header: true },
+      { label: `${t("图鉴", "Codex")} ${codexPct}%`, color: "#7ea8ff", icon: ICONS.codex },
+      { label: `${t("回响", "Echoes")} ${echoCount}`, color: "#6bd0ff", icon: ICONS.flower },
+      { label: t("存档码", "Save Code"), color: "#8fd6ff", icon: ICONS.save },
+      { label: t("收 藏", "COLLECTION"), header: true },
     ];
     items.forEach((it, i) => {
       const r = titleMenuItemRect(i, width, height);
@@ -667,10 +667,14 @@ export function drawQuestsScreen(ctx, width, height, quests) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 30px monospace";
-  drawIconLabel(ctx, ICONS.quest, "今 日 悬 赏", width / 2, 62, 24, 8);
+  drawIconLabel(ctx, ICONS.quest, t("今 日 悬 赏", "DAILY BOUNTIES"), width / 2, 62, 24, 8);
   ctx.fillStyle = "#9a93ab";
   ctx.font = "13px monospace";
-  ctx.fillText("回声花的今日委托 · 进度跨局累计 · 完成即发金币 · 每天刷新", width / 2, 92);
+  ctx.fillText(
+    t("回声花的今日委托 · 进度跨局累计 · 完成即发金币 · 每天刷新", "Echo Flower's daily requests · progress carries across runs · pays out on completion · resets daily"),
+    width / 2,
+    92
+  );
   quests.forEach((q, i) => {
     const box = questRowRect(i, width, height);
     ctx.fillStyle = q.done ? "#14241a" : "#1d1828";
@@ -697,7 +701,7 @@ export function drawQuestsScreen(ctx, width, height, quests) {
     ctx.fillStyle = q.done ? "#7cf28a" : "#ffd166";
     ctx.font = "bold 14px monospace";
     if (q.done) {
-      ctx.fillText("已入账", box.x + box.w - 18, box.y + 34);
+      ctx.fillText(t("已入账", "Paid"), box.x + box.w - 18, box.y + 34);
     } else {
       const rewardText = String(q.reward);
       const tw = ctx.measureText(rewardText).width;

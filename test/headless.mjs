@@ -228,7 +228,7 @@ function run(seconds, onFrame) {
   );
   check(
     "暂停页武器和道具逐件显示且不会挤成一行",
-    mainSrc.includes('ctx.fillText("武器和道具"') &&
+    mainSrc.includes('ctx.fillText(t("武器和道具"') &&
       mainSrc.includes("const weaponCols = pauseWeapons.length > 4 ? 2 : 1") &&
       mainSrc.includes("const buildPanelH = 44 + weaponRows * 19") &&
       !mainSrc.includes('ctx.fillText("构筑与状态"'),
