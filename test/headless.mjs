@@ -239,8 +239,8 @@ function run(seconds, onFrame) {
       mainSrc.includes("staggered 3+2 pixel reward plaques") &&
       mainSrc.includes("separate effect footer") &&
       mainSrc.includes("const cardH = 96") &&
-      mainSrc.includes('detail: "生命上限+15 · 回满"') &&
-      mainSrc.includes('detail: "进化或强化一件武器"') &&
+      mainSrc.includes('detail: t("生命上限+15 · 回满"') &&
+      mainSrc.includes('detail: t("进化或强化一件武器"') &&
       !mainSrc.includes("ctx.shadowBlur = 24 * pulse"),
   );
   check(

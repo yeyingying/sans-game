@@ -4,18 +4,23 @@
 import { backButtonRect, drawBackButton } from "./ui.js";
 import { utPrompt } from "./dialog.js";
 import { ICONS, drawIconLabel } from "./sprites.js";
+import { t } from "./i18n.js";
 
 const API = "https://api.sansgecao.com/v1";
 // names must mirror weapon.js CHARACTERS — the board and the game must agree
-const CHARACTER_NAMES = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式", insanity: "Insanity", hacker: "黑客结局" };
+const CHARACTER_NAMES_ZH = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式", insanity: "Insanity", hacker: "黑客结局" };
+const CHARACTER_NAMES_EN = { sans: "Classic", ukb: "Karma", horror: "Horror", hard: "Hard Mode", insanity: "Insanity", hacker: "Hacker Ending" };
+const charName = (id) => t(CHARACTER_NAMES_ZH[id], CHARACTER_NAMES_EN[id]);
 const CHARACTER_COLORS = { sans: "#7ea8ff", ukb: "#c59bff", horror: "#ff5d5d", hard: "#5db9ff", insanity: "#d92535", hacker: "#e8ecf4" };
-const DIFF_NAMES = ["普通", "狂暴", "地狱", "屠杀"];
+const DIFF_NAMES_ZH = ["普通", "狂暴", "地狱", "屠杀"];
+const DIFF_NAMES_EN = ["NORMAL", "FURY", "HELL", "GENOCIDE"];
+const diffName = (i) => t(DIFF_NAMES_ZH[i], DIFF_NAMES_EN[i]);
 const DIFF_COLORS = ["#c8c2d4", "#ff8a5d", "#ff5d73", "#c59bff"];
 // 三个榜衡量三种实力,明说,不假装是同一种(2026-07-12 评审)
 const MODES = [
-  { id: "normal", label: "通关榜", hint: "养成榜:局外强化与构筑成果一起算数", mobileHint: "比较通关分，包含局外成长" },
-  { id: "endless", label: "无尽榜", hint: "后期构筑与生存能力 · 轮数优先", mobileHint: "先比完成轮数，再比无尽分" },
-  { id: "daily", label: "每日榜", hint: "全员同一起跑线 · 禁局外强化 · 纯竞技", mobileHint: "固定条件，所有人同一起点" },
+  { id: "normal", label: "通关榜", labelEn: "Clears", hint: "养成榜:局外强化与构筑成果一起算数", hintEn: "Progression board: meta upgrades and builds both count", mobileHint: "比较通关分，包含局外成长", mobileHintEn: "Clear scores, meta growth included" },
+  { id: "endless", label: "无尽榜", labelEn: "Endless", hint: "后期构筑与生存能力 · 轮数优先", hintEn: "Late-game builds and survival · rounds first", mobileHint: "先比完成轮数，再比无尽分", mobileHintEn: "Rounds first, then endless score" },
+  { id: "daily", label: "每日榜", labelEn: "Daily", hint: "全员同一起跑线 · 禁局外强化 · 纯竞技", hintEn: "Same start for everyone · no meta upgrades · pure skill", mobileHint: "固定条件，所有人同一起点", mobileHintEn: "Fixed rules, same starting line" },
 ];
 const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard", "insanity", "hacker"];
 
@@ -29,7 +34,7 @@ let stageClearPromise = null, stageClearData = null, stageClearRetryTimer = null
 let checkpointFailures = 0;
 let rankedStatus = {
   phase: leaderboardOnline ? "idle" : "offline",
-  message: leaderboardOnline ? "尚未开局" : "当前版本不连接排行榜",
+  message: leaderboardOnline ? t("尚未开局", "No run yet") : t("当前版本不连接排行榜", "This build does not connect to the board"),
   rank: null,
   score: null,
 };
@@ -38,7 +43,7 @@ const DIFF_FILTERS = ["", "0", "1", "2", "3"]; // 全部 + 四难度(账号榜�
 async function call(path, options = {}) {
   const r = await fetch(API + path, { credentials: "include", ...options, headers: { "content-type": "application/json", ...(options.headers || {}) } });
   const data = await r.json();
-  if (!r.ok) throw new Error(data.error || "网络错误");
+  if (!r.ok) throw new Error(data.error || t("网络错误", "network error"));
   return data;
 }
 
@@ -78,18 +83,18 @@ export function rankedRunStatus() {
 export async function renameLeaderboard() {
   if (!leaderboardOnline || !me) return;
   if (me.canRenameAt && Date.now() < me.canRenameAt) {
-    result = `改名冷却中:还需 ${Math.ceil((me.canRenameAt - Date.now()) / 86400000)} 天`;
+    result = t(`改名冷却中:还需 ${Math.ceil((me.canRenameAt - Date.now()) / 86400000)} 天`, `Rename cooling down: ${Math.ceil((me.canRenameAt - Date.now()) / 86400000)} days left`);
     return;
   }
   const name = await utPrompt({
-    title: "* 26说:",
+    title: t("* 26说:", "* 26 says:"),
     hint: "输入新昵称(2-8字;7天内只能改一次)\n⚠ 不要使用真实姓名、QQ、微信等个人信息",
     value: me?.nickname || "",
   });
   if (!name) return;
   try {
     me = (await call("/me/name", { method: "POST", body: JSON.stringify({ nickname: name }) })).player;
-    result = "改名成功";
+    result = t("改名成功", "Renamed");
     loadLeaderboard(); // rows carry nicknames — refresh so the board agrees
   } catch (e) {
     result = e.message;
@@ -137,7 +142,7 @@ function scheduleRegistrationRetry(generation) {
 export async function beginRankedRun(data, getStats) {
   if (!leaderboardOnline) return false;
   if (data.debug) {
-    rankedStatus = { phase: "disabled", message: "测试入口不上传成绩", rank: null, score: null };
+    rankedStatus = { phase: "disabled", message: t("测试入口不上传成绩", "Debug runs are never submitted"), rank: null, score: null };
     return false;
   }
   registrationData = data;
@@ -145,7 +150,7 @@ export async function beginRankedRun(data, getStats) {
   if (run) return true;
   if (registrationPromise) return registrationPromise;
   const generation = runGeneration;
-  rankedStatus = { phase: "connecting", message: "正在连接全球排行榜…", rank: null, score: null };
+  rankedStatus = { phase: "connecting", message: t("正在连接全球排行榜…", "Connecting to the global board..."), rank: null, score: null };
   const attempt = (async () => {
     try {
       await ensureIdentity();
@@ -156,12 +161,12 @@ export async function beginRankedRun(data, getStats) {
       clearTimeout(retryTimer);
       clearInterval(timer);
       timer = setInterval(() => checkpointRankedRun(getStats), 30000);
-      rankedStatus = { phase: "active", message: "本局已进入全球排行榜", rank: null, score: null };
+      rankedStatus = { phase: "active", message: t("本局已进入全球排行榜", "This run is on the global board"), rank: null, score: null };
       return true;
     } catch (e) {
       if (generation === runGeneration) {
         run = null;
-        rankedStatus = { phase: "retrying", message: `排行榜重连中：${e.message}`, rank: null, score: null };
+        rankedStatus = { phase: "retrying", message: t(`排行榜重连中：${e.message}`, `Reconnecting: ${e.message}`), rank: null, score: null };
         scheduleRegistrationRetry(generation);
       }
       return false;
@@ -194,7 +199,7 @@ export function cancelRankedRun() {
   if (rankedStatus.phase !== "disabled") {
     rankedStatus = {
       phase: leaderboardOnline ? "idle" : "offline",
-      message: leaderboardOnline ? "尚未开局" : "当前版本不连接排行榜",
+      message: leaderboardOnline ? t("尚未开局", "No run yet") : t("当前版本不连接排行榜", "This build does not connect to the board"),
       rank: null,
       score: null,
     };
@@ -215,12 +220,12 @@ export async function checkpointRankedRun(getStats) {
   try {
     await call(`/runs/${run.runId}/checkpoint`, { method: "POST", body: JSON.stringify({ ...getStats(), token: run.token }) });
     checkpointFailures = 0;
-    rankedStatus = { phase: "active", message: "本局已进入全球排行榜", rank: null, score: null };
+    rankedStatus = { phase: "active", message: t("本局已进入全球排行榜", "This run is on the global board"), rank: null, score: null };
   } catch (e) {
     checkpointFailures += 1;
     rankedStatus = {
       phase: "warning",
-      message: `检查点重试中(${checkpointFailures})：${e.message}`,
+      message: t(`检查点重试中(${checkpointFailures})：${e.message}`, `Checkpoint retry (${checkpointFailures}): ${e.message}`),
       rank: null,
       score: null,
     };
@@ -245,11 +250,11 @@ export async function recordRankedStageClear(data) {
       clearTimeout(stageClearRetryTimer);
       stageClearRetryTimer = null;
       stageClearData = null;
-      rankedStatus = { phase: "active", message: `已进入通关榜 · 全球第 ${x.rank} 名`, rank: x.rank, score: x.score };
+      rankedStatus = { phase: "active", message: t(`已进入通关榜 · 全球第 ${x.rank} 名`, `On the clear board · #${x.rank} worldwide`), rank: x.rank, score: x.score };
       return x;
     } catch (e) {
       if (run === activeRun && stageClearData) {
-        rankedStatus = { phase: "warning", message: `通关榜登记重试中：${e.message}`, rank: null, score: null };
+        rankedStatus = { phase: "warning", message: t(`通关榜登记重试中：${e.message}`, `Clear-board retry: ${e.message}`), rank: null, score: null };
         clearTimeout(stageClearRetryTimer);
         stageClearRetryTimer = setTimeout(() => recordRankedStageClear(stageClearData), 5000);
       }
@@ -276,7 +281,7 @@ export async function finishRankedRun(data) {
     const disabled = rankedStatus.phase === "disabled";
     rankedStatus = {
       phase: disabled ? "disabled" : "error",
-      message: disabled ? rankedStatus.message : "未上榜：本局未连接到排行榜服务器",
+      message: disabled ? rankedStatus.message : t("未上榜：本局未连接到排行榜服务器", "Unranked: this run never reached the server"),
       rank: null,
       score: null,
     };
@@ -285,14 +290,14 @@ export async function finishRankedRun(data) {
   }
   clearInterval(timer);
   timer = null;
-  rankedStatus = { phase: "settling", message: "正在校验并上传成绩…", rank: null, score: null };
+  rankedStatus = { phase: "settling", message: t("正在校验并上传成绩…", "Verifying and uploading..."), rank: null, score: null };
   try {
     const x = await call(`/runs/${run.runId}/settle`, { method: "POST", body: JSON.stringify({ ...data, token: run.token }) });
-    result = `你的最近成绩:全球第 ${x.rank} 名 · ${x.score} 分`;
-    rankedStatus = { phase: "success", message: `全球第 ${x.rank} 名 · ${x.score} 分`, rank: x.rank, score: x.score };
+    result = t(`你的最近成绩:全球第 ${x.rank} 名 · ${x.score} 分`, `Your latest: #${x.rank} worldwide · ${x.score} pts`);
+    rankedStatus = { phase: "success", message: t(`全球第 ${x.rank} 名 · ${x.score} 分`, `#${x.rank} worldwide · ${x.score} pts`), rank: x.rank, score: x.score };
     return x;
   } catch (e) {
-    result = `未上榜：${e.message}`;
+    result = t(`未上榜：${e.message}`, `Not ranked: ${e.message}`);
     rankedStatus = { phase: "error", message: result, rank: null, score: null };
     return null;
   } finally {
@@ -401,15 +406,15 @@ export function drawLeaderboard(ctx, w, h) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
   ctx.font = `bold ${Math.round(30 * F)}px monospace`;
-  ctx.fillText("审判排行榜", w / 2, ph ? 40 : 40);
+  ctx.fillText(t("审判排行榜", "JUDGEMENT LEADERBOARD"), w / 2, ph ? 40 : 40);
 
   if (!leaderboardOnline) {
     ctx.fillStyle = "#c8c2d4";
     ctx.font = `bold ${Math.round(16 * F)}px monospace`;
-    ctx.fillText("* 排行榜在正式服开放:sansgecao.com", w / 2, h / 2 - 20);
+    ctx.fillText(t("* 排行榜在正式服开放:sansgecao.com", "* The board lives on the main server: sansgecao.com"), w / 2, h / 2 - 20);
     ctx.fillStyle = "#7d7690";
     ctx.font = `${Math.round(13 * F)}px monospace`;
-    ctx.fillText("(当前是镜像版,成绩不联网。)", w / 2, h / 2 + 12);
+    ctx.fillText(t("(当前是镜像版,成绩不联网。)", "(This is the mirror build; scores stay offline.)"), w / 2, h / 2 + 12);
     drawBackButton(ctx, w, h);
     ctx.restore();
     ctx.textAlign = "left";
@@ -437,49 +442,49 @@ export function drawLeaderboard(ctx, w, h) {
   }
   if (me) {
     const cooling = me.canRenameAt && Date.now() < me.canRenameAt;
-    button(ctx, renameRect(w), cooling ? "冷却中" : "改名", cooling ? "#7d7690" : "#8fd6ff", !cooling, cooling ? null : ICONS.edit);
+    button(ctx, renameRect(w), cooling ? t("冷却中", "Cooling") : t("改名", "Rename"), cooling ? "#7d7690" : "#8fd6ff", !cooling, cooling ? null : ICONS.edit);
   }
 
   // three explicit board tabs — what you're on is never a mystery
-  MODES.forEach((m2, i) => button(ctx, tabRect(i, w), m2.label, "#ffd166", m2.id === mode));
+  MODES.forEach((m2, i) => button(ctx, tabRect(i, w), t(m2.label, m2.labelEn), "#ffd166", m2.id === mode));
 
   // filters: desktop shows both chip rows; phone folds them behind a toggle
   let listTop;
   if (ph) {
-    const fLabel = `筛选 · ${character ? CHARACTER_NAMES[character] : "全部角色"} · ${
-      mode === "daily" ? "每日固定" : difficulty === "" ? "全难度" : DIFF_NAMES[+difficulty]
-    } · ${loading ? "加载中" : `${rows.length}人`} ${filtersOpen ? "▴" : "▾"}`;
+    const fLabel = `${t("筛选", "Filter")} · ${character ? charName(character) : t("全部角色", "All characters")} · ${
+      mode === "daily" ? t("每日固定", "Daily fixed") : difficulty === "" ? t("全难度", "All difficulties") : diffName(+difficulty)
+    } · ${loading ? t("加载中", "Loading") : t(`${rows.length}人`, `${rows.length} players`)} ${filtersOpen ? "▴" : "▾"}`;
     // Phone gets a short, purpose-specific sentence. The desktop explanation
     // is too long once the 1200px canvas is scaled into a real phone viewport.
     ctx.fillStyle = "#7d7690";
     ctx.font = "18px monospace";
     const modeInfo = MODES.find((m2) => m2.id === mode);
-    ctx.fillText(`${modeInfo.mobileHint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 192);
+    ctx.fillText(`${t(modeInfo.mobileHint, modeInfo.mobileHintEn)}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 192);
     button(ctx, filterToggleRect(w), fLabel, "#c8c2d4", filtersOpen);
     if (filtersOpen) {
       const firstChar = charChipRect(0, w);
       ctx.textAlign = "left";
       ctx.fillStyle = "#9a93ab";
       ctx.font = "bold 18px monospace";
-      ctx.fillText("选择角色", firstChar.x, 274);
+      ctx.fillText(t("选择角色", "Character"), firstChar.x, 274);
       ctx.textAlign = "center";
       CHAR_FILTERS.forEach((c, i) =>
-        button(ctx, charChipRect(i, w), c ? CHARACTER_NAMES[c] : "全部", c ? CHARACTER_COLORS[c] : "#f2ead8", (c || "") === character)
+        button(ctx, charChipRect(i, w), c ? charName(c) : t("全部", "All"), c ? CHARACTER_COLORS[c] : "#f2ead8", (c || "") === character)
       );
       if (mode !== "daily") {
         const firstDiff = diffChipRect(0, w);
         ctx.textAlign = "left";
         ctx.fillStyle = "#9a93ab";
         ctx.font = "bold 18px monospace";
-        ctx.fillText("选择难度", firstDiff.x, 410);
+        ctx.fillText(t("选择难度", "Difficulty"), firstDiff.x, 410);
         ctx.textAlign = "center";
         DIFF_FILTERS.forEach((d, i) =>
-          button(ctx, diffChipRect(i, w), d === "" ? "全难度" : DIFF_NAMES[+d], d === "" ? "#f2ead8" : DIFF_COLORS[+d], d === difficulty)
+          button(ctx, diffChipRect(i, w), d === "" ? t("全难度", "All") : diffName(+d), d === "" ? "#f2ead8" : DIFF_COLORS[+d], d === difficulty)
         );
       }
       ctx.fillStyle = "#7d7690";
       ctx.font = "16px monospace";
-      ctx.fillText("选择后自动收起并刷新榜单", w / 2, mode === "daily" ? 402 : 492);
+      ctx.fillText(t("选择后自动收起并刷新榜单", "Picking one refreshes the board"), w / 2, mode === "daily" ? 402 : 492);
       drawBackButton(ctx, w, h);
       ctx.restore();
       ctx.textAlign = "left";
@@ -489,16 +494,16 @@ export function drawLeaderboard(ctx, w, h) {
     }
   } else {
     CHAR_FILTERS.forEach((c, i) =>
-      button(ctx, charChipRect(i, w), c ? CHARACTER_NAMES[c] : "全部", c ? CHARACTER_COLORS[c] : "#f2ead8", (c || "") === character)
+      button(ctx, charChipRect(i, w), c ? charName(c) : t("全部", "All"), c ? CHARACTER_COLORS[c] : "#f2ead8", (c || "") === character)
     );
     if (mode !== "daily")
       DIFF_FILTERS.forEach((d, i) =>
-        button(ctx, diffChipRect(i, w), d === "" ? "全难度" : DIFF_NAMES[+d], d === "" ? "#f2ead8" : DIFF_COLORS[+d], d === difficulty)
+        button(ctx, diffChipRect(i, w), d === "" ? t("全难度", "All") : diffName(+d), d === "" ? "#f2ead8" : DIFF_COLORS[+d], d === difficulty)
       );
     ctx.fillStyle = "#7d7690";
     ctx.font = "12px monospace";
     const modeInfo = MODES.find((m2) => m2.id === mode);
-    ctx.fillText(`${modeInfo.hint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 216);
+    ctx.fillText(`${t(modeInfo.hint, modeInfo.hintEn)}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 216);
     listTop = 232;
   }
 
@@ -507,18 +512,18 @@ export function drawLeaderboard(ctx, w, h) {
   if (loading) {
     ctx.fillStyle = "#9a93ab";
     ctx.font = `bold ${Math.round(14 * F)}px monospace`;
-    ctx.fillText("* 正在连线裂缝外……", w / 2, h / 2);
+    ctx.fillText(t("* 正在连线裂缝外……", "* Dialing beyond the rift..."), w / 2, h / 2);
   } else if (error) {
     ctx.fillStyle = "#ff8a5d";
     ctx.font = `bold ${Math.round(14 * F)}px monospace`;
     ctx.fillText(`* 连接失败:${error}`, w / 2, h / 2 - 20);
-    button(ctx, retryRect(w, h), "重试", "#8fd6ff", true, ICONS.refresh);
+    button(ctx, retryRect(w, h), t("重试", "Retry"), "#8fd6ff", true, ICONS.refresh);
   } else if (!rows.length) {
     ctx.fillStyle = "#9a93ab";
     ctx.font = `bold ${Math.round(14 * F)}px monospace`;
-    ctx.fillText(mode === "daily" ? "* 今天还没有挑战成绩" : "* 当前筛选还没有通关成绩", w / 2, h / 2 - 20);
+    ctx.fillText(mode === "daily" ? t("* 今天还没有挑战成绩", "* No daily runs yet today") : t("* 当前筛选还没有通关成绩", "* No clears under this filter yet"), w / 2, h / 2 - 20);
     ctx.font = `${Math.round(13 * F)}px monospace`;
-    ctx.fillText("点上方筛选查看其他榜，或击败一次 Boss 留名。", w / 2, h / 2 + 14);
+    ctx.fillText(t("点上方筛选查看其他榜，或击败一次 Boss 留名。", "Try another filter above, or beat the Boss to sign it."), w / 2, h / 2 + 14);
   } else {
     const cx = w / 2;
     const rowH = ph ? 38 : 26;
@@ -531,11 +536,11 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.font = `${Math.round(11 * F)}px monospace`;
     ctx.fillStyle = "#5a5468";
     ctx.textAlign = "left";
-    ctx.fillText("名次  昵称", rankX, top);
-    ctx.fillText("角色", charX, top);
-    drawIconLabel(ctx, ICONS.difficulty, "难度", diffX, top, Math.round(12 * F), 4);
+    ctx.fillText(t("名次  昵称", "Rank  Name"), rankX, top);
+    ctx.fillText(t("角色", "Char"), charX, top);
+    drawIconLabel(ctx, ICONS.difficulty, t("难度", "Diff"), diffX, top, Math.round(12 * F), 4);
     ctx.textAlign = "right";
-    ctx.fillText(mode === "endless" ? "轮数 · 无尽分" : "分数", scoreX, top);
+    ctx.fillText(mode === "endless" ? t("轮数 · 无尽分", "Rounds · Score") : t("分数", "Score"), scoreX, top);
     const medals = ["#ffd166", "#c9d4e0", "#cd9a62"];
     rows.slice(0, maxRows).forEach((r, i) => {
       const y = top + rowH - 4 + i * rowH;
@@ -553,13 +558,13 @@ export function drawLeaderboard(ctx, w, h) {
       ctx.fillText(r.nickname, nameX, y);
       ctx.fillStyle = CHARACTER_COLORS[r.character] || "#9a93ab";
       ctx.font = `${Math.round(12 * F)}px monospace`;
-      ctx.fillText(CHARACTER_NAMES[r.character] || r.character, charX, y);
+      ctx.fillText(charName(r.character) || r.character, charX, y);
       ctx.fillStyle = DIFF_COLORS[r.difficulty] || "#c8c2d4";
-      ctx.fillText(DIFF_NAMES[r.difficulty] ?? `难度${r.difficulty}`, diffX, y);
+      ctx.fillText(diffName(r.difficulty) ?? t(`难度${r.difficulty}`, `Diff ${r.difficulty}`), diffX, y);
       ctx.textAlign = "right";
       ctx.fillStyle = mine ? "#8fd6ff" : "#ffd166";
       ctx.font = i < 3 ? `bold ${Math.round(14 * F)}px monospace` : `${Math.round(13 * F)}px monospace`;
-      ctx.fillText(mode === "endless" ? `${r.rounds} 轮 · ${r.score}` : String(r.score), scoreX, y);
+      ctx.fillText(mode === "endless" ? t(`${r.rounds} 轮 · ${r.score}`, `R${r.rounds} · ${r.score}`) : String(r.score), scoreX, y);
     });
   }
 
@@ -576,8 +581,8 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.fillStyle = "#8fd6ff";
     ctx.font = `bold ${Math.round(13 * F)}px monospace`;
     const text = myRank
-      ? `你:第 ${myRank.rank} 名 · ${mode === "endless" ? `${myRank.rounds} 轮 · ` : ""}${myRank.score} 分`
-      : "尚未上榜——击败一次 Boss 即可留名";
+      ? t(`你:第 ${myRank.rank} 名 · ${mode === "endless" ? `${myRank.rounds} 轮 · ` : ""}${myRank.score} 分`, `You: #${myRank.rank} · ${mode === "endless" ? `R${myRank.rounds} · ` : ""}${myRank.score} pts`)
+      : t("尚未上榜——击败一次 Boss 即可留名", "Not ranked yet — beat the Boss once to sign the board");
     if (myRank) drawIconLabel(ctx, ICONS.star, text, r.x + r.w / 2, r.y + r.h / 2 + 5 * F, Math.round(14 * F), 5);
     else ctx.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + 5 * F);
   }

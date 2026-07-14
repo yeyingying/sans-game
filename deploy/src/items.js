@@ -14,6 +14,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: "atk",
     label: "攻击 +2",
+    labelEn: "ATK +2",
     color: "#ff6b6b",
     sprite: PICKUP_ATK,
     weight: 30,
@@ -24,6 +25,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: "range",
     label: "射程+12 弹速+18",
+    labelEn: "Range +12 · Shot speed +18",
     color: "#ffd166",
     sprite: PICKUP_RANGE,
     weight: 24,
@@ -35,6 +37,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: "rapid",
     label: "攻速 +0.1",
+    labelEn: "Attack rate +0.1",
     color: "#7cf28a",
     sprite: PICKUP_RAPID,
     weight: 22,
@@ -45,6 +48,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: "boots",
     label: "移速 +10",
+    labelEn: "Move speed +10",
     color: "#8fd6ff",
     sprite: PICKUP_SPEED,
     weight: 16,
@@ -55,6 +59,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: "heart",
     label: "生命上限 +12",
+    labelEn: "Max HP +12",
     color: "#ff8fc7",
     sprite: PICKUP_HEART,
     weight: 20,
@@ -66,6 +71,7 @@ export const EQUIPMENT_TYPES = [
   {
     id: "core",
     label: "随机武器品阶 +1",
+    labelEn: "Random weapon tier +1",
     color: "#7ea8ff",
     sprite: PICKUP_CORE,
     weight: 2, // rarer than before (was 6)

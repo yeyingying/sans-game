@@ -155,19 +155,19 @@ export function rerollBonus() {
 // Lore: six fallen humans' souls + the protagonist's own DETERMINATION.
 // slot "soul" = glow + heart trail; slot "bone" = weapon bone tint
 export const COSMETICS = [
-  { id: "bravery", slot: "soul", name: "勇气之魂", color: "#ff9e3d", desc: "橙色——戴着拳套的孩子留下的魂", price: 600 },
-  { id: "justice", slot: "soul", name: "正义之魂", color: "#ffef3d", desc: "黄色——牛仔帽与左轮的主人", price: 600 },
-  { id: "kindness", slot: "soul", name: "善良之魂", color: "#4ade5a", desc: "绿色——围裙与平底锅的温柔", price: 600 },
-  { id: "patience", slot: "soul", name: "耐心之魂", color: "#5ee6e6", desc: "浅蓝——丝带与玩具刀的等待", price: 600 },
-  { id: "integrity", slot: "soul", name: "诚实之魂", color: "#4f6dff", desc: "深蓝——芭蕾舞鞋的正直", price: 600 },
-  { id: "perseverance", slot: "soul", name: "毅力之魂", color: "#b45df0", desc: "紫色——眼镜与笔记本的坚持", price: 600 },
-  { id: "determination", slot: "soul", name: "决心", color: "#ff3d5a", desc: "红色——你自己的灵魂。DETERMINATION.", price: 2000 },
-  { id: "snowdin", slot: "bone", name: "雪镇之骨", color: "#cfe8ff", desc: "冷白涂装——Snowdin 永不停的雪", price: 800 },
-  { id: "waterfall", slot: "bone", name: "瀑布之骨", color: "#6bd0ff", desc: "幽蓝涂装——回声花低语的光", price: 800 },
-  { id: "hotland", slot: "bone", name: "热域之骨", color: "#ff8a4a", desc: "熔岩涂装——Hotland 的灼热", price: 800 },
-  { id: "core", slot: "bone", name: "核心之骨", color: "#7df0e8", desc: "电光涂装——The CORE 的能量", price: 1000 },
+  { id: "bravery", slot: "soul", name: "勇气之魂", nameEn: "Soul of Bravery", color: "#ff9e3d", desc: "橙色——戴着拳套的孩子留下的魂", descEn: "Orange — left by the child with the tough glove", price: 600 },
+  { id: "justice", slot: "soul", name: "正义之魂", nameEn: "Soul of Justice", color: "#ffef3d", desc: "黄色——牛仔帽与左轮的主人", descEn: "Yellow — the cowboy hat and the empty gun", price: 600 },
+  { id: "kindness", slot: "soul", name: "善良之魂", nameEn: "Soul of Kindness", color: "#4ade5a", desc: "绿色——围裙与平底锅的温柔", descEn: "Green — the apron and the burnt pan", price: 600 },
+  { id: "patience", slot: "soul", name: "耐心之魂", nameEn: "Soul of Patience", color: "#5ee6e6", desc: "浅蓝——丝带与玩具刀的等待", descEn: "Light blue — the ribbon and the toy knife", price: 600 },
+  { id: "integrity", slot: "soul", name: "诚实之魂", nameEn: "Soul of Integrity", color: "#4f6dff", desc: "深蓝——芭蕾舞鞋的正直", descEn: "Deep blue — the ballet shoes", price: 600 },
+  { id: "perseverance", slot: "soul", name: "毅力之魂", nameEn: "Soul of Perseverance", color: "#b45df0", desc: "紫色——眼镜与笔记本的坚持", descEn: "Purple — the glasses and the notebook", price: 600 },
+  { id: "determination", slot: "soul", name: "决心", nameEn: "DETERMINATION", color: "#ff3d5a", desc: "红色——你自己的灵魂。DETERMINATION.", descEn: "Red — your own soul. DETERMINATION.", price: 2000 },
+  { id: "snowdin", slot: "bone", name: "雪镇之骨", nameEn: "Snowdin Bones", color: "#cfe8ff", desc: "冷白涂装——Snowdin 永不停的雪", descEn: "Cold white — Snowdin's never-ending snow", price: 800 },
+  { id: "waterfall", slot: "bone", name: "瀑布之骨", nameEn: "Waterfall Bones", color: "#6bd0ff", desc: "幽蓝涂装——回声花低语的光", descEn: "Deep blue — the glow of whispering echo flowers", price: 800 },
+  { id: "hotland", slot: "bone", name: "热域之骨", nameEn: "Hotland Bones", color: "#ff8a4a", desc: "熔岩涂装——Hotland 的灼热", descEn: "Lava coat — the heat of Hotland", price: 800 },
+  { id: "core", slot: "bone", name: "核心之骨", nameEn: "CORE Bones", color: "#7df0e8", desc: "电光涂装——The CORE 的能量", descEn: "Electric — the energy of The CORE", price: 1000 },
   // secret: never sold — granted when all ten echoes have been heard
-  { id: "goldenflower", slot: "soul", name: "金色之花", color: "#ffd93d", desc: "它笑着说:这是给聆听者的。", price: 0, secret: true },
+  { id: "goldenflower", slot: "soul", name: "金色之花", nameEn: "Golden Flower", color: "#ffd93d", desc: "它笑着说:这是给聆听者的。", descEn: "It smiled: this one is for the Listener.", price: 0, secret: true },
 ];
 
 let cosmetics = readJson("metaCosmetics", { owned: {}, equipped: null });
@@ -228,15 +228,15 @@ export function equipCosmetic(id, slot = null) {
 // ---- honour titles (UT ending references; earned, never sold) --------------
 
 export const TITLES = [
-  { id: "pacifist", name: "和平主义者", hint: "全程不选攻击/增伤卡并击败Boss" },
-  { id: "judge", name: "审判者", hint: "无尽审判完成 5 轮" },
-  { id: "raven", name: "渡鸦", hint: "地狱难度击败Boss" },
-  { id: "determined", name: "决心的化身", hint: "图鉴收集度 100%" },
-  { id: "listener", name: "聆听者", hint: "聆听全部 10 段主线回响" },
-  { id: "watcher", name: "守望者", hint: "聆听全部 18 段回响(含四条时间线残响)" },
-  { id: "abysswalker", name: "深渊行者", hint: "无尽审判首达第 8 轮" },
-  { id: "unjudged", name: "不可审判者", hint: "无尽审判首达第 12 轮" },
-  { id: "genocide", name: "尘归尘", hint: "屠杀难度击败Boss" },
+  { id: "pacifist", name: "和平主义者", nameEn: "Pacifist", hint: "全程不选攻击/增伤卡并击败Boss", hintEn: "Beat the Boss without any attack/damage cards" },
+  { id: "judge", name: "审判者", nameEn: "The Judge", hint: "无尽审判完成 5 轮", hintEn: "Clear 5 rounds of the endless judgement" },
+  { id: "raven", name: "渡鸦", nameEn: "Raven", hint: "地狱难度击败Boss", hintEn: "Beat the Boss on HELL" },
+  { id: "determined", name: "决心的化身", nameEn: "DETERMINATION", hint: "图鉴收集度 100%", hintEn: "Reach 100% codex completion" },
+  { id: "listener", name: "聆听者", nameEn: "The Listener", hint: "聆听全部 10 段主线回响", hintEn: "Hear all 10 main-story echoes" },
+  { id: "watcher", name: "守望者", nameEn: "The Watcher", hint: "聆听全部 18 段回响(含四条时间线残响)", hintEn: "Hear every echo, timelines included" },
+  { id: "abysswalker", name: "深渊行者", nameEn: "Abysswalker", hint: "无尽审判首达第 8 轮", hintEn: "First reach round 8 of the endless judgement" },
+  { id: "unjudged", name: "不可审判者", nameEn: "The Unjudged", hint: "无尽审判首达第 12 轮", hintEn: "First reach round 12 of the endless judgement" },
+  { id: "genocide", name: "尘归尘", nameEn: "Dust to Dust", hint: "屠杀难度击败Boss", hintEn: "Beat the Boss on GENOCIDE" },
 ];
 
 let titles = readJson("metaTitles", {});
@@ -529,7 +529,7 @@ export function isWeaponUnlocked(charId, slot) {
 export function weaponUnlockInfo(charId, slot) {
   const req = WEAPON_KILL_REQ[slot] ?? 0;
   if (req <= 0) return null;
-  return { hint: `该角色累计击杀 ${req}`, progress: `${Math.min(charKills(charId), req)} / ${req}` };
+  return { hint: t(`该角色累计击杀 ${req}`, `${req} lifetime kills on this character`), progress: `${Math.min(charKills(charId), req)} / ${req}` };
 }
 
 // ---- difficulty tiers ------------------------------------------------------

@@ -407,7 +407,12 @@ function tryBuySelectedChar() {
   if (spendCoins(c.cost)) {
     localStorage.setItem("own_" + c.id, "1");
     sfxFanfare();
-    utNotice({ title: `${c.name} 已解锁`, hint: c.id === "hacker" ? "黑屋的守门人,拿起了改写代码的权柄。" : "决心过量实验体,加入了你的选择。" });
+    utNotice({
+      title: t(`${c.name} 已解锁`, `${pick(c, "name")} unlocked`),
+      hint: c.id === "hacker"
+        ? t("黑屋的守门人,拿起了改写代码的权柄。", "The dark room's gatekeeper takes up the right to rewrite.")
+        : t("决心过量实验体,加入了你的选择。", "The DT-overdosed subject joins your roster."),
+    });
   } else {
     sfxHurt();
   }
@@ -559,17 +564,17 @@ function unlockEchoToast(id) {
   if (unlockedEchoCount() >= ECHOES.length) {
     if (grantCosmetic("goldenflower")) {
       lastGoldenFlower = true;
-      tipQueue.push({ title: "花田满开", lines: ["「金色之花」已自动绽放在你的灵魂上"], t: 9 });
+      tipQueue.push({ title: t("花田满开", "Full bloom"), lines: [t("「金色之花」已自动绽放在你的灵魂上", "The Golden Flower now blooms on your soul")], t: 9 });
       sfxFanfare();
     }
-    if (unlockTitle("listener")) lastNewTitles.push("聆听者");
+    if (unlockTitle("listener")) lastNewTitles.push(t("聆听者", "The Listener"));
   }
   if (unlockedAllEchoCount() >= ALL_ECHOES.length && unlockTitle("watcher")) {
-    lastNewTitles.push("守望者");
+    lastNewTitles.push(t("守望者", "The Watcher"));
   }
   // in-run: floating tip card; at settlement the gameover card lists it
   if (state === "playing" || state === "choice") {
-    tipQueue.push({ title: `回响解锁:「${e.title}」`, lines: ["标题页「回响」里,花会为你重述这段记忆"], t: 8 });
+    tipQueue.push({ title: t(`回响解锁:「${e.title}」`, `Echo unlocked: '${pick(e, "title")}'`), lines: [t("标题页「回响」里,花会为你重述这段记忆", "The flower will retell it under Echoes on the title screen")], t: 8 });
   }
   sfxCandy();
 }
@@ -647,7 +652,7 @@ let gameoverDetail = false; // settlement page 2: unlock feed & build details
 
 // 本局装备累计 → one compact line (提交A: 捡了什么要看得见)
 function runEquipSummary() {
-  const per = { atk: ["攻击", 2], range: ["射程", 12], rapid: ["攻速", 0.1], boots: ["移速", 10], heart: ["生命", 12], core: ["品阶", 1] };
+  const per = { atk: [t("攻击", "ATK"), 2], range: [t("射程", "Range"), 12], rapid: [t("攻速", "Rate"), 0.1], boots: [t("移速", "Speed"), 10], heart: [t("生命", "HP"), 12], core: [t("品阶", "Tier"), 1] };
   const parts = [];
   for (const [id, n] of Object.entries(runEquip)) {
     const def = per[id];
@@ -913,8 +918,8 @@ function currentCharacter() {
 function weaponLocks() {
   const locks = {};
   currentWeaponList().forEach((w, i) => {
-    if (w.support) locks[i] = { hint: "辅助武器,无法单独开局", progress: "局内通过强化卡获得" };
-    if (w.choiceOnly) locks[i] = { hint: "局内技能,无法开局携带", progress: "战斗中通过选卡获得" };
+    if (w.support) locks[i] = { hint: t("辅助武器,无法单独开局", "Support weapon — can't start with it"), progress: t("局内通过强化卡获得", "Gained via cards mid-run") };
+    if (w.choiceOnly) locks[i] = { hint: t("局内技能,无法开局携带", "In-run skill — can't start with it"), progress: t("战斗中通过选卡获得", "Gained via cards in battle") };
   });
   return locks;
 }
@@ -924,15 +929,15 @@ function metaBonusLine() {
   // numbers must mirror what the upgrades REALLY do post-rework:
   // 力量=×1.06^lvl final damage, 决心=+7%/lvl max hp (see meta.js UPGRADES)
   const parts = [];
-  if (upgradeLevel("atk")) parts.push(`伤害×${Math.pow(1.06, upgradeLevel("atk")).toFixed(2)}`);
-  if (upgradeLevel("hp")) parts.push(`生命+${7 * upgradeLevel("hp")}%`);
-  if (upgradeLevel("speed")) parts.push(`移速+${8 * upgradeLevel("speed")}`);
-  if (upgradeLevel("magnet")) parts.push(`磁吸+${25 * upgradeLevel("magnet")}`);
-  if (upgradeLevel("greed")) parts.push(`金币+${20 * upgradeLevel("greed")}%`);
-  if (upgradeLevel("reroll")) parts.push(`选卡刷新+${upgradeLevel("reroll")}`);
-  if (upgradeLevel("gear")) parts.push(`开局装备+${upgradeLevel("gear")}`);
-  if (reviveStock()) parts.push(`复活×${reviveStock()}`);
-  return parts.length ? `已生效:${parts.join(" ")}` : "还没买过强化——买了的每一局自动生效";
+  if (upgradeLevel("atk")) parts.push(`${t("伤害", "DMG")}×${Math.pow(1.06, upgradeLevel("atk")).toFixed(2)}`);
+  if (upgradeLevel("hp")) parts.push(`${t("生命", "HP")}+${7 * upgradeLevel("hp")}%`);
+  if (upgradeLevel("speed")) parts.push(`${t("移速", "Speed")}+${8 * upgradeLevel("speed")}`);
+  if (upgradeLevel("magnet")) parts.push(`${t("磁吸", "Magnet")}+${25 * upgradeLevel("magnet")}`);
+  if (upgradeLevel("greed")) parts.push(`${t("金币", "Coins")}+${20 * upgradeLevel("greed")}%`);
+  if (upgradeLevel("reroll")) parts.push(`${t("选卡刷新", "Rerolls")}+${upgradeLevel("reroll")}`);
+  if (upgradeLevel("gear")) parts.push(`${t("开局装备", "Start gear")}+${upgradeLevel("gear")}`);
+  if (reviveStock()) parts.push(`${t("复活", "Revives")}×${reviveStock()}`);
+  return parts.length ? `${t("已生效", "Active")}:${parts.join(" ")}` : t("还没买过强化——买了的每一局自动生效", "No upgrades yet — anything you buy applies every run");
 }
 
 function visibleCosmetics() {
@@ -942,7 +947,10 @@ function visibleCosmetics() {
 function cosmeticEquipLine() {
   const soul = equippedCosmetic();
   const bone = equippedBoneSkin();
-  return `装备中:灵魂「${soul ? soul.name : "无"}」 骨装「${bone ? bone.name : "默认"}」`;
+  return t(
+    `装备中:灵魂「${soul ? soul.name : "无"}」 骨装「${bone ? bone.name : "默认"}」`,
+    `Equipped: soul '${soul ? pick(soul, "name") : "none"}' · bones '${bone ? pick(bone, "name") : "default"}'`
+  );
 }
 
 function diffPills() {
@@ -990,20 +998,35 @@ function shopCompareLine(id, lvl, max) {
   switch (id) {
     case "atk": {
       const a = Math.pow(1.06, lvl).toFixed(2);
-      return maxed ? `已满级 · 伤害倍率 ×${a}(独立乘区)` : `伤害倍率 ×${a} → ×${Math.pow(1.06, lvl + 1).toFixed(2)}(独立乘区)`;
+      const b = Math.pow(1.06, lvl + 1).toFixed(2);
+      return maxed
+        ? t(`已满级 · 伤害倍率 ×${a}(独立乘区)`, `Maxed · damage ×${a} (own multiplier)`)
+        : t(`伤害倍率 ×${a} → ×${b}(独立乘区)`, `Damage ×${a} → ×${b} (own multiplier)`);
     }
     case "hp":
-      return maxed ? `已满级 · 生命加成 +${7 * lvl}%` : `生命加成 +${7 * lvl}% → +${7 * (lvl + 1)}%(升级成长同享)`;
+      return maxed
+        ? t(`已满级 · 生命加成 +${7 * lvl}%`, `Maxed · max HP +${7 * lvl}%`)
+        : t(`生命加成 +${7 * lvl}% → +${7 * (lvl + 1)}%(升级成长同享)`, `Max HP +${7 * lvl}% → +${7 * (lvl + 1)}% (level-ups share it)`);
     case "speed":
-      return maxed ? `已满级 · 初始移速 +${8 * lvl}` : `初始移速 +${8 * lvl} → +${8 * (lvl + 1)}`;
+      return maxed
+        ? t(`已满级 · 初始移速 +${8 * lvl}`, `Maxed · starting speed +${8 * lvl}`)
+        : t(`初始移速 +${8 * lvl} → +${8 * (lvl + 1)}`, `Starting speed +${8 * lvl} → +${8 * (lvl + 1)}`);
     case "magnet":
-      return maxed ? `已满级 · 磁吸 +${25 * lvl}` : `磁吸范围 +${25 * lvl} → +${25 * (lvl + 1)}`;
+      return maxed
+        ? t(`已满级 · 磁吸 +${25 * lvl}`, `Maxed · pickup radius +${25 * lvl}`)
+        : t(`磁吸范围 +${25 * lvl} → +${25 * (lvl + 1)}`, `Pickup radius +${25 * lvl} → +${25 * (lvl + 1)}`);
     case "greed":
-      return maxed ? `已满级 · 金币 +${20 * lvl}%` : `金币获取 +${20 * lvl}% → +${20 * (lvl + 1)}%`;
+      return maxed
+        ? t(`已满级 · 金币 +${20 * lvl}%`, `Maxed · coins +${20 * lvl}%`)
+        : t(`金币获取 +${20 * lvl}% → +${20 * (lvl + 1)}%`, `Coin gain +${20 * lvl}% → +${20 * (lvl + 1)}%`);
     case "reroll":
-      return maxed ? `已满级 · 每次选卡可刷新 ${1 + lvl} 次` : `选卡刷新 ${1 + lvl} 次 → ${2 + lvl} 次`;
+      return maxed
+        ? t(`已满级 · 每次选卡可刷新 ${1 + lvl} 次`, `Maxed · ${1 + lvl} rerolls per pick`)
+        : t(`选卡刷新 ${1 + lvl} 次 → ${2 + lvl} 次`, `Rerolls ${1 + lvl} → ${2 + lvl}`);
     case "gear":
-      return maxed ? `已满级 · 开局装备 ${lvl} 件` : `开局装备 ${lvl} 件 → ${lvl + 1} 件`;
+      return maxed
+        ? t(`已满级 · 开局装备 ${lvl} 件`, `Maxed · ${lvl} starting gear`)
+        : t(`开局装备 ${lvl} 件 → ${lvl + 1} 件`, `Starting gear ${lvl} → ${lvl + 1}`);
     default:
       return null;
   }
@@ -1323,7 +1346,7 @@ function settleGame(kind) {
     ["determined", codexCompletion() >= 100],
     ["genocide", bossDefeated && getDifficulty().id === 3],
   ]) {
-    if (ok && unlockTitle(id)) lastNewTitles.push(TITLES.find((t) => t.id === id).name);
+    if (ok && unlockTitle(id)) lastNewTitles.push(pick(TITLES.find((x) => x.id === id), "name"));
   }
   // 回响 story fragments — the hall remembers this run's milestones
   if (runOutcome === "death" || runOutcome === "endlessDeath") unlockEchoToast("stay");
@@ -1344,16 +1367,16 @@ function settleGame(kind) {
   nearMiss = null;
   if (runOutcome === "death" || runOutcome === "endlessDeath") {
     if (runOutcome === "endlessDeath" && roundTimer > 0 && roundTimer <= 30) {
-      nearMiss = `差一点!再撑 ${Math.ceil(roundTimer)} 秒就能完成第 ${endlessRound} 轮审判`;
+      nearMiss = t(`差一点!再撑 ${Math.ceil(roundTimer)} 秒就能完成第 ${endlessRound} 轮审判`, `SO close! ${Math.ceil(roundTimer)}s more and round ${endlessRound} was yours`);
     } else if (runOutcome === "endlessDeath" && roundTimer <= 0 && roundBossSpawned && !roundBossDown) {
-      nearMiss = `差一点!击倒首领就能结算第 ${endlessRound} 轮`;
+      nearMiss = t(`差一点!击倒首领就能结算第 ${endlessRound} 轮`, `SO close! The round boss was all that stood before round ${endlessRound} paid out`);
     } else if (runOutcome === "death" && !bossDefeated && elapsed < bossAppearAt() && bossAppearAt() - elapsed <= 45) {
       nearMiss = t(
         `差一点!再活 ${Math.ceil(bossAppearAt() - elapsed)} 秒就能见到天意侵蚀Sans`,
         `SO close! ${Math.ceil(bossAppearAt() - elapsed)}s more and you'd have met Corrupted Sans`
       );
     } else if (!newRecord && lastBest > 0 && lastScore >= lastBest * 0.8) {
-      nearMiss = `差一点!距离新纪录只有 ${lastBest - lastScore + 1} 分`;
+      nearMiss = t(`差一点!距离新纪录只有 ${lastBest - lastScore + 1} 分`, `SO close! ${lastBest - lastScore + 1} points off a new record`);
     }
   }
   // bounties settled at run end
@@ -1523,9 +1546,10 @@ for (const c of CHARACTERS) {
   if (lvl >= 3) unlockEcho(c.id + "2");
 }
 const flowerGift = claimDailyFlower(todayKey(), yesterdayKey());
-const flowerGiftLine = flowerGift.already
-  ? `连日之花:第 ${flowerGift.days} 天(今日礼物已领取)`
-  : `连日之花:第 ${flowerGift.days} 天,花为你留了 ${flowerGift.coins} 金币`;
+const flowerGiftLine = () =>
+  flowerGift.already
+    ? t(`连日之花:第 ${flowerGift.days} 天(今日礼物已领取)`, `Daily flower: day ${flowerGift.days} (today's gift claimed)`)
+    : t(`连日之花:第 ${flowerGift.days} 天,花为你留了 ${flowerGift.coins} 金币`, `Daily flower: day ${flowerGift.days} — it kept ${flowerGift.coins}G for you`);
 
 const QUEST_KIND_DESC = {
   kills: (q) => t(`击杀 ${q.target} 只怪物`, `Slay ${q.target} monsters`),
@@ -1595,14 +1619,14 @@ function rollChestRewards() {
   for (let i = 0; i < count; i++) {
     const roll = Math.random() * 100; // NOTE: 别叫 pick — 会遮蔽 i18n 的 pick()
     if (roll < 22) {
-      rewards.push({ label: "羊妈的派", detail: "生命上限+15 · 回满", color: "#ff8fc7", icon: ICONS.pie, apply: () => {
+      rewards.push({ label: t("羊妈的派", "Toriel's Pie"), detail: t("生命上限+15 · 回满", "Max HP +15 · full heal"), color: "#ff8fc7", icon: ICONS.pie, apply: () => {
         player.maxHp += 15; // 永久上限,然后全回复 — 一大口家的味道
         player.hp = player.maxHp;
         healFlash = 0.6;
-        candyBanner = { text: "* 黄油太妃派。有家的味道。生命上限 +15!", t: 3 };
+        candyBanner = { text: t("* 黄油太妃派。有家的味道。生命上限 +15!", "* Butterscotch-cinnamon pie. Tastes like home. Max HP +15!"), t: 3 };
       }});
     } else if (roll < 40) {
-      rewards.push({ label: "骨白审判", detail: "清除全部普通怪", color: "#f2ead8", icon: ICONS.skull, apply: () => {
+      rewards.push({ label: t("骨白审判", "Bone Judgement"), detail: t("清除全部普通怪", "Clears all normal monsters"), color: "#f2ead8", icon: ICONS.skull, apply: () => {
         let reaped = 0;
         for (const e of enemies) {
           if (!e.elite && !e.boss && e.hp > 0) {
@@ -1611,12 +1635,12 @@ function rollChestRewards() {
           }
         }
         killFlash = 0.3;
-        candyBanner = { text: `* 骨白审判降下。${reaped} 个身影同时化尘。`, t: 3 };
+        candyBanner = { text: t(`* 骨白审判降下。${reaped} 个身影同时化尘。`, `* The bone judgement falls. ${reaped} figures turn to dust at once.`), t: 3 };
       }});
     } else if (roll < 55) {
-      rewards.push({ label: "热狗 ×3('dogs)", detail: "残血自动回血 · 3次", color: "#ffb066", icon: ICONS.hotdog, apply: () => {
+      rewards.push({ label: t("热狗 ×3('dogs)", "Hot Dogs ×3 ('dogs)"), detail: t("残血自动回血 · 3次", "Auto-heal at low HP · 3 uses"), color: "#ffb066", icon: ICONS.hotdog, apply: () => {
         hotdogStock = Math.min(9, hotdogStock + 3); // 残血自动吃,用完为止
-        candyBanner = { text: "* 三根热狗揣进口袋。残血时会自动想起它们。", t: 3 };
+        candyBanner = { text: t("* 三根热狗揣进口袋。残血时会自动想起它们。", "* Three hot dogs, pocketed. You'll remember them at low HP."), t: 3 };
       }});
     } else if (roll < 67) {
       // 六魂遗物: 机制型独特物件 — rogue-like 的 item 心跳,卡池永远给不了
@@ -1644,13 +1668,13 @@ function rollChestRewards() {
       } else {
         // all six collected: the souls send coins instead
         const v = Math.max(1, Math.round(30 * coinGainMult() * getDifficulty().coinMult * Math.max(currentCoinFactor(), endlessRound > 0 ? 0 : 1)));
-        rewards.push({ label: `金币雨 ×${v}`, detail: "本局金币立即入账", color: "#ffd166", icon: ICONS.coin, apply: () => {
+        rewards.push({ label: t(`金币雨 ×${v}`, `Coin Rain ×${v}`), detail: t("本局金币立即入账", "Run coins, paid instantly"), color: "#ffd166", icon: ICONS.coin, apply: () => {
           if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
         }});
       }
     } else if (roll < 81) {
       // 觉醒骨: 宝箱的圣杯 — 三层逻辑永无死槽
-      rewards.push({ label: "觉醒骨", detail: "进化或强化一件武器", color: "#ffd93d", icon: ICONS.awakening, apply: () => {
+      rewards.push({ label: t("觉醒骨", "Awakening Bone"), detail: t("进化或强化一件武器", "Evolves or boosts a weapon"), color: "#ffd93d", icon: ICONS.awakening, apply: () => {
         const ready = player.weapons.find((w) => canEvolve(w));
         if (ready) {
           ready.evolved = true; // 已攒够条件的武器当场觉醒 — 质变时刻
@@ -1664,16 +1688,16 @@ function rollChestRewards() {
         if (up.length) {
           const inst = up[Math.floor(Math.random() * up.length)];
           inst.tier = Math.min(4, inst.tier + 2); // 跳级,比卡片高一档
-          candyBanner = { text: `* 觉醒骨低鸣。${WEAPONS[inst.id].name} 品阶连跳!`, t: 3 };
+          candyBanner = { text: t(`* 觉醒骨低鸣。${WEAPONS[inst.id].name} 品阶连跳!`, `* The bone hums low. ${pick(WEAPONS[inst.id], "name")} jumps two tiers!`), t: 3 };
         } else {
           const ws = player.weapons;
           if (ws.length) ws[Math.floor(Math.random() * ws.length)].enhance += 2;
-          candyBanner = { text: "* 觉醒骨化作纯粹的力量,融入了武器。", t: 3 };
+          candyBanner = { text: t("* 觉醒骨化作纯粹的力量,融入了武器。", "* The bone dissolves into pure power and joins your weapons."), t: 3 };
         }
       }});
     } else {
       const v = Math.max(1, Math.round((25 + Math.random() * 20) * coinGainMult() * getDifficulty().coinMult * Math.max(currentCoinFactor(), endlessRound > 0 ? 0 : 1)));
-      rewards.push({ label: `金币雨 ×${v}`, detail: "本局金币立即入账", color: "#ffd166", icon: ICONS.coin, apply: () => {
+      rewards.push({ label: t(`金币雨 ×${v}`, `Coin Rain ×${v}`), detail: t("本局金币立即入账", "Run coins, paid instantly"), color: "#ffd166", icon: ICONS.coin, apply: () => {
         if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
       }});
     }
@@ -1745,7 +1769,7 @@ function chestAdvance() {
   } else {
     // collect and return to the fight
     for (const rw of chestCeremony.rewards) rw.apply();
-    floatingTexts.push(new FloatingText(player.x, player.y - 30, `宝箱 ×${chestCeremony.rewards.length}`, "#ffd166"));
+    floatingTexts.push(new FloatingText(player.x, player.y - 30, t(`宝箱 ×${chestCeremony.rewards.length}`, `Chest ×${chestCeremony.rewards.length}`), "#ffd166"));
     chestCeremony = null;
     state = "playing";
     fireBark("chest");
@@ -1771,18 +1795,25 @@ function buildShareCard() {
   g.textAlign = "center";
   g.fillStyle = "#7ea8ff";
   g.font = "bold 24px monospace";
-  g.fillText("我做了一个Sans割草游戏.", 360, 72);
+  g.fillText(t("我做了一个Sans割草游戏.", "I made a Sans survivors game."), 360, 72);
   const oc =
-    runOutcome === "victory" ? ["通关成功！", "#7cf28a"]
-    : runOutcome === "endlessDeath" ? ["无尽终局", "#ff8a5d"]
-    : runOutcome === "retreat" ? ["主动撤离", "#8fd6ff"]
+    runOutcome === "victory" ? [t("通关成功！", "STAGE CLEAR!"), "#7cf28a"]
+    : runOutcome === "endlessDeath" ? [t("无尽终局", "ENDLESS END"), "#ff8a5d"]
+    : runOutcome === "retreat" ? [t("主动撤离", "EXTRACTED"), "#8fd6ff"]
     : ["GAME OVER", "#ff5d73"];
   g.fillStyle = oc[1];
   g.font = "bold 52px monospace";
   g.fillText(oc[0], 360, 140);
   g.fillStyle = "#9a93ab";
   g.font = "18px monospace";
-  g.fillText(`${todayKey()} · ${currentCharacter().name} · ${getDifficulty().name}难度${wasDaily ? " · ✦每日挑战" : ""}`, 360, 176);
+  g.fillText(
+    t(
+      `${todayKey()} · ${currentCharacter().name} · ${getDifficulty().name}难度${wasDaily ? " · ✦每日挑战" : ""}`,
+      `${todayKey()} · ${pick(currentCharacter(), "name")} · ${pick(getDifficulty(), "name")}${wasDaily ? " · ✦Daily" : ""}`
+    ),
+    360,
+    176
+  );
   // portrait with soul glow
   const spr = PLAYER_SPRITES[player.character] || PLAYER_SPRITES.sans;
   // fit every character into the same 240px-tall slot so the stats below
@@ -1795,15 +1826,22 @@ function buildShareCard() {
   g.drawImage(spr, 360 - (spr.width * scale) / 2, 210, spr.width * scale, spr.height * scale);
   g.restore();
   const lines = [
-    [`得分 ${lastScore}`, "#ffd166", "bold 40px monospace"],
-    [`存活 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒 · 击杀 ${player.kills} · 最高连杀 ${runMaxStreak}`, "#f2ead8", "22px monospace"],
+    [`${t("得分", "Score")} ${lastScore}`, "#ffd166", "bold 40px monospace"],
+    [
+      t(
+        `存活 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒 · 击杀 ${player.kills} · 最高连杀 ${runMaxStreak}`,
+        `Survived ${Math.floor(bossDefeated ? stageClearTime : elapsed)}s · Kills ${player.kills} · Best streak ${runMaxStreak}`
+      ),
+      "#f2ead8",
+      "22px monospace",
+    ],
   ];
-  if (endlessResult) lines.push([`无尽审判 ${endlessResult.rounds} 轮 · 无尽得分 ${endlessResult.score}`, "#ff8a5d", "22px monospace"]);
-  lines.push([`金币 +${lastRunCoins}`, "#ffd166", "22px monospace"]);
+  if (endlessResult) lines.push([t(`无尽审判 ${endlessResult.rounds} 轮 · 无尽得分 ${endlessResult.score}`, `Judgement rounds ${endlessResult.rounds} · endless score ${endlessResult.score}`), "#ff8a5d", "22px monospace"]);
+  lines.push([`${t("金币", "Coins")} +${lastRunCoins}`, "#ffd166", "22px monospace"]);
   if (nearMiss) lines.push([nearMiss, "#ff8a5d", "20px monospace"]);
-  if (activeContract) lines.push([`契约「${activeContract.name}」`, "#d9c47a", "22px monospace"]);
-  if (bestTitle()) lines.push([`称号「${bestTitle().name}」`, "#c59bff", "22px monospace"]);
-  if (lastDeathBy && runOutcome !== "retreat") lines.push([`死于:${lastDeathBy}`, "#c95d5d", "20px monospace"]);
+  if (activeContract) lines.push([`${t("契约", "Pact")}「${pick(activeContract, "name")}」`, "#d9c47a", "22px monospace"]);
+  if (bestTitle()) lines.push([`${t("称号", "Title")}「${pick(bestTitle(), "name")}」`, "#c59bff", "22px monospace"]);
+  if (lastDeathBy && runOutcome !== "retreat") lines.push([`${t("死于", "Slain by")}:${lastDeathBy}`, "#c95d5d", "20px monospace"]);
   // narrative lines are capped so a busy endless card never spills past the deco
   if (deathKillerLine && lines.length < 9) lines.push([deathKillerLine, "#8fa8c9", "15px monospace"]);
   if (loveVerdict?.lines?.length && lines.length < 9) lines.push([loveVerdict.lines[0], "#c59bff", "15px monospace"]);
@@ -1846,10 +1884,10 @@ function shareRun() {
       if (!blob) return;
       const file = typeof File !== "undefined" ? new File([blob], "sans-run.png", { type: "image/png" }) : null;
       const text = runOutcome === "victory"
-        ? `我在审判廊通关了审判,得分 ${lastScore}!`
-        : `我在审判廊拿下 ${lastScore} 分!`;
+        ? t(`我在审判廊通关了审判,得分 ${lastScore}!`, `I cleared the Judgement Hall with ${lastScore} points!`)
+        : t(`我在审判廊拿下 ${lastScore} 分!`, `I scored ${lastScore} in the Judgement Hall!`);
       if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], text, title: "Sans割草游戏" }).catch(() => {});
+        navigator.share({ files: [file], text, title: t("Sans割草游戏", "Sans Survivors") }).catch(() => {});
       } else {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
@@ -1909,13 +1947,13 @@ function startRound(n) {
   spawner.round = n;
   const rules = [
     "", // 1-based
-    "精英成群 · 金币收益 50%",
-    "怪物移速 +15% · 金币收益 25%",
-    "怪物伤害提升 · 治疗减半 · 远程怪增多 · 金币收益 10%",
-    "危险领域降临 · 金币不再掉落",
-    "全部审判叠加，且仍在加深",
+    t("精英成群 · 金币收益 50%", "Elites swarm · coin yield 50%"),
+    t("怪物移速 +15% · 金币收益 25%", "Monster speed +15% · coin yield 25%"),
+    t("怪物伤害提升 · 治疗减半 · 远程怪增多 · 金币收益 10%", "More damage · healing halved · more ranged · coins 10%"),
+    t("危险领域降临 · 金币不再掉落", "Hazard zones descend · coins stop dropping"),
+    t("全部审判叠加，且仍在加深", "All judgements stack, and keep deepening"),
   ];
-  roundBanner = { text: `⚖ 审判第 ${n} 轮`, sub: rules[Math.min(n, 5)], t: 2.8 };
+  roundBanner = { text: t(`⚖ 审判第 ${n} 轮`, `⚖ Judgement Round ${n}`), sub: rules[Math.min(n, 5)], t: 2.8 };
   sfxAlarm();
   nextChoiceAt = Math.max(nextChoiceAt, elapsed + 5); // no instant backlog
   state = "playing";
@@ -1925,14 +1963,14 @@ function startRound(n) {
 function bossClearContinue() {
   // full boss reward, then the judgement continues in 90s rounds
   player.hp = player.maxHp;
-  for (const t of EQUIPMENT_TYPES) t.apply(player); // every gem's effect
+  for (const eq of EQUIPMENT_TYPES) eq.apply(player); // every gem's effect(别用 t 命名——遮蔽 i18n)
   spawner.endless = true;
   nextChoiceAt = elapsed + choiceInterval; // no backlog of choice screens
-  floatingTexts.push(new FloatingText(player.x, player.y - 26, "决心！全属性提升", "#ffffff"));
+  floatingTexts.push(new FloatingText(player.x, player.y - 26, t("决心！全属性提升", "DETERMINATION! All stats up"), "#ffffff"));
   unlockEchoToast("why");
-  queueTipOnce("endless", "什么是无尽审判？", [
-    "每 90 秒为一轮，轮末 15 秒会出现强化首领",
-    "击杀首领完成本轮，可选择撤离结算，或进入更危险的下一轮",
+  queueTipOnce("endless", t("什么是无尽审判？", "What is the endless judgement?"), [
+    t("每 90 秒为一轮，轮末 15 秒会出现强化首领", "Rounds last 90s; a boosted boss spawns in the final 15s"),
+    t("击杀首领完成本轮，可选择撤离结算，或进入更危险的下一轮", "Kill it to clear the round, then extract — or go deeper"),
   ]);
   startRound(1);
 }
@@ -2079,7 +2117,7 @@ function startGame() {
       const type = rollEquipmentDrop();
       type.apply(player);
       runEquip[type.id] = (runEquip[type.id] || 0) + 1;
-      granted.push(type.label);
+      granted.push(pick(type, "label"));
     }
     tipQueue.push({ title: t("行前整备已生效", "Provisions equipped"), lines: [granted.join(" · "), t("本局构筑可在暂停页与结算详情查看", "Check your build on the pause and results screens")], t: 6 });
   }
@@ -2176,8 +2214,8 @@ function buildChoicePool() {
         // scales with current atk (8%, floor 4) so late picks still matter
         const gain = Math.max(4, Math.round(player.atk * 0.08));
         return {
-          title: `攻击力 +${gain}`,
-          desc: `所有武器伤害提升(随攻击成长)\n当前 ${player.atk} → ${player.atk + gain}`,
+          title: t(`攻击力 +${gain}`, `Attack +${gain}`),
+          desc: t(`所有武器伤害提升(随攻击成长)\n当前 ${player.atk} → ${player.atk + gain}`, `All weapon damage scales with ATK\nNow ${player.atk} → ${player.atk + gain}`),
           color: "#ff6b6b",
           apply: () => {
             player.atk += gain;
@@ -2193,8 +2231,8 @@ function buildChoicePool() {
         // scales with current bulk (8%, floor 25) so it stays worth picking
         const gain = Math.max(25, Math.round(player.maxHp * 0.08));
         return {
-          title: `生命上限 +${gain}`,
-          desc: `上限提升 8%(保底25) 并回复等量生命\n当前 ${player.maxHp} → ${player.maxHp + gain}`,
+          title: t(`生命上限 +${gain}`, `Max HP +${gain}`),
+          desc: t(`上限提升 8%(保底25) 并回复等量生命\n当前 ${player.maxHp} → ${player.maxHp + gain}`, `Max HP +8% (min 25), heals the same amount\nNow ${player.maxHp} → ${player.maxHp + gain}`),
           color: "#ff8fc7",
           apply: () => {
             player.maxHp += gain;
@@ -2300,8 +2338,8 @@ function buildChoicePool() {
       kind: "faster",
       weight: 8,
       make: () => ({
-        title: "强化提速",
-        desc: `强化卡出现间隔 -1 秒\n(${choiceInterval}s -> ${choiceInterval - 1}s)`,
+        title: t("强化提速", "Faster Cards"),
+        desc: t(`强化卡出现间隔 -1 秒\n(${choiceInterval}s -> ${choiceInterval - 1}s)`, `Card interval -1s\n(${choiceInterval}s -> ${choiceInterval - 1}s)`),
         color: "#5ee6e6",
         apply: () => {
           choiceInterval = Math.max(choiceInterval - 1, 8);
@@ -2314,8 +2352,8 @@ function buildChoicePool() {
       kind: "dodge",
       weight: 10,
       make: () => ({
-        title: "闪避 +5%",
-        desc: `有几率完全躲开攻击\n(当前 ${Math.round(player.dodge * 100)}%，上限 45%)`,
+        title: t("闪避 +5%", "Dodge +5%"),
+        desc: t(`有几率完全躲开攻击\n(当前 ${Math.round(player.dodge * 100)}%，上限 45%)`, `A chance to fully avoid hits\n(now ${Math.round(player.dodge * 100)}%, cap 45%)`),
         color: "#8fd6ff",
         apply: () => {
           player.dodge = Math.min(player.dodge + 0.05, 0.45);
@@ -2328,8 +2366,8 @@ function buildChoicePool() {
       kind: "tough",
       weight: 10,
       make: () => ({
-        title: "减伤 +10%",
-        desc: `受到的伤害降低\n(当前 ${Math.round(player.dmgReduction * 100)}%，上限 90%)`,
+        title: t("减伤 +10%", "Damage Cut +10%"),
+        desc: t(`受到的伤害降低\n(当前 ${Math.round(player.dmgReduction * 100)}%，上限 90%)`, `Take less damage\n(now ${Math.round(player.dmgReduction * 100)}%, cap 90%)`),
         color: "#b8a5d0",
         apply: () => {
           player.dmgReduction = Math.min(player.dmgReduction + 0.1, 0.9);
@@ -2369,7 +2407,7 @@ function buildChoicePool() {
         const stacks = inst.enhance;
         // 普通卡最多两行效果(美术批): 机制细节看武器图鉴,这里只留
         // 效果一句 + 层数/进化路标一句
-        const evoHint = w.evolve && !inst.evolved && stacks < 3 ? " · 满阶+3层可进化" : "";
+        const evoHint = w.evolve && !inst.evolved && stacks < 3 ? t(" · 满阶+3层可进化", " · Lv5 + 3 stacks to evolve") : "";
         return {
           title: `${t("专属强化", "Signature")}·${pick(w, "name")}`,
           desc: `${pick(w.enhance, "desc")}\n(${stacks > 0 ? `${t("当前", "Now")} ${stacks} → ${stacks + 1} ${t("层", "stacks")}` : t("首层", "First stack")}${evoHint})`,
@@ -2516,7 +2554,7 @@ function handleCanvasTap(pos) {
     if (dailyMode) {
       // 明确拒绝而不是静默无视——玩家才知道是规则不是bug
       sfxHurt();
-      floatingTexts.push(new FloatingText(player.x, player.y - 40, "每日挑战锁定 1× 倍速", "#c59bff"));
+      floatingTexts.push(new FloatingText(player.x, player.y - 40, t("每日挑战锁定 1× 倍速", "Daily challenge locks 1× speed"), "#c59bff"));
       return;
     }
     cycleSpeed();
@@ -3315,7 +3353,7 @@ function eliteHitPlayer(e, amount, label, color) {
   }
   const hit = player.takeDamage(Math.max(1, Math.round(amount)));
   if (hit) {
-    lastHitBy = `${enemyDisplayName(e)}的${label}`;
+    lastHitBy = t(`${enemyDisplayName(e)}的${label}`, `${enemyDisplayName(e)}'s ${label}`);
     lastHitKind = killerKindOf(e);
     floatingTexts.push(new FloatingText(player.x, player.y - 24, `-${Math.max(1, Math.round(amount))}`, color));
   } else if (player.dodged) {
@@ -3329,65 +3367,65 @@ function resolveEliteCast(e, cast) {
     e.x = cast.x;
     e.y = clamp(cast.y, WALL_H + e.radius, HEIGHT - e.radius);
     explosions.push(new Explosion(e.x, e.y, 66, e.eliteProfile.color, true));
-    if (circleHit(e.x, e.y, 66, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, "审判跃击", e.eliteProfile.color);
+    if (circleHit(e.x, e.y, 66, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, t("审判跃击", "Judgement Leap"), e.eliteProfile.color);
   } else if (cast.skill === "rush") {
     e.burstTimer = Math.max(e.burstTimer, e.eliteTier >= 3 ? 1.8 : 1.35);
     e.invulnTimer = Math.max(e.invulnTimer, 0.25);
   } else if (cast.skill === "gaze") {
     explosions.push(new Explosion(e.x, e.y, 190, e.eliteProfile.color, true));
-    if (circleHit(e.x, e.y, 190, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.8 * tierPower, "裁决凝视", e.eliteProfile.color);
+    if (circleHit(e.x, e.y, 190, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.8 * tierPower, t("裁决凝视", "Verdict Gaze"), e.eliteProfile.color);
   } else if (cast.skill === "roots") {
     for (const mark of cast.marks) {
       explosions.push(new Explosion(mark.x, mark.y, 44, e.eliteProfile.color));
-      if (circleHit(mark.x, mark.y, 44, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.65 * tierPower, "根须盛宴", e.eliteProfile.color);
+      if (circleHit(mark.x, mark.y, 44, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.65 * tierPower, t("根须盛宴", "Root Feast"), e.eliteProfile.color);
     }
   } else if (cast.skill === "dogCharge") {
     e.x = cast.x;
     e.y = clamp(cast.y, WALL_H + e.radius, HEIGHT - e.radius);
     explosions.push(new Explosion(e.x, e.y, 62, e.eliteProfile.color, true));
     const inLane = pointSegmentDistance(player.x, player.y, cast.fromX, cast.fromY, e.x, e.y) <= 30;
-    if (inLane && player.moving) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, "蓝枪冲锋", e.eliteProfile.color);
+    if (inLane && player.moving) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, t("蓝枪冲锋", "Blue Spear Charge"), e.eliteProfile.color);
   } else if (cast.skill === "dummyVolley") {
     explosions.push(new Explosion(cast.x, cast.y, 76, e.eliteProfile.color));
     if (circleHit(cast.x, cast.y, 76, e.x, e.y, e.radius)) {
       const reflected = Math.max(1, Math.round(e.maxHp * 0.08));
       e.takeDamage(reflected);
-      floatingTexts.push(new FloatingText(e.x, e.y - e.radius - 18, `反伤 ${reflected}`, "#ffd166"));
+      floatingTexts.push(new FloatingText(e.x, e.y - e.radius - 18, t(`反伤 ${reflected}`, `Reflected ${reflected}`), "#ffd166"));
     }
-    if (circleHit(cast.x, cast.y, 76, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.8 * tierPower, "假人齐射", "#ffd166");
+    if (circleHit(cast.x, cast.y, 76, player.x, player.y, player.radius)) eliteHitPlayer(e, e.dmg * 0.8 * tierPower, t("假人齐射", "Dummy Volley"), "#ffd166");
   } else if (cast.skill === "moonfall") {
     let hit = false;
     for (const mark of cast.marks) {
       explosions.push(new Explosion(mark.x, mark.y, 48, e.eliteProfile.color));
       if (!hit && circleHit(mark.x, mark.y, 48, player.x, player.y, player.radius)) {
         hit = true;
-        eliteHitPlayer(e, e.dmg * 0.85 * tierPower, "月陨星落", e.eliteProfile.color);
+        eliteHitPlayer(e, e.dmg * 0.85 * tierPower, t("月陨星落", "Moonfall"), e.eliteProfile.color);
       }
     }
   } else if (cast.skill === "webFeast") {
     explosions.push(new Explosion(player.x, cast.dangerY, 54, e.eliteProfile.color, true));
-    if (Math.abs(player.y - cast.dangerY) <= 25) eliteHitPlayer(e, e.dmg * 0.75 * tierPower, "蛛网宴席", e.eliteProfile.color);
+    if (Math.abs(player.y - cast.dangerY) <= 25) eliteHitPlayer(e, e.dmg * 0.75 * tierPower, t("蛛网宴席", "Web Banquet"), e.eliteProfile.color);
   } else if (cast.skill === "faceBurst") {
     let hit = false;
     for (const mark of cast.marks) {
       explosions.push(new Explosion(mark.x, mark.y, 34, e.eliteProfile.color));
       if (!hit && circleHit(mark.x, mark.y, 34, player.x, player.y, player.radius)) {
         hit = true;
-        eliteHitPlayer(e, e.dmg * 0.72 * tierPower, "错位爆裂", e.eliteProfile.color);
+        eliteHitPlayer(e, e.dmg * 0.72 * tierPower, t("错位爆裂", "Face Burst"), e.eliteProfile.color);
       }
     }
   } else if (cast.skill === "curtainRise") {
     explosions.push(new Explosion(cast.safeX - cast.safeHalfWidth, player.y, 38, e.eliteProfile.color, true));
     explosions.push(new Explosion(cast.safeX + cast.safeHalfWidth, player.y, 38, e.eliteProfile.color, true));
     if (Math.abs(player.x - cast.safeX) > cast.safeHalfWidth) {
-      eliteHitPlayer(e, e.dmg * 0.7 * tierPower, "谢幕虫潮", e.eliteProfile.color);
+      eliteHitPlayer(e, e.dmg * 0.7 * tierPower, t("谢幕虫潮", "Curtain Call"), e.eliteProfile.color);
     }
   } else if (cast.skill === "teamAttack") {
     for (const lane of cast.dangerLanes) {
       for (let y = WALL_H + 42; y < HEIGHT; y += 74) explosions.push(new Explosion(lane, y, 28, e.eliteProfile.color));
     }
     if (cast.dangerLanes.some((lane) => Math.abs(player.x - lane) <= 23)) {
-      eliteHitPlayer(e, e.dmg * 0.82 * tierPower, "双向夹击", e.eliteProfile.color);
+      eliteHitPlayer(e, e.dmg * 0.82 * tierPower, t("双向夹击", "Pincer Attack"), e.eliteProfile.color);
     }
   } else if (cast.skill === "ratingStage") {
     let hit = false;
@@ -3396,7 +3434,7 @@ function resolveEliteCast(e, cast) {
       explosions.push(new Explosion(cell.x, cell.y, 31, e.eliteProfile.color));
       if (!hit && Math.abs(player.x - cell.x) <= cell.w / 2 && Math.abs(player.y - cell.y) <= cell.h / 2) {
         hit = true;
-        eliteHitPlayer(e, e.dmg * 0.88 * tierPower, "黄金舞台", e.eliteProfile.color);
+        eliteHitPlayer(e, e.dmg * 0.88 * tierPower, t("黄金舞台", "Golden Stage"), e.eliteProfile.color);
       }
     }
   } else if (cast.skill === "flexPressure") {
@@ -3405,11 +3443,11 @@ function resolveEliteCast(e, cast) {
       explosions.push(new Explosion(mark.x, mark.y, 28, e.eliteProfile.color));
       hit ||= circleHit(mark.x, mark.y, 28, player.x, player.y, player.radius);
     }
-    if (hit) eliteHitPlayer(e, e.dmg * 0.78 * tierPower, "肌肉压场", e.eliteProfile.color);
+    if (hit) eliteHitPlayer(e, e.dmg * 0.78 * tierPower, t("肌肉压场", "Flex Pressure"), e.eliteProfile.color);
   } else if (cast.skill === "orangeRush") {
     for (let x = camX + 24; x < camX + WIDTH; x += 54) explosions.push(new Explosion(x, cast.dangerY, 24, e.eliteProfile.color));
     if (Math.abs(player.y - cast.dangerY) <= cast.bandHalfHeight && !player.moving) {
-      eliteHitPlayer(e, e.dmg * 0.76 * tierPower, "橙焰横扫", e.eliteProfile.color);
+      eliteHitPlayer(e, e.dmg * 0.76 * tierPower, t("橙焰横扫", "Orange Sweep"), e.eliteProfile.color);
     }
   } else if (cast.skill === "starBurst") {
     const distance = Math.hypot(player.x - cast.x, player.y - cast.y);
@@ -3420,7 +3458,7 @@ function resolveEliteCast(e, cast) {
       explosions.push(new Explosion(cast.x + Math.cos(a) * ring, cast.y + Math.sin(a) * ring, 22, e.eliteProfile.color));
     }
     if (cast.centerDanger) explosions.push(new Explosion(cast.x, cast.y, 36, e.eliteProfile.color, true));
-    if (hit) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, "巨星爆场", e.eliteProfile.color);
+    if (hit) eliteHitPlayer(e, e.dmg * 0.9 * tierPower, t("巨星爆场", "Star Burst"), e.eliteProfile.color);
   } else if (cast.skill === "tailSketch") {
     let hit = Math.abs(player.y - cast.dangerY) <= cast.bandHalfHeight &&
       (cast.mode === "blue" ? player.moving : !player.moving);
@@ -3428,23 +3466,23 @@ function resolveEliteCast(e, cast) {
       explosions.push(new Explosion(mark.x, mark.y, 25, cast.mode === "blue" ? "#68bfff" : "#ff9f43"));
       hit ||= circleHit(mark.x, mark.y, 25, player.x, player.y, player.radius);
     }
-    if (hit) eliteHitPlayer(e, e.dmg * 0.84 * tierPower, "蓝橙速写", cast.mode === "blue" ? "#68bfff" : "#ff9f43");
+    if (hit) eliteHitPlayer(e, e.dmg * 0.84 * tierPower, t("蓝橙速写", "Blue-Orange Sketch"), cast.mode === "blue" ? "#68bfff" : "#ff9f43");
   } else if (cast.skill === "memoryFaces") {
     let hit = false;
     for (const mark of cast.marks) {
       explosions.push(new Explosion(mark.x, mark.y, 31, e.eliteProfile.color));
       hit ||= circleHit(mark.x, mark.y, 31, player.x, player.y, player.radius);
     }
-    if (hit) eliteHitPlayer(e, e.dmg * 0.82 * tierPower, "故障增殖", e.eliteProfile.color);
+    if (hit) eliteHitPlayer(e, e.dmg * 0.82 * tierPower, t("故障增殖", "Glitch Bloom"), e.eliteProfile.color);
   } else if (cast.skill === "everymanFlock") {
     for (const mark of cast.marks) explosions.push(new Explosion(mark.x, mark.y, 24, e.eliteProfile.color));
-    if (player.x < cast.safeEdge) eliteHitPlayer(e, e.dmg * 0.86 * tierPower, "Everyman 蝶群", e.eliteProfile.color);
+    if (player.x < cast.safeEdge) eliteHitPlayer(e, e.dmg * 0.86 * tierPower, t("Everyman 蝶群", "Everyman Flock"), e.eliteProfile.color);
   } else if (cast.skill === "rocketPack") {
     for (let x = camX + 20; x < camX + WIDTH; x += 46) {
       explosions.push(new Explosion(x, cast.dangerY, 23, e.eliteProfile.color));
     }
     if (Math.abs(player.y - cast.dangerY) <= cast.bandHalfHeight) {
-      eliteHitPlayer(e, e.dmg * 0.9 * tierPower, "火箭犬群", e.eliteProfile.color);
+      eliteHitPlayer(e, e.dmg * 0.9 * tierPower, t("火箭犬群", "Rocket Pack"), e.eliteProfile.color);
     }
   } else if (cast.skill === "toothCage") {
     const top = cast.safeY - cast.safeHalfHeight;
@@ -3454,7 +3492,7 @@ function resolveEliteCast(e, cast) {
       explosions.push(new Explosion(x, bottom, 22, e.eliteProfile.color));
     }
     if (player.y < top || player.y > bottom) {
-      eliteHitPlayer(e, e.dmg * 0.96 * tierPower, "巨齿牢笼", e.eliteProfile.color);
+      eliteHitPlayer(e, e.dmg * 0.96 * tierPower, t("巨齿牢笼", "Tooth Cage"), e.eliteProfile.color);
     }
   }
 }
@@ -3517,7 +3555,7 @@ function update(dt) {
   if (wave && !bossFight) {
     if (eliteWave % 2 === 0 && elapsed >= wave.warnAt) {
       eliteWave += 1;
-      floatingTexts.push(new FloatingText(player.x, player.y - 60, "※ 精英潮来袭！", "#ffd166"));
+      floatingTexts.push(new FloatingText(player.x, player.y - 60, t("※ 精英潮来袭！", "※ ELITE SURGE!"), "#ffd166"));
     } else if (eliteWave % 2 === 1 && elapsed >= wave.at) {
       eliteWave += 1;
       const namedProfiles = eliteProfilePool(getDifficulty().id, elapsed);
@@ -3662,8 +3700,8 @@ function update(dt) {
     // the round ends when the clock is out AND the champion is down
     if (roundTimer <= 0 && roundBossSpawned && roundBossDown) {
       roundsCleared = endlessRound;
-      if (getDifficulty().id >= 1 && roundsCleared >= 8 && unlockTitle("abysswalker")) lastNewTitles.push("深渊行者");
-      if (getDifficulty().id >= 1 && roundsCleared >= 12 && unlockTitle("unjudged")) lastNewTitles.push("不可审判者");
+      if (getDifficulty().id >= 1 && roundsCleared >= 8 && unlockTitle("abysswalker")) lastNewTitles.push(t("深渊行者", "Abysswalker"));
+      if (getDifficulty().id >= 1 && roundsCleared >= 12 && unlockTitle("unjudged")) lastNewTitles.push(t("不可审判者", "The Unjudged"));
       questToasts(questEvent("round", roundsCleared));
       bossClearChoice = 0;
       state = "roundclear";
@@ -3712,7 +3750,7 @@ function update(dt) {
     player.hp = Math.min(player.maxHp, player.hp + dogHeal);
     healFlash = 0.45;
     sfxCandy();
-    candyBanner = { text: `* 你想起了口袋里的热狗。HP 回复 ${dogHeal}!(还剩 ${hotdogStock} 根)`, t: 2.2 };
+    candyBanner = { text: t(`* 你想起了口袋里的热狗。HP 回复 ${dogHeal}!(还剩 ${hotdogStock} 根)`, `* You remember the hot dogs. HP +${dogHeal}! (${hotdogStock} left)`), t: 2.2 };
   }
   if (savepointNote && introBlack <= 0) {
     savepointNote.t += dt; // typewriter reveal + hold, then let the run breathe
@@ -3804,7 +3842,7 @@ function update(dt) {
       if (letter.heal) {
         const heal = Math.round(player.maxHp * 0.08 * healScale());
         player.hp = Math.min(player.maxHp, player.hp + heal);
-        floatingTexts.push(new FloatingText(player.x, player.y - 34, "意大利面 HP++", "#7cf28a"));
+        floatingTexts.push(new FloatingText(player.x, player.y - 34, t("意大利面 HP++", "Spaghetti HP++"), "#7cf28a"));
         healFlash = 0.45;
         sfxCandy();
       } else {
@@ -3881,7 +3919,7 @@ function update(dt) {
       const STRIKE_DMG = 20;
       if (!shieldUp && circleHit(e.strike.x, e.strike.y, 30, player.x, player.y, player.radius)) {
         if (player.takeDamage(STRIKE_DMG)) {
-          lastHitBy = enemyDisplayName(e) + "的突袭";
+          lastHitBy = t(enemyDisplayName(e) + "的突袭", enemyDisplayName(e) + "'s ambush");
           lastHitKind = killerKindOf(e);
           floatingTexts.push(new FloatingText(player.x, player.y - 20, `-${STRIKE_DMG}`, "#c95df0"));
         } else if (player.dodged) {
@@ -3908,7 +3946,7 @@ function update(dt) {
         const d = Math.hypot(dx, dy) || 1;
         e.x += (dx / d) * 45;
         e.y += (dy / d) * 45;
-        floatingTexts.push(new FloatingText(e.x, e.y - 16, `反弹 ${e.dmg}`, "#9a5df0"));
+        floatingTexts.push(new FloatingText(e.x, e.y - 16, t(`反弹 ${e.dmg}`, `Thorns ${e.dmg}`), "#9a5df0"));
       } else {
         const hit = player.takeDamage(e.dmg);
         if (hit) {
@@ -4075,7 +4113,7 @@ function update(dt) {
     if (!e.noXp) spawnDrops(e);
     if (e.roundBoss) {
       roundBossDown = true;
-      floatingTexts.push(new FloatingText(e.x, e.y - 30, `${enemyDisplayName(e)}被击败！`, "#ffd166"));
+      floatingTexts.push(new FloatingText(e.x, e.y - 30, t(`${enemyDisplayName(e)}被击败！`, `${enemyDisplayName(e)} defeated!`), "#ffd166"));
     }
     if (e.elite) {
       // elites go out with a bang: shock ring + deep boom
@@ -4113,7 +4151,7 @@ function update(dt) {
     streakTimer = 1.6;
     while (streak >= nextStreakAt) {
       killFlash = 0.22;
-      floatingTexts.push(new FloatingText(player.x, player.y - 44, `${nextStreakAt} 连杀！`, "#ffd166"));
+      floatingTexts.push(new FloatingText(player.x, player.y - 44, t(`${nextStreakAt} 连杀！`, `${nextStreakAt} STREAK!`), "#ffd166"));
       sfxStreak(streakTier);
       streakTier += 1;
       nextStreakAt = Math.max(nextStreakAt + 5, Math.round((nextStreakAt * 1.5) / 5) * 5);
@@ -4153,7 +4191,7 @@ function update(dt) {
         const heal = Math.round(Math.max(10, player.maxHp * 0.12) * healScale());
         player.hp = Math.min(player.maxHp, player.hp + heal);
         floatingTexts.push(new FloatingText(player.x, player.y - 34, "HP++", "#7cf28a"));
-        candyBanner = { text: `* 你吃下了怪物糖。HP 回复了 ${heal} 点！`, t: 1.8 };
+        candyBanner = { text: t(`* 你吃下了怪物糖。HP 回复了 ${heal} 点！`, `* You ate the Monster Candy. HP +${heal}!`), t: 1.8 };
         fireBark("candy");
         questToasts(questEvent("candy", 1));
         explosions.push(new Explosion(player.x, player.y, 46, "#7cf28a", true));
@@ -4165,9 +4203,9 @@ function update(dt) {
         questToasts(questEvent("coins", pu.data.value));
         if (endlessRound > 0) {
           roundPendingCoins += pu.data.value;
-          queueTipOnce("pending", "本轮待结算金币", [
-            "无尽中拾取的金币先进入“待结算”池，完成本轮才真正入账",
-            "轮中死亡或暂停退出，将失去当前轮的待结算金币",
+          queueTipOnce("pending", t("本轮待结算金币", "Pending coins this round"), [
+            t("无尽中拾取的金币先进入“待结算”池，完成本轮才真正入账", "Endless coins go to a pending pot; clear the round to bank them"),
+            t("轮中死亡或暂停退出，将失去当前轮的待结算金币", "Dying or quitting mid-round forfeits the pending pot"),
           ]);
         } else {
           runCoins += pu.data.value;
@@ -4177,7 +4215,7 @@ function update(dt) {
         pu.data.type.apply(player);
         runEquip[pu.data.type.id] = (runEquip[pu.data.type.id] || 0) + 1;
         sfxEquip();
-        floatingTexts.push(new FloatingText(player.x, player.y - 26, pu.data.type.label, pu.data.type.color));
+        floatingTexts.push(new FloatingText(player.x, player.y - 26, pick(pu.data.type, "label"), pu.data.type.color));
       }
     }
   }
@@ -4229,7 +4267,7 @@ function update(dt) {
         }
       }
       explosions.push(new Explosion(player.x, player.y, 200, "#ffffff", true));
-      floatingTexts.push(new FloatingText(player.x, player.y - 40, "决心重燃！", "#ffffff"));
+      floatingTexts.push(new FloatingText(player.x, player.y - 40, t("决心重燃！", "DETERMINATION rekindled!"), "#ffffff"));
       killFlash = 0.3;
       sfxFanfare();
     } else {
@@ -5768,7 +5806,7 @@ function draw() {
     ctx.globalAlpha = 0.55 + pulse * 0.45;
     ctx.fillStyle = "#ff5d5d";
     ctx.font = "bold 20px monospace";
-    ctx.fillText("※ 一股可怕的气息正在逼近……", WIDTH / 2, WALL_H + 46);
+    ctx.fillText(t("※ 一股可怕的气息正在逼近……", "※ A terrible presence approaches..."), WIDTH / 2, WALL_H + 46);
     ctx.font = "bold 15px monospace";
     ctx.fillText(`${Math.max(1, Math.ceil(bossAppearAt() - elapsed))} 秒`, WIDTH / 2, WALL_H + 70);
     ctx.restore();
@@ -5870,7 +5908,7 @@ function draw() {
       codexCompletion(),
       `${unlockedAllEchoCount()}/${ALL_ECHOES.length}`,
       `${questView().filter((q) => q.done).length}/3`,
-      flowerGiftLine,
+      flowerGiftLine(),
       titleMenuOpen,
       questView().some((q) => !q.done) // gold dot: bounties waiting
     );
@@ -5883,14 +5921,14 @@ function draw() {
       const dc = st.diffCleared ?? -1;
       const goal =
         st.bossKills === 0
-          ? "当前目标:击败普通难度 Boss(5:00 出现)"
+          ? t("当前目标:击败普通难度 Boss(5:00 出现)", "Current goal: beat the NORMAL Boss (5:00)")
           : dc === 0
-            ? "当前目标:购买推荐强化,挑战狂暴难度"
+            ? t("当前目标:购买推荐强化,挑战狂暴难度", "Current goal: buy upgrades, challenge FURY")
             : dc === 1
-              ? "当前目标:提升角色专精,挑战地狱难度"
+              ? t("当前目标:提升角色专精,挑战地狱难度", "Current goal: raise mastery, challenge HELL")
               : dc === 2
-                ? "当前目标:挑战屠杀难度与无尽轮数"
-                : "当前目标:刷新角色、难度与无尽榜名次";
+                ? t("当前目标:挑战屠杀难度与无尽轮数", "Current goal: GENOCIDE and deeper endless rounds")
+                : t("当前目标:刷新角色、难度与无尽榜名次", "Current goal: push characters, difficulties and the endless board");
       ctx.save();
       ctx.textAlign = "center";
       ctx.fillStyle = "#d9c47a";
@@ -6387,7 +6425,7 @@ function draw() {
     if (cc.phase === "drop") {
       ctx.fillStyle = "#9a93ab";
       ctx.font = "13px monospace";
-      ctx.fillText("谜之宝箱……", cx, cy + 150);
+      ctx.fillText(t("谜之宝箱……", "A mysterious chest..."), cx, cy + 150);
     } else if (cc.phase === "spin") {
       const icons = [ICONS.coin, ICONS.relic, ICONS.heart, ICONS.daily, ICONS.awakening];
       const idx = ((cc.lastTick % icons.length) + icons.length) % icons.length;
@@ -6400,10 +6438,10 @@ function draw() {
       ctx.restore();
       ctx.fillStyle = "#9a93ab";
       ctx.font = "13px monospace";
-      ctx.fillText("命运正在滚动……", cx, cy + 170);
+      ctx.fillText(t("命运正在滚动……", "Fate is rolling..."), cx, cy + 170);
       ctx.fillStyle = "#6f697d";
       ctx.font = "11px monospace";
-      ctx.fillText("点击跳过", cx, cy + 190);
+      ctx.fillText(t("点击跳过", "Tap to skip"), cx, cy + 190);
     } else {
       // reveal: restrained banner + staggered 3+2 pixel reward plaques
       ctx.save();
@@ -6418,7 +6456,7 @@ function draw() {
       }
       ctx.fillStyle = jackpot === 2 ? "#ffd93d" : jackpot === 1 ? "#ffd166" : "#f2ead8";
       ctx.font = `bold ${jackpot === 2 ? 36 : jackpot === 1 ? 30 : 24}px monospace`;
-      ctx.fillText(jackpot === 2 ? "五 连 大 奖" : jackpot === 1 ? "三 连 奖" : "战 利 品", cx, cy + 96);
+      ctx.fillText(jackpot === 2 ? t("五 连 大 奖", "5× JACKPOT") : jackpot === 1 ? t("三 连 奖", "3× PRIZE") : t("战 利 品", "LOOT"), cx, cy + 96);
       ctx.restore();
       const wide = WIDTH >= 1100;
       const w = wide ? 200 : 174;
@@ -6527,7 +6565,7 @@ function draw() {
         ? {
             text:
               rankState.phase === "success"
-                ? `已上榜 · ${rankState.message}`
+                ? `${t("已上榜", "Ranked")} · ${rankState.message}`
                 : rankState.message,
             font: "bold 14px monospace",
             color:
@@ -6700,7 +6738,7 @@ function draw() {
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 15px monospace";
       ctx.textAlign = "center";
-      drawIconLabel(ctx, ICONS.attack, "去变强", b.x + b.w / 2, b.y + b.h / 2 + 6, 16, 6);
+      drawIconLabel(ctx, ICONS.attack, t("去变强", "POWER UP"), b.x + b.w / 2, b.y + b.h / 2 + 6, 16, 6);
       ctx.restore();
       ctx.textAlign = "left";
     }
@@ -6737,13 +6775,13 @@ function draw() {
   }
   if (state === "credits") {
     drawCenterText(ctx, WIDTH, HEIGHT, [
-      { text: "制 作 名 单", font: "bold 30px monospace", color: "#7ea8ff" },
+      { text: t("制 作 名 单", "CREDITS"), font: "bold 30px monospace", color: "#7ea8ff" },
       { text: "", font: "10px monospace" },
-      { text: "贴图模版: Toby Fox", font: "16px monospace", color: "#f2ead8" },
-      { text: "音乐: Toby Fox / Soda Noodles / Franderman123", font: "16px monospace", color: "#f2ead8" },
-      { text: "游戏制作: 26", font: "16px monospace", color: "#f2ead8" },
+      { text: t("贴图模版: Toby Fox", "Sprite templates: Toby Fox"), font: "16px monospace", color: "#f2ead8" },
+      { text: t("音乐: Toby Fox / Soda Noodles / Franderman123", "Music: Toby Fox / Soda Noodles / Franderman123"), font: "16px monospace", color: "#f2ead8" },
+      { text: t("游戏制作: 26", "Game by: 26"), font: "16px monospace", color: "#f2ead8" },
       { text: "", font: "10px monospace" },
-      { text: "点击画面 或 按空格 返回", font: "14px monospace", color: "#ffd166" },
+      { text: t("点击画面 或 按空格 返回", "Click or press Space to go back"), font: "14px monospace", color: "#ffd166" },
     ]);
   }
 

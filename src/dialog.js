@@ -2,6 +2,8 @@
 // "site.com says" 且无法移除;真实 <input> 才能用中文输入法)。
 // 全站共用:排行榜改名、存档码导出/导入。
 
+import { t } from "./i18n.js";
+
 function baseBox(title, hint) {
   const wrap = document.createElement("div");
   wrap.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:9999";
@@ -41,11 +43,11 @@ export function utPrompt({ title, hint, value = "", maxLength = 8, copy = false 
       resolve(v);
     };
     if (copy) {
-      const copyBtn = mkBtn("复制", false);
+      const copyBtn = mkBtn(t("复制", "Copy"), false);
       copyBtn.onclick = async () => {
         try {
           await navigator.clipboard.writeText(input.value);
-          copyBtn.textContent = "✓ 已复制";
+          copyBtn.textContent = t("✓ 已复制", "✓ Copied");
         } catch {
           input.focus();
           input.select(); // clipboard blocked: at least leave it selected
@@ -53,8 +55,8 @@ export function utPrompt({ title, hint, value = "", maxLength = 8, copy = false 
       };
       row.append(copyBtn);
     }
-    const cancel = mkBtn("取消", false);
-    const ok = mkBtn("确定", true);
+    const cancel = mkBtn(t("取消", "Cancel"), false);
+    const ok = mkBtn(t("确定", "OK"), true);
     cancel.onclick = () => done(null);
     ok.onclick = () => done(input.value.trim() || null);
     input.onkeydown = (e) => {
@@ -79,7 +81,7 @@ export function utNotice({ title, hint }) {
     const { wrap, box } = baseBox(title, hint);
     const row = document.createElement("div");
     row.style.cssText = "display:flex;justify-content:flex-end;margin-top:16px";
-    const ok = mkBtn("确定", true);
+    const ok = mkBtn(t("确定", "OK"), true);
     const done = () => {
       wrap.remove();
       resolve();

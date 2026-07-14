@@ -1297,7 +1297,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
           c.textAlign = "center";
           c.fillStyle = "#ffd166";
           c.font = "bold 23px monospace";
-          c.fillText("★ 审判通过 ★", W / 2, 76);
+          c.fillText(t("★ 审判通过 ★", "★ JUDGEMENT PASSED ★"), W / 2, 76);
           c.fillRect(W / 2 - 88, 84, 176, 3);
         }
         c.restore();
@@ -1311,7 +1311,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         c.textAlign = "center";
         c.fillStyle = "#e04545";
         c.font = "bold 15px monospace";
-        const name = this.phase === 2 ? "天意侵蚀Sans · 二阶" : "天意侵蚀Sans";
+        const name = this.phase === 2 ? t("天意侵蚀Sans · 二阶", "Corrupted Sans · Phase 2") : t("天意侵蚀Sans", "Corrupted Sans");
         c.fillText(name, W / 2, by - 8);
         // framed, segmented, top-lit — UT boss bar discipline
         c.fillStyle = "#f2ead8";
@@ -1346,7 +1346,7 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
         c.textAlign = "center";
         c.fillStyle = "#ffd166";
         c.font = "bold 17px monospace";
-        c.fillText("反击窗口", W / 2, 118);
+        c.fillText(t("反击窗口", "COUNTER WINDOW"), W / 2, 118);
         const blocks = 8;
         const lit = Math.ceil((this.recoveryTimer / (this.phase === 1 ? 1.2 : 1.4)) * blocks);
         for (let i = 0; i < blocks; i++) {

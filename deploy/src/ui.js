@@ -129,8 +129,8 @@ function drawVolumeRow(ctx, width, minus, plus, label, volume) {
 
 export function drawVolumeControl(ctx, width, height, volume, sfxVolume) {
   ctx.save();
-  drawVolumeRow(ctx, width, volumeMinusRect(width, height), volumePlusRect(width, height), "音乐", volume);
-  drawVolumeRow(ctx, width, sfxMinusRect(width, height), sfxPlusRect(width, height), "音效", sfxVolume);
+  drawVolumeRow(ctx, width, volumeMinusRect(width, height), volumePlusRect(width, height), t("音乐", "Music"), volume);
+  drawVolumeRow(ctx, width, sfxMinusRect(width, height), sfxPlusRect(width, height), t("音效", "SFX"), sfxVolume);
   ctx.restore();
 }
 
@@ -755,7 +755,7 @@ export function drawEchoField(ctx, width, height, entries, count) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#6bd0ff";
   ctx.font = "bold 30px monospace";
-  drawIconLabel(ctx, ICONS.flower, "回 响", width / 2, 52, 24, 8);
+  drawIconLabel(ctx, ICONS.flower, t("回 响", "ECHOES"), width / 2, 52, 24, 8);
   ctx.fillStyle = "#9ab8d0";
   ctx.font = "13px monospace";
   ctx.fillText(`审判廊的回声花,记得每一次轮回 · 已聆听 ${count}/${entries.length}`, width / 2, 82);
@@ -789,7 +789,7 @@ export function drawEchoField(ctx, width, height, entries, count) {
     ctx.fillStyle = e.unlocked ? "#e8f4ff" : "#5c6478";
     fitEcho(e.unlocked ? `「${e.title}」` : "???", box.y + 92, 12);
     ctx.fillStyle = e.unlocked ? e.color || "#6bd0ff" : "#4a5164";
-    fitEcho(e.unlocked ? "点击聆听" : e.hint, box.y + 110, 9);
+    fitEcho(e.unlocked ? t("点击聆听", "Tap to listen") : e.hint, box.y + 110, 9);
   });
   drawBackButton(ctx, width, height);
   ctx.restore();
@@ -872,16 +872,16 @@ export function drawBossClearScreen(ctx, width, height, selected) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 40px monospace";
-  ctx.fillText("审 判 结 束", width / 2, height / 2 - 96);
+  ctx.fillText(t("审 判 结 束", "JUDGEMENT OVER"), width / 2, height / 2 - 96);
   ctx.fillStyle = "#f2ead8";
   ctx.font = "16px monospace";
-  ctx.fillText("你击败了天意侵蚀Sans", width / 2, height / 2 - 58);
+  ctx.fillText(t("你击败了天意侵蚀Sans", "You defeated Corrupted Sans"), width / 2, height / 2 - 58);
   ctx.fillStyle = "#9a93ab";
   ctx.font = "13px monospace";
 
   const buttons = [
-    { rect: bossClearLeaveRect(width, height), label: "带着战利品离开", color: "#7cf28a" },
-    { rect: bossClearContinueRect(width, height), label: "继续接受审判", color: "#ff8a5d" },
+    { rect: bossClearLeaveRect(width, height), label: t("带着战利品离开", "Leave with the spoils"), color: "#7cf28a" },
+    { rect: bossClearContinueRect(width, height), label: t("继续接受审判", "Face the judgement"), color: "#ff8a5d" },
   ];
   buttons.forEach((b, i) => {
     const active = i === selected;
@@ -901,7 +901,7 @@ export function drawBossClearScreen(ctx, width, height, selected) {
 
   ctx.fillStyle = "#d9c47a";
   ctx.font = "12px monospace";
-  ctx.fillText("※ 无尽模式的金币收益会逐渐衰减", width / 2, height / 2 + 128);
+  ctx.fillText(t("※ 无尽模式的金币收益会逐渐衰减", "※ Endless coin yield decays round by round"), width / 2, height / 2 + 128);
   ctx.restore();
 }
 
@@ -964,8 +964,8 @@ export function drawRoundClearScreen(ctx, width, height, round, selected, pendin
   ctx.font = "13px monospace";
 
   const buttons = [
-    { rect: bossClearLeaveRect(width, height), label: "撤离并结算", color: "#7cf28a" },
-    { rect: bossClearContinueRect(width, height), label: "进入下一轮", color: "#ff8a5d" },
+    { rect: bossClearLeaveRect(width, height), label: t("撤离并结算", "Extract & settle"), color: "#7cf28a" },
+    { rect: bossClearContinueRect(width, height), label: t("进入下一轮", "Next round"), color: "#ff8a5d" },
   ];
   buttons.forEach((b, i) => {
     const active = i === selected;
@@ -985,7 +985,7 @@ export function drawRoundClearScreen(ctx, width, height, round, selected, pendin
 
   ctx.fillStyle = "#d9c47a";
   ctx.font = "12px monospace";
-  ctx.fillText("※ 下一轮更危险：轮中死亡将丢失该轮待结算金币", width / 2, height / 2 + 128);
+  ctx.fillText(t("※ 下一轮更危险：轮中死亡将丢失该轮待结算金币", "※ Deeper is deadlier: dying mid-round forfeits its pending coins"), width / 2, height / 2 + 128);
   ctx.restore();
 }
 
@@ -1021,7 +1021,7 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
   ctx.textAlign = "center";
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 30px monospace";
-  ctx.fillText("图 鉴", width / 2, 46);
+  ctx.fillText(t("图 鉴", "CODEX"), width / 2, 46);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 13px monospace";
   const pageSize = 16;
@@ -1078,8 +1078,12 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.fillText(m.ghost ? pick(m, "name") : seen ? pick(m, "name") : t("？？？", "???"), x + box.w / 2, y + 55);
     ctx.fillStyle = seen ? (m.elite ? m.color : "#9a93ab") : "#3c3548";
     ctx.font = "10px monospace";
-    const rank = m.champion ? "首领 · " : m.elite ? "精英 · " : "";
-    ctx.fillText(m.ghost ? "……" : seen ? `${rank}击杀 ${m.kills}` : m.champion ? "无尽首领" : m.elite ? "高难度精英" : "尚未遭遇", x + box.w / 2, y + 69);
+    const rank = m.champion ? t("首领 · ", "Boss · ") : m.elite ? t("精英 · ", "Elite · ") : "";
+    ctx.fillText(
+      m.ghost ? "……" : seen ? `${rank}${t("击杀", "Kills")} ${m.kills}` : m.champion ? t("无尽首领", "Endless boss") : m.elite ? t("高难度精英", "High-tier elite") : t("尚未遭遇", "Not yet met"),
+      x + box.w / 2,
+      y + 69
+    );
   });
 
   const chosen = monsters[Math.max(0, Math.min(selected, monsters.length - 1))];
@@ -1158,7 +1162,7 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
   drawIconLabel(
     ctx,
     ICONS.skull,
-    bossKills > 0 ? `天意侵蚀Sans · 击败 ${bossKills} 次` : "？？？（5:00 出现的存在）",
+    bossKills > 0 ? t(`天意侵蚀Sans · 击败 ${bossKills} 次`, `Corrupted Sans · defeated ${bossKills}×`) : t("？？？（5:00 出现的存在）", "??? (the one who appears at 5:00)"),
     width / 2,
     by,
     16,
@@ -1230,7 +1234,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 30px monospace";
   ctx.fillText(t("商 店", "S H O P"), width / 2, 46);
-  for (const [i, label] of showCosmetics ? [[0, "能力升级"], [1, "灵魂加护"]] : []) {
+  for (const [i, label] of showCosmetics ? [[0, t("能力升级", "Upgrades")], [1, t("灵魂加护", "Soul Aegis")]] : []) {
     const r = shopTabRect(i, width);
     const active = tab === i;
     ctx.fillStyle = active ? "#2e2748" : "#181521";
@@ -1250,7 +1254,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
     ICONS.coin,
     tab === 0
       ? `${coins} · ${infoLine}`
-      : `${coins} · 灵魂外观,不影响属性 · ${infoLine}`,
+      : `${coins} · ${t("灵魂外观,不影响属性", "Cosmetic only, no stats")} · ${infoLine}`,
     width / 2,
     112,
     14,
@@ -1277,18 +1281,18 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
       ctx.textAlign = "left";
       ctx.fillStyle = c.color;
       ctx.font = "bold 14px monospace";
-      ctx.fillText(c.name, box.x + 42, box.y + 18);
+      ctx.fillText(pick(c, "name"), box.x + 42, box.y + 18);
       ctx.fillStyle = "#b9b2c9";
       ctx.font = "10px monospace";
-      ctx.fillText(c.desc, box.x + 42, box.y + 34);
+      ctx.fillText(pick(c, "desc"), box.x + 42, box.y + 34);
       ctx.textAlign = "right";
       ctx.font = "bold 13px monospace";
       if (c.equipped) {
         ctx.fillStyle = "#ffffff";
-        ctx.fillText("装备中 · 点击卸下", box.x + box.w - 14, box.y + 20);
+        ctx.fillText(t("装备中 · 点击卸下", "Equipped · tap to remove"), box.x + box.w - 14, box.y + 20);
       } else if (c.owned) {
         ctx.fillStyle = "#7cf28a";
-        ctx.fillText("已拥有 · 点击装备", box.x + box.w - 14, box.y + 20);
+        ctx.fillText(t("已拥有 · 点击装备", "Owned · tap to equip"), box.x + box.w - 14, box.y + 20);
       } else {
         ctx.fillStyle = affordable ? "#ffd166" : "#6b6578";
         const priceText = String(c.price);
