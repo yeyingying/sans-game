@@ -2013,9 +2013,18 @@ function startGame() {
   // 重燃决心(消耗品): arm one revive if stocked — 屠杀线没有第二次机会
   player.revives = dailyMode || getDifficulty().id === 3 || reviveStock() <= 0 ? 0 : 1; // 每日零复活
   reviveArmed = player.revives; // telemetry: used = armed - remaining at settle
-  // 行前整备: shop-bought loadout, granted before the first frame
-  for (let i = 0; i < upgradeLevel("gear"); i++) {
-    rollEquipmentDrop().apply(player);
+  // 行前整备: shop-bought loadout, granted before the first frame。
+  // 之前静默发放——不登记构筑、无开局提示,玩家以为没生效(2026-07-14 用户反馈);
+  // 现在登记进构筑栏+开局提示卡(浮字活不过开场黑幕,走tip管道)
+  if (upgradeLevel("gear") > 0 && !dailyMode) { // 每日=标准竞技,局外整备不进场
+    const granted = [];
+    for (let i = 0; i < upgradeLevel("gear"); i++) {
+      const type = rollEquipmentDrop();
+      type.apply(player);
+      runEquip[type.id] = (runEquip[type.id] || 0) + 1;
+      granted.push(type.label);
+    }
+    tipQueue.push({ title: "行前整备已生效", lines: [granted.join(" · "), "本局构筑可在暂停页与结算详情查看"], t: 6 });
   }
   // warm-up welcome party: composition, size and formation vary per run
   // (and by difficulty) so no two openings look the same
@@ -5909,6 +5918,7 @@ function draw() {
       evolved: inst.evolved,
     }));
     const pauseItems = [
+      ...(runEquipSummary() ? [`装备:${runEquipSummary()}`] : []), // 含行前整备(2026-07-14 用户反馈"看不见")
       ...(activeContract ? [`契约:${activeContract.name}`] : []),
       ...(hotdogStock > 0 ? [`热狗 ×${hotdogStock}:血少时自动吃`] : []),
       ...(dailyMode ? ["每日挑战进行中"] : []),
