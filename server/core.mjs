@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 
-// Competitive ruleset. A stronger paid character entered in S2, so its
-// scores must not be mixed with the pre-Insanity S1 field.
+// Keep the season tag for analytics and future ruleset resets. During early
+// access the public board aggregates all non-legacy seasons: splitting a very
+// small player pool made the board look broken immediately after S2 launched.
 export const SEASON = "s2";
-const VALID_CHARACTERS = new Set(["sans", "ukb", "horror", "hard", "insanity"]);
+const VALID_CHARACTERS = new Set(["sans", "ukb", "horror", "hard", "insanity", "hacker"]);
 export const isValidCharacter = (character) => VALID_CHARACTERS.has(character);
 
 // mirrors the client's DIFFICULTIES.scoreMult exactly — the board must show

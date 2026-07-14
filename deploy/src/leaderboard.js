@@ -7,17 +7,17 @@ import { ICONS, drawIconLabel } from "./sprites.js";
 
 const API = "https://api.sansgecao.com/v1";
 // names must mirror weapon.js CHARACTERS — the board and the game must agree
-const CHARACTER_NAMES = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式", insanity: "Insanity" };
-const CHARACTER_COLORS = { sans: "#7ea8ff", ukb: "#c59bff", horror: "#ff5d5d", hard: "#5db9ff", insanity: "#d92535" };
+const CHARACTER_NAMES = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式", insanity: "Insanity", hacker: "黑客结局" };
+const CHARACTER_COLORS = { sans: "#7ea8ff", ukb: "#c59bff", horror: "#ff5d5d", hard: "#5db9ff", insanity: "#d92535", hacker: "#e8ecf4" };
 const DIFF_NAMES = ["普通", "狂暴", "地狱", "屠杀"];
 const DIFF_COLORS = ["#c8c2d4", "#ff8a5d", "#ff5d73", "#c59bff"];
 // 三个榜衡量三种实力,明说,不假装是同一种(2026-07-12 评审)
 const MODES = [
-  { id: "normal", label: "通关榜", hint: "养成榜:局外强化与构筑成果一起算数" },
-  { id: "endless", label: "无尽榜", hint: "后期构筑与生存能力 · 轮数优先" },
-  { id: "daily", label: "每日榜", hint: "全员同一起跑线 · 禁局外强化 · 纯竞技" },
+  { id: "normal", label: "通关榜", hint: "养成榜:局外强化与构筑成果一起算数", mobileHint: "比较通关分，包含局外成长" },
+  { id: "endless", label: "无尽榜", hint: "后期构筑与生存能力 · 轮数优先", mobileHint: "先比完成轮数，再比无尽分" },
+  { id: "daily", label: "每日榜", hint: "全员同一起跑线 · 禁局外强化 · 纯竞技", mobileHint: "固定条件，所有人同一起点" },
 ];
-const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard", "insanity"];
+const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard", "insanity", "hacker"];
 
 export const leaderboardOnline = typeof location !== "undefined" && /(^|\.)sansgecao\.com$/.test(location.hostname || "");
 let me = null, run = null, timer = null, retryTimer = null, result = "", rows = [], mode = "normal", character = "", boardDate = "";
@@ -100,6 +100,10 @@ export async function loadLeaderboard(nextMode = mode, nextChar = character, nex
   loading = true;
   error = "";
   try {
+    // Mobile Safari can open the board before the boot-time identity request
+    // finishes. Always establish the anonymous session here as well, otherwise
+    // the first leaderboard request races into a 401 and renders an empty page.
+    await ensureIdentity();
     const data = await call(
       `/leaderboard?mode=${mode}${character ? `&character=${character}` : ""}${difficulty !== "" ? `&difficulty=${difficulty}` : ""}`
     );
@@ -263,13 +267,19 @@ function tabRect(i, w) {
   const bw = 124 * m;
   const gap = 12 * m;
   const x0 = w / 2 - (3 * bw + 2 * gap) / 2;
-  return { x: x0 + i * (bw + gap), y: isPhone(w) ? 110 : 96, w: bw, h: 34 * m };
+  return { x: x0 + i * (bw + gap), y: isPhone(w) ? 104 : 96, w: bw, h: 34 * m };
 }
 function filterToggleRect(w) {
-  return { x: w / 2 - 210, y: 208, w: 420, h: 54 }; // phone only
+  const width = Math.min(620, w - 200);
+  return { x: w / 2 - width / 2, y: 194, w: width, h: 52 }; // phone only
 }
 function charChipRect(i, w) {
   const ph = isPhone(w);
+  if (ph) {
+    const cols = 4, gap = 12, total = Math.min(920, w - 140), cw = (total - gap * (cols - 1)) / cols;
+    const x0 = w / 2 - total / 2;
+    return { x: x0 + (i % cols) * (cw + gap), y: 284 + Math.floor(i / cols) * 54, w: cw, h: 44 };
+  }
   const m = ph ? 1.75 : 1;
   const cw = 88 * m;
   const gap = 8 * m;
@@ -278,6 +288,11 @@ function charChipRect(i, w) {
 }
 function diffChipRect(i, w) {
   const ph = isPhone(w);
+  if (ph) {
+    const cols = 5, gap = 12, total = Math.min(920, w - 140), cw = (total - gap * (cols - 1)) / cols;
+    const x0 = w / 2 - total / 2;
+    return { x: x0 + i * (cw + gap), y: 420, w: cw, h: 44 };
+  }
   const m = ph ? 1.9 : 1;
   const cw = 72 * m;
   const gap = 8 * m;
@@ -285,13 +300,14 @@ function diffChipRect(i, w) {
   return { x: x0 + i * (cw + gap), y: ph ? 338 : 172, w: cw, h: 28 * m };
 }
 function identityRect(w) {
-  return { x: w / 2 - 260, y: 52, w: 520, h: 46 };
+  const width = isPhone(w) ? Math.min(640, w - 240) : 520;
+  return { x: w / 2 - width / 2, y: 48, w: width, h: 44 };
 }
 function renameRect(w) {
   const ph = isPhone(w);
   if (ph) {
     const identity = identityRect(w);
-    return { x: identity.x + identity.w - 116, y: identity.y, w: 116, h: identity.h };
+    return { x: identity.x + identity.w - 126, y: identity.y, w: 126, h: identity.h };
   }
   return { x: w / 2 + 128, y: 58, w: 88, h: 28 };
 }
@@ -300,7 +316,11 @@ function retryRect(w, h) {
   return { x: w / 2 - 70 * m, y: h / 2 + 24, w: 140 * m, h: 40 * m };
 }
 function myCardRect(w, h) {
-  const m = isPhone(w) ? 1.5 : 1;
+  if (isPhone(w)) {
+    const width = Math.min(650, w - 360);
+    return { x: w / 2 - width / 2, y: h - 62, w: width, h: 48 };
+  }
+  const m = 1;
   return { x: w / 2 - 230 * m, y: h - (isPhone(w) ? 132 : 114), w: 460 * m, h: 34 * (isPhone(w) ? 1.6 : 1) };
 }
 // touch slop mirrors main.js inRect: phone scale shrinks these controls hard
@@ -361,7 +381,7 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.fillStyle = "#8fd6ff";
     ctx.font = "bold 22px monospace";
     ctx.textAlign = "left";
-    ctx.fillText(`昵称：${me?.nickname || "连接中……"}`, identity.x + 18, identity.y + 30);
+    ctx.fillText(`昵称：${me?.nickname || "连接中……"}`, identity.x + 18, identity.y + 29);
     ctx.textAlign = "center";
   } else {
     ctx.fillStyle = "#8fd6ff";
@@ -379,26 +399,46 @@ export function drawLeaderboard(ctx, w, h) {
   // filters: desktop shows both chip rows; phone folds them behind a toggle
   let listTop;
   if (ph) {
-    const fLabel = `筛选:${character ? CHARACTER_NAMES[character] : "全部角色"} · ${
+    const fLabel = `筛选 · ${character ? CHARACTER_NAMES[character] : "全部角色"} · ${
       mode === "daily" ? "每日固定" : difficulty === "" ? "全难度" : DIFF_NAMES[+difficulty]
-    } ${filtersOpen ? "▴" : "▾"}`;
-    // 榜单定位一句话,手机也要说清这榜衡量什么
+    } · ${loading ? "加载中" : `${rows.length}人`} ${filtersOpen ? "▴" : "▾"}`;
+    // Phone gets a short, purpose-specific sentence. The desktop explanation
+    // is too long once the 1200px canvas is scaled into a real phone viewport.
     ctx.fillStyle = "#7d7690";
-    ctx.font = "16px monospace";
+    ctx.font = "18px monospace";
     const modeInfo = MODES.find((m2) => m2.id === mode);
-    ctx.fillText(`${modeInfo.hint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 198);
+    ctx.fillText(`${modeInfo.mobileHint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 182);
     button(ctx, filterToggleRect(w), fLabel, "#c8c2d4", filtersOpen);
     if (filtersOpen) {
+      const firstChar = charChipRect(0, w);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#9a93ab";
+      ctx.font = "bold 18px monospace";
+      ctx.fillText("选择角色", firstChar.x, 274);
+      ctx.textAlign = "center";
       CHAR_FILTERS.forEach((c, i) =>
         button(ctx, charChipRect(i, w), c ? CHARACTER_NAMES[c] : "全部", c ? CHARACTER_COLORS[c] : "#f2ead8", (c || "") === character)
       );
-      if (mode !== "daily")
+      if (mode !== "daily") {
+        const firstDiff = diffChipRect(0, w);
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#9a93ab";
+        ctx.font = "bold 18px monospace";
+        ctx.fillText("选择难度", firstDiff.x, 410);
+        ctx.textAlign = "center";
         DIFF_FILTERS.forEach((d, i) =>
           button(ctx, diffChipRect(i, w), d === "" ? "全难度" : DIFF_NAMES[+d], d === "" ? "#f2ead8" : DIFF_COLORS[+d], d === difficulty)
         );
-      listTop = 428;
+      }
+      ctx.fillStyle = "#7d7690";
+      ctx.font = "16px monospace";
+      ctx.fillText("选择后自动收起并刷新榜单", w / 2, mode === "daily" ? 402 : 492);
+      drawBackButton(ctx, w, h);
+      ctx.restore();
+      ctx.textAlign = "left";
+      return;
     } else {
-      listTop = 292;
+      listTop = 270;
     }
   } else {
     CHAR_FILTERS.forEach((c, i) =>
@@ -429,46 +469,50 @@ export function drawLeaderboard(ctx, w, h) {
   } else if (!rows.length) {
     ctx.fillStyle = "#9a93ab";
     ctx.font = `bold ${Math.round(14 * F)}px monospace`;
-    ctx.fillText("* 这个榜还空着。", w / 2, h / 2 - 20);
+    ctx.fillText(mode === "daily" ? "* 今天还没有挑战成绩" : "* 当前筛选还没有通关成绩", w / 2, h / 2 - 20);
     ctx.font = `${Math.round(13 * F)}px monospace`;
-    ctx.fillText("第一个登上审判台的人,会被记住很久。", w / 2, h / 2 + 12);
+    ctx.fillText("点上方筛选查看其他榜，或击败一次 Boss 留名。", w / 2, h / 2 + 14);
   } else {
     const cx = w / 2;
-    const C = ph ? 1.5 : 1; // column spread
-    const rowH = ph ? 36 : 26;
-    const maxRows = ph ? (filtersOpen ? 4 : 8) : 10;
+    const rowH = ph ? 38 : 26;
+    const maxRows = ph ? 6 : 10;
+    const rankX = ph ? 72 : cx - 320;
+    const nameX = ph ? 132 : cx - 272;
+    const charX = ph ? w * 0.57 : cx + 60;
+    const diffX = ph ? w * 0.73 : cx + 170;
+    const scoreX = ph ? w - 70 : cx + 320;
     ctx.font = `${Math.round(11 * F)}px monospace`;
     ctx.fillStyle = "#5a5468";
     ctx.textAlign = "left";
-    ctx.fillText("名次  昵称", cx - 320 * C, top);
-    ctx.fillText("角色", cx + 60 * C, top);
-    drawIconLabel(ctx, ICONS.difficulty, "难度", cx + 170 * C, top, Math.round(12 * F), 4);
+    ctx.fillText("名次  昵称", rankX, top);
+    ctx.fillText("角色", charX, top);
+    drawIconLabel(ctx, ICONS.difficulty, "难度", diffX, top, Math.round(12 * F), 4);
     ctx.textAlign = "right";
-    ctx.fillText(mode === "endless" ? "轮数 · 无尽分" : "分数", cx + 320 * C, top);
+    ctx.fillText(mode === "endless" ? "轮数 · 无尽分" : "分数", scoreX, top);
     const medals = ["#ffd166", "#c9d4e0", "#cd9a62"];
     rows.slice(0, maxRows).forEach((r, i) => {
       const y = top + rowH - 4 + i * rowH;
       const mine = me && r.nickname === me.nickname;
       if (mine) {
         ctx.fillStyle = "rgba(143, 214, 255, 0.10)"; // your row glows faintly
-        ctx.fillRect(cx - 332 * C, y - rowH * 0.65, 664 * C, rowH - 2);
+        ctx.fillRect(ph ? 56 : cx - 332, y - rowH * 0.65, ph ? w - 112 : 664, rowH - 2);
       }
       ctx.textAlign = "left";
       ctx.fillStyle = medals[i] || "#7d7690";
       ctx.font = i < 3 ? `bold ${Math.round(15 * F)}px monospace` : `${Math.round(13 * F)}px monospace`;
-      ctx.fillText(String(i + 1), cx - 320 * C, y);
+      ctx.fillText(String(i + 1), rankX, y);
       ctx.fillStyle = mine ? "#8fd6ff" : i < 3 ? "#f2ead8" : "#c8c2d4";
       ctx.font = i < 3 ? `bold ${Math.round(14 * F)}px monospace` : `${Math.round(13 * F)}px monospace`;
-      ctx.fillText(r.nickname, cx - 272 * C, y);
+      ctx.fillText(r.nickname, nameX, y);
       ctx.fillStyle = CHARACTER_COLORS[r.character] || "#9a93ab";
       ctx.font = `${Math.round(12 * F)}px monospace`;
-      ctx.fillText(CHARACTER_NAMES[r.character] || r.character, cx + 60 * C, y);
+      ctx.fillText(CHARACTER_NAMES[r.character] || r.character, charX, y);
       ctx.fillStyle = DIFF_COLORS[r.difficulty] || "#c8c2d4";
-      ctx.fillText(DIFF_NAMES[r.difficulty] ?? `难度${r.difficulty}`, cx + 170 * C, y);
+      ctx.fillText(DIFF_NAMES[r.difficulty] ?? `难度${r.difficulty}`, diffX, y);
       ctx.textAlign = "right";
       ctx.fillStyle = mine ? "#8fd6ff" : "#ffd166";
       ctx.font = i < 3 ? `bold ${Math.round(14 * F)}px monospace` : `${Math.round(13 * F)}px monospace`;
-      ctx.fillText(mode === "endless" ? `${r.rounds} 轮 · ${r.score}` : String(r.score), cx + 320 * C, y);
+      ctx.fillText(mode === "endless" ? `${r.rounds} 轮 · ${r.score}` : String(r.score), scoreX, y);
     });
   }
 
@@ -495,7 +539,7 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#7cf28a";
     ctx.font = `bold ${Math.round(12 * F)}px monospace`;
-    ctx.fillText(`* ${result}`, w / 2, h - (ph ? 152 : 130));
+    ctx.fillText(`* ${result}`, w / 2, h - (ph ? 76 : 130));
   }
   drawBackButton(ctx, w, h);
   ctx.restore();
@@ -521,6 +565,7 @@ export function leaderboardTap(x, y, w, h) {
   if (chipsVisible) {
     for (let i = 0; i < CHAR_FILTERS.length; i++) {
       if (inRect(x, y, charChipRect(i, w))) {
+        if (ph) filtersOpen = false;
         loadLeaderboard(mode, CHAR_FILTERS[i] || "");
         return "stay";
       }
@@ -528,6 +573,7 @@ export function leaderboardTap(x, y, w, h) {
     if (mode !== "daily") {
       for (let i = 0; i < DIFF_FILTERS.length; i++) {
         if (inRect(x, y, diffChipRect(i, w))) {
+          if (ph) filtersOpen = false;
           loadLeaderboard(mode, character, DIFF_FILTERS[i]);
           return "stay";
         }

@@ -29,6 +29,7 @@ globalThis.fetch = async (url, options = {}) => {
     return reply(true, { player: { nickname: "审判测试骨", canRenameAt: 0 } });
   }
   if (path === "/v1/runs") return reply(true, { runId: "run-1", token: "token-1" }, 201);
+  if (path === "/v1/leaderboard") return reply(true, { rows: [{ nickname: "审判测试骨", character: "horror", difficulty: 0, score: 12345, rounds: 0 }], me: null });
   if (path === "/v1/runs/run-1/settle") return reply(true, { rank: 7, score: 12345 });
   throw new Error(`unexpected request ${path}`);
 };
@@ -46,11 +47,15 @@ function check(name, condition) {
 await ranked.initLeaderboard();
 check("boot identity failure is contained", ranked.leaderboardProfile() === null);
 
+await ranked.loadLeaderboard();
+check("opening board retries anonymous identity", meAttempts === 2);
+check("board request follows identity", calls.filter((x) => x.path === "/v1/leaderboard").length === 1);
+
 const started = await ranked.beginRankedRun(
   { character: "horror", difficulty: 0, silence: false, daily: false, debug: false },
   () => ({ elapsed: 0, kills: 0, rounds: 0 })
 );
-check("run start retries identity", started && meAttempts === 2);
+check("run start reuses recovered identity", started && meAttempts === 2);
 check("run becomes globally active", ranked.rankedRunStatus().phase === "active");
 check("server run is requested exactly once", calls.filter((x) => x.path === "/v1/runs").length === 1);
 

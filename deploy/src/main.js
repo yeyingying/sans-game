@@ -136,7 +136,7 @@ import {
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
-import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=s2-20260714";
+import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=s2-20260716-3";
 
 import { utPrompt, utNotice } from "./dialog.js";
 
