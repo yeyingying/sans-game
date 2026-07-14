@@ -1804,14 +1804,21 @@ function updateInstance(player, inst, dt, world) {
       }
       if (prog >= 1) {
         if (r.phase === "charge") {
-          // 炮击: 冲锋终点前方爆炸,后坐力送回原地
-          world.spawnBlast({
-            x: player.x + r.dirX * 70,
-            y: player.y + r.dirY * 70,
-            dmg: weaponDmg(player, tier.fireDmg),
-            blast: tier.size * 1.2,
-            color: "#f2ead8",
-          });
+          // 炮击(2026-07-14 用户定稿): 冲锋到头,龙骨炮朝前方发射一道光束,
+          // 后坐力把骑着炮的 sans 弹回原地——伤害是射线,不是终点爆圈
+          const beamLen = 560;
+          const bx1 = player.x + r.dirX * 30;
+          const by1 = player.y + r.dirY * 30;
+          const bx2 = bx1 + r.dirX * beamLen;
+          const by2 = by1 + r.dirY * beamLen;
+          const beamDmg = weaponDmg(player, tier.fireDmg);
+          for (const e of enemies) {
+            if (distPointSegment(e.x, e.y, bx1, by1, bx2, by2) < tier.size * 0.45 + e.radius) {
+              e.takeDamage(beamDmg);
+            }
+          }
+          world.spawnBlast({ x: bx1, y: by1, dmg: 0, blast: tier.size * 0.7, color: "#f2ead8" }); // 炮口冲击(纯视觉)
+          r.beam = { x1: bx1, y1: by1, x2: bx2, y2: by2, width: tier.size * 0.9 };
           r.phase = "return";
           r.fx = player.x;
           r.fy = player.y;

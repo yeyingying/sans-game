@@ -5116,12 +5116,33 @@ function draw() {
       } else if (inst.id === "hride") {
         const r = getRideInfo(inst);
         if (r) {
+          // 回程前0.3s = 开火瞬间: 光束+开火帧,之后滑回原位
+          const firing = r.phase === "return" && r.t < 0.3 && r.beam;
+          if (firing) {
+            ctx.save();
+            ctx.lineCap = "round";
+            ctx.globalAlpha = Math.max(0, 1 - r.t / 0.3);
+            ctx.strokeStyle = "rgba(242, 234, 216, 0.35)";
+            ctx.lineWidth = r.beam.width + 10;
+            ctx.beginPath();
+            ctx.moveTo(r.beam.x1, r.beam.y1);
+            ctx.lineTo(r.beam.x2, r.beam.y2);
+            ctx.stroke();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = r.beam.width * 0.55;
+            ctx.beginPath();
+            ctx.moveTo(r.beam.x1, r.beam.y1);
+            ctx.lineTo(r.beam.x2, r.beam.y2);
+            ctx.stroke();
+            ctx.restore();
+          }
           ctx.save();
           ctx.imageSmoothingEnabled = false;
           ctx.translate(player.x, player.y + 14);
           ctx.rotate(Math.atan2(r.dirY, r.dirX) - Math.PI / 2);
+          const spr = firing ? GB_FIRE : GB_IDLE;
           const gw = 52;
-          ctx.drawImage(GB_IDLE, -gw / 2, -gw / 2, gw, (GB_IDLE.height / GB_IDLE.width) * gw);
+          ctx.drawImage(spr, -gw / 2, -gw / 2, gw, (spr.height / spr.width) * gw);
           ctx.restore();
         }
       } else if (inst.id === "ringlaser") {
