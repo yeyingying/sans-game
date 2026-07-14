@@ -2,12 +2,12 @@ import crypto from "node:crypto";
 import { randomNickname, signToken } from "./core.mjs";
 
 export const ADMIN_COOKIE="sg_admin";
-export const adminCookie=(secret,password)=>`${ADMIN_COOKIE}=${signToken(secret,`admin:${password}`)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800`;
+export const adminCookie=(secret,verifier)=>`${ADMIN_COOKIE}=${signToken(secret,`admin:${verifier}`)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800`;
 export const clearAdminCookie=()=>`${ADMIN_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
 
-export function adminAuthorized(req,secret,password,cookies){
-  if(!password)return false;
-  const got=cookies(req)[ADMIN_COOKIE]||"",want=signToken(secret,`admin:${password}`);
+export function adminAuthorized(req,secret,verifier,cookies){
+  if(!verifier)return false;
+  const got=cookies(req)[ADMIN_COOKIE]||"",want=signToken(secret,`admin:${verifier}`);
   return got.length===want.length&&crypto.timingSafeEqual(Buffer.from(got),Buffer.from(want));
 }
 
@@ -15,6 +15,13 @@ export function passwordMatches(got,want){
   const a=crypto.createHash("sha256").update(String(got||"")).digest();
   const b=crypto.createHash("sha256").update(String(want||"")).digest();
   return !!want&&crypto.timingSafeEqual(a,b);
+}
+
+export function passwordMatchesHash(got,wantHash){
+  if(!/^[a-f0-9]{64}$/i.test(String(wantHash||"")))return false;
+  const gotHash=crypto.createHash("sha256").update(String(got||"")).digest();
+  const want=Buffer.from(String(wantHash),"hex");
+  return gotHash.length===want.length&&crypto.timingSafeEqual(gotHash,want);
 }
 
 export function uniqueNickname(db){

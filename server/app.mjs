@@ -2,12 +2,17 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { SEASON, dailyKey, expectedScore, isValidCharacter, randomNickname, runProgressError, signToken, validateNickname } from "./core.mjs";
-import { adminAuthorized, adminCookie, adminOverview, adminPage, clearAdminCookie, passwordMatches, uniqueNickname } from "./admin.mjs";
+import { adminAuthorized, adminCookie, adminOverview, adminPage, clearAdminCookie, passwordMatchesHash, uniqueNickname } from "./admin.mjs";
 import { clientIp, requestNetwork } from "./geo.mjs";
 
 const PORT=Number(process.env.PORT||3000), DB_PATH=process.env.DB_PATH||new URL("./leaderboard.sqlite",import.meta.url).pathname;
 const SECRET=process.env.SESSION_SECRET||crypto.randomBytes(32).toString("hex");
-const ADMIN_PASSWORD=process.env.ADMIN_PASSWORD||"";
+// Prefer a one-way SHA-256 verifier so the plaintext admin password never
+// needs to live in service configuration. Plaintext remains a migration-only
+// fallback for older deployments.
+const ADMIN_PASSWORD_HASH=(process.env.ADMIN_PASSWORD_SHA256||"").toLowerCase()||(
+  process.env.ADMIN_PASSWORD?crypto.createHash("sha256").update(process.env.ADMIN_PASSWORD).digest("hex"):""
+);
 const ORIGINS=new Set((process.env.ALLOWED_ORIGINS||"https://www.sansgecao.com,https://sansgecao.com").split(","));
 const db=new DatabaseSync(DB_PATH);
 db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS players(id TEXT PRIMARY KEY,nickname TEXT UNIQUE NOT NULL,renamed_at INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,player_id TEXT NOT NULL,token_hash TEXT NOT NULL,character TEXT NOT NULL,difficulty INTEGER NOT NULL,silence INTEGER NOT NULL,started_at INTEGER NOT NULL,last_at INTEGER NOT NULL,last_elapsed REAL NOT NULL DEFAULT 0,last_kills INTEGER NOT NULL DEFAULT 0,last_rounds INTEGER NOT NULL DEFAULT 0,checkpoints INTEGER NOT NULL DEFAULT 0,settled INTEGER NOT NULL DEFAULT 0,daily_key TEXT NOT NULL DEFAULT ''); CREATE TABLE IF NOT EXISTS scores(id INTEGER PRIMARY KEY,player_id TEXT NOT NULL,run_id TEXT UNIQUE NOT NULL,mode TEXT NOT NULL,character TEXT NOT NULL,difficulty INTEGER NOT NULL,score INTEGER NOT NULL,rounds INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,daily_key TEXT NOT NULL DEFAULT ''); CREATE INDEX IF NOT EXISTS score_board ON scores(mode,daily_key,rounds DESC,score DESC,created_at);`);
@@ -58,15 +63,15 @@ const server=http.createServer(async(req,res)=>{const origin=ORIGINS.has(req.hea
  const u=new URL(req.url,"http://local"); if(u.pathname==="/health")return send(res,200,{ok:true},origin);
  if(u.pathname==="/admin"&&req.method==="GET")return sendHtml(res,adminPage());
  if(u.pathname==="/v1/admin/login"&&req.method==="POST"){
-  if(!ADMIN_PASSWORD)throw err("后台尚未配置",503);
+  if(!ADMIN_PASSWORD_HASH)throw err("后台尚未配置",503);
   const key=clientIp(req)||"unknown",now=Date.now(),attempts=(adminAttempts.get(key)||[]).filter(x=>now-x<900000);
   if(attempts.length>=8)throw err("尝试次数过多，请 15 分钟后再试",429);
-  const b=await read(req);if(!passwordMatches(b.password,ADMIN_PASSWORD)){attempts.push(now);adminAttempts.set(key,attempts);throw err("密码错误",401)}
-  adminAttempts.delete(key);return send(res,200,{ok:true},origin,{"set-cookie":adminCookie(SECRET,ADMIN_PASSWORD)});
+  const b=await read(req);if(!passwordMatchesHash(b.password,ADMIN_PASSWORD_HASH)){attempts.push(now);adminAttempts.set(key,attempts);throw err("密码错误",401)}
+  adminAttempts.delete(key);return send(res,200,{ok:true},origin,{"set-cookie":adminCookie(SECRET,ADMIN_PASSWORD_HASH)});
  }
  if(u.pathname==="/v1/admin/logout"&&req.method==="POST")return send(res,200,{ok:true},origin,{"set-cookie":clearAdminCookie()});
  if(u.pathname.startsWith("/v1/admin/")){
-  if(!adminAuthorized(req,SECRET,ADMIN_PASSWORD,cookies))throw err("请先登录后台",401);
+  if(!adminAuthorized(req,SECRET,ADMIN_PASSWORD_HASH,cookies))throw err("请先登录后台",401);
   if(u.pathname==="/v1/admin/overview"&&req.method==="GET")return send(res,200,adminOverview(db),origin);
   const reset=u.pathname.match(/^\/v1\/admin\/players\/([^/]+)\/reset-name$/);
   if(reset&&req.method==="POST"){const player=stmt.player.get(reset[1]);if(!player)throw err("玩家不存在",404);const name=uniqueNickname(db);db.prepare("UPDATE players SET nickname=?,renamed_at=0 WHERE id=?").run(name,player.id);return send(res,200,{ok:true,nickname:name},origin)}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { SEASON, dailyKey, expectedScore, isValidCharacter, randomNickname, runProgressError, validateNickname } from "./core.mjs";
-import { adminAuthorized, adminPage, displayWeapons, passwordMatches } from "./admin.mjs";
+import { adminAuthorized, adminPage, displayWeapons, passwordMatches, passwordMatchesHash } from "./admin.mjs";
 import { deviceSummary, maskIp, networkTag, parseRegion } from "./geo.mjs";
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:0,silence:false}),202);
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:1,silence:true}),492);
@@ -23,6 +23,9 @@ assert.equal(networkTag("secret","113.118.113.77"),networkTag("secret","113.118.
 assert.notEqual(networkTag("secret","113.118.113.77"),networkTag("secret","113.118.113.78"));
 assert.equal(passwordMatches("right","right"),true);
 assert.equal(passwordMatches("wrong","right"),false);
+assert.equal(passwordMatchesHash("right","27042f4e6eca7d0b2a7ee4026df2ecfa51d3339e6d122aa099118ecd8563bad9"),true);
+assert.equal(passwordMatchesHash("wrong","27042f4e6eca7d0b2a7ee4026df2ecfa51d3339e6d122aa099118ecd8563bad9"),false);
+assert.equal(passwordMatchesHash("right","not-a-hash"),false);
 assert.deepEqual(displayWeapons(["bone:2","gaster*:4"]),["碎骨投掷 Lv3","龙骨炮（进化） Lv5"]);
 assert.deepEqual(displayWeapons(["ifist:0","ispike*:4"]),["血色重拳 Lv1","分裂骨刺（进化） Lv5"]);
 assert.equal(SEASON,"s2");
