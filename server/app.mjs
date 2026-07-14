@@ -2,7 +2,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { SEASON, dailyKey, expectedScore, isValidCharacter, randomNickname, runProgressError, signToken, validateNickname } from "./core.mjs";
-import { adminAuthorized, adminCookie, adminOverview, adminPage, clearAdminCookie, passwordMatchesHash, uniqueNickname } from "./admin.mjs";
+import { adminAuthorized, adminCookie, adminOverview, adminPage, clearAdminCookie, emptyGuestCutoff, emptyGuestWhere, passwordMatchesHash, uniqueNickname } from "./admin.mjs";
 import { clientIp, requestNetwork } from "./geo.mjs";
 
 const PORT=Number(process.env.PORT||3000), DB_PATH=process.env.DB_PATH||new URL("./leaderboard.sqlite",import.meta.url).pathname;
@@ -19,6 +19,7 @@ db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS players(id TEXT PRI
 for(const [t,c,type] of [
  ["runs","daily_key","TEXT NOT NULL DEFAULT ''"],["scores","daily_key","TEXT NOT NULL DEFAULT ''"],["scores","season","TEXT NOT NULL DEFAULT ''"],["runs","report","TEXT NOT NULL DEFAULT ''"],
  ["scores","hidden","INTEGER NOT NULL DEFAULT 0"],
+ ["players","is_test","INTEGER NOT NULL DEFAULT 0"],
  ["players","last_seen_at","INTEGER NOT NULL DEFAULT 0"],["players","last_ip_masked","TEXT NOT NULL DEFAULT ''"],["players","last_network_tag","TEXT NOT NULL DEFAULT ''"],["players","last_device","TEXT NOT NULL DEFAULT ''"],["players","last_region","TEXT NOT NULL DEFAULT ''"],["players","last_isp","TEXT NOT NULL DEFAULT ''"],
  ["runs","ip_masked","TEXT NOT NULL DEFAULT ''"],["runs","network_tag","TEXT NOT NULL DEFAULT ''"],["runs","device","TEXT NOT NULL DEFAULT ''"],["runs","region","TEXT NOT NULL DEFAULT ''"],["runs","isp","TEXT NOT NULL DEFAULT ''"]
 ])try{db.exec(`ALTER TABLE ${t} ADD COLUMN ${c} ${type}`)}catch{}
@@ -54,7 +55,7 @@ function recoveryCode(){const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",bytes=
 function sessionCookie(id){return `sg_session=${id}.${signToken(SECRET,id)}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=31536000`}
 // Rank players, not score rows: one person can submit many runs but should
 // occupy only one leaderboard position (their best run under this board).
-function rank(mode,playerId,day){const daily=mode==="daily"?"AND s.daily_key=?":"",args=[mode,SEASON,...(mode==="daily"?[day]:[])];return db.prepare(`WITH filtered AS (SELECT s.*,ROW_NUMBER() OVER(PARTITION BY s.player_id ORDER BY s.rounds DESC,s.score DESC,s.created_at ASC) player_best FROM scores s WHERE s.mode=? AND s.season=? AND s.hidden=0 ${daily}),best AS (SELECT * FROM filtered WHERE player_best=1),mine AS (SELECT * FROM best WHERE player_id=?) SELECT 1+(SELECT COUNT(*) FROM best b,mine m WHERE b.rounds>m.rounds OR (b.rounds=m.rounds AND b.score>m.score) OR (b.rounds=m.rounds AND b.score=m.score AND b.created_at<m.created_at)) rank FROM mine`).get(...args,playerId)?.rank||null}
+function rank(mode,playerId,day){const daily=mode==="daily"?"AND s.daily_key=?":"",args=[mode,SEASON,...(mode==="daily"?[day]:[])];return db.prepare(`WITH filtered AS (SELECT s.*,ROW_NUMBER() OVER(PARTITION BY s.player_id ORDER BY s.rounds DESC,s.score DESC,s.created_at ASC) player_best FROM scores s JOIN players p ON p.id=s.player_id WHERE s.mode=? AND s.season=? AND s.hidden=0 AND p.is_test=0 ${daily}),best AS (SELECT * FROM filtered WHERE player_best=1),mine AS (SELECT * FROM best WHERE player_id=?) SELECT 1+(SELECT COUNT(*) FROM best b,mine m WHERE b.rounds>m.rounds OR (b.rounds=m.rounds AND b.score>m.score) OR (b.rounds=m.rounds AND b.score=m.score AND b.created_at<m.created_at)) rank FROM mine`).get(...args,playerId)?.rank||null}
 
 const adminAttempts=new Map();
 
@@ -73,8 +74,11 @@ const server=http.createServer(async(req,res)=>{const origin=ORIGINS.has(req.hea
  if(u.pathname.startsWith("/v1/admin/")){
   if(!adminAuthorized(req,SECRET,ADMIN_PASSWORD_HASH,cookies))throw err("请先登录后台",401);
   if(u.pathname==="/v1/admin/overview"&&req.method==="GET")return send(res,200,adminOverview(db),origin);
+  if(u.pathname==="/v1/admin/cleanup/empty-guests"&&req.method==="POST"){const deleted=db.prepare(`DELETE FROM players WHERE ${emptyGuestWhere}`).run(emptyGuestCutoff(Date.now())).changes;return send(res,200,{ok:true,deleted},origin)}
   const reset=u.pathname.match(/^\/v1\/admin\/players\/([^/]+)\/reset-name$/);
   if(reset&&req.method==="POST"){const player=stmt.player.get(reset[1]);if(!player)throw err("玩家不存在",404);const name=uniqueNickname(db);db.prepare("UPDATE players SET nickname=?,renamed_at=0 WHERE id=?").run(name,player.id);return send(res,200,{ok:true,nickname:name},origin)}
+  const testPlayer=u.pathname.match(/^\/v1\/admin\/players\/([^/]+)\/test$/);
+  if(testPlayer&&req.method==="POST"){const isTest=Number((await read(req)).isTest)?1:0;const changed=db.prepare("UPDATE players SET is_test=? WHERE id=?").run(isTest,testPlayer[1]).changes;if(!changed)throw err("玩家不存在",404);return send(res,200,{ok:true,isTest:!!isTest},origin)}
   const visibility=u.pathname.match(/^\/v1\/admin\/scores\/(\d+)\/visibility$/);
   if(visibility&&req.method==="POST"){const hidden=Number((await read(req)).hidden)?1:0;const changed=db.prepare("UPDATE scores SET hidden=? WHERE id=?").run(hidden,Number(visibility[1])).changes;if(!changed)throw err("成绩不存在",404);return send(res,200,{ok:true,hidden:!!hidden},origin)}
   return send(res,404,{error:"not found"},origin);
@@ -91,7 +95,7 @@ const server=http.createServer(async(req,res)=>{const origin=ORIGINS.has(req.hea
  const m=u.pathname.match(/^\/v1\/runs\/([^/]+)\/(checkpoint|settle)$/); if(m&&req.method==="POST"){const b=await read(req),r=stmt.run.get(m[1],p.id);if(!r||r.settled||signToken(SECRET,String(b.token||""))!==r.token_hash)throw err("无效或已结算的 run",409);const now=Date.now(),elapsed=Number(b.elapsed),kills=Number(b.kills),rounds=Number(b.rounds||0),progressError=runProgressError({elapsed,kills,rounds,lastElapsed:r.last_elapsed,lastKills:r.last_kills,lastRounds:r.last_rounds,wallElapsed:(now-r.started_at)/1000});if(progressError){console.warn("run progress rejected",progressError,r.id);throw err("成绩校验失败",422)}if(m[2]==="checkpoint"){if(r.checkpoints&&now-r.last_at<10000)throw err("提交过于频繁",429);stmt.checkpoint.run(now,elapsed,kills,rounds,r.id);return send(res,200,{ok:true},origin)}
  const stageKills=Number(b.stageKills),stageElapsed=Number(b.stageElapsed);if(!Number.isInteger(stageKills)||stageKills<0||stageKills>kills||!Number.isFinite(stageElapsed)||stageElapsed<0||stageElapsed>elapsed)throw err("结算组成无效",422);const mode=r.daily_key?"daily":b.mode==="endless"?"endless":"normal";if(mode!=="endless"&&rounds!==0)throw err("结算组成无效",422);const total=expectedScore({kills,elapsed,difficulty:r.difficulty,silence:!!r.silence}),stage=expectedScore({kills:stageKills,elapsed:stageElapsed,difficulty:r.difficulty,silence:!!r.silence}),score=mode==="endless"?Math.max(0,total-stage):stage,boardRounds=mode==="endless"?rounds:0;db.exec("BEGIN IMMEDIATE");try{stmt.settled.run(r.id);stmt.score.run(p.id,r.id,mode,r.character,r.difficulty,score,boardRounds,now,r.daily_key,SEASON);db.exec("COMMIT")}catch(e){db.exec("ROLLBACK");throw e}return send(res,200,{score,rank:rank(mode,p.id,r.daily_key),date:r.daily_key||null},origin)}
  if(u.pathname==="/v1/leaderboard"&&req.method==="GET"){const asked=u.searchParams.get("mode"),mode=asked==="endless"?"endless":asked==="daily"?"daily":"normal",ch=u.searchParams.get("character"),df=u.searchParams.get("difficulty"),diff=["0","1","2","3"].includes(df)?Number(df):null,day=mode==="daily"?dailyKey():"";
-  const where=`s.mode=? AND s.season=? AND s.hidden=0 ${mode==="daily"?"AND s.daily_key=?":""} ${ch?"AND s.character=?":""} ${diff!==null?"AND s.difficulty=?":""}`;
+  const where=`s.mode=? AND s.season=? AND s.hidden=0 AND EXISTS(SELECT 1 FROM players allowed WHERE allowed.id=s.player_id AND allowed.is_test=0) ${mode==="daily"?"AND s.daily_key=?":""} ${ch?"AND s.character=?":""} ${diff!==null?"AND s.difficulty=?":""}`;
   const args=[mode,SEASON,...(day?[day]:[]),...(ch?[ch]:[]),...(diff!==null?[diff]:[])];
   const filtered=`SELECT s.*,ROW_NUMBER() OVER(PARTITION BY s.player_id ORDER BY s.rounds DESC,s.score DESC,s.created_at ASC) player_best FROM scores s WHERE ${where}`;
   const rows=db.prepare(`WITH filtered AS (${filtered}) SELECT p.nickname,f.character,f.difficulty,f.score,f.rounds,f.created_at,f.daily_key FROM filtered f JOIN players p ON p.id=f.player_id WHERE f.player_best=1 ORDER BY f.rounds DESC,f.score DESC,f.created_at ASC LIMIT 100`).all(...args);

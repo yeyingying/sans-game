@@ -39,19 +39,26 @@ const cookieReq={headers:{cookie:"sg_admin=token"}};
 assert.equal(adminAuthorized(cookieReq,"secret","password",req=>Object.fromEntries(req.headers.cookie.split(";").map(x=>x.trim().split("=")))),false);
 
 const adminDb=new DatabaseSync(":memory:");
-adminDb.exec(`CREATE TABLE players(id TEXT PRIMARY KEY,nickname TEXT,created_at INTEGER,last_seen_at INTEGER,last_ip_masked TEXT,last_network_tag TEXT,last_device TEXT,last_region TEXT,last_isp TEXT);
+adminDb.exec(`CREATE TABLE players(id TEXT PRIMARY KEY,nickname TEXT,created_at INTEGER,last_seen_at INTEGER,last_ip_masked TEXT,last_network_tag TEXT,last_device TEXT,last_region TEXT,last_isp TEXT,is_test INTEGER,recovery_hash TEXT);
 CREATE TABLE runs(id TEXT PRIMARY KEY,player_id TEXT,character TEXT,difficulty INTEGER,started_at INTEGER,last_at INTEGER,last_elapsed REAL,last_kills INTEGER,last_rounds INTEGER,checkpoints INTEGER,settled INTEGER,report TEXT,ip_masked TEXT,network_tag TEXT,device TEXT,region TEXT,isp TEXT);
 CREATE TABLE scores(id INTEGER PRIMARY KEY,player_id TEXT,run_id TEXT,mode TEXT,character TEXT,difficulty INTEGER,score INTEGER,rounds INTEGER,created_at INTEGER,hidden INTEGER);
-INSERT INTO players VALUES('p1','玩家甲',1,30,'','','','',''),('p2','玩家乙',2,2,'','','','','');
-INSERT INTO runs VALUES('r1','p1','sans',0,10,10,0,0,0,0,0,'','','','','',''),('r2','p1','horror',0,20,20,0,0,0,0,0,'','','','','',''),('r3','p1','sans',0,30,30,0,0,0,0,0,'','','','','','');`);
-const adminPlayers=adminOverview(adminDb).players;
+INSERT INTO players VALUES('p1','玩家甲',1,30,'','','','','',0,''),('p2','玩家乙',2,2,'','','','','',0,''),('p3','测试号',3,3,'','','','','',1,'');
+INSERT INTO runs VALUES('r1','p1','sans',0,10,10,0,0,0,0,0,'','','','','',''),('r2','p1','horror',0,20,20,0,0,0,0,0,'','','','','',''),('r3','p1','sans',0,30,30,61,0,0,0,0,'','','','','',''),('r4','p3','insanity',0,30,30,90,30,0,2,1,'','','','','','');
+INSERT INTO scores VALUES(1,'p3','r4','normal','insanity',0,9999,0,30,0);`);
+const adminData=adminOverview(adminDb,8*86400000),adminPlayers=adminData.players;
 assert.deepEqual(adminPlayers.find(x=>x.id==="p1").characters,["sans","horror"]);
 assert.deepEqual(adminPlayers.find(x=>x.id==="p2").characters,[]);
+assert.equal(adminPlayers.find(x=>x.id==="p1").effective,true);
+assert.equal(adminPlayers.find(x=>x.id==="p3").is_test,true);
+assert.equal(adminData.metrics.effectivePlayers,1);
+assert.equal(adminData.metrics.testPlayers,1);
+assert.equal(adminData.metrics.emptyGuests,1);
+assert.doesNotThrow(()=>new Function(adminPage().match(/<script>([\s\S]*)<\/script>/)[1]));
 
 // A leaderboard position belongs to a player, not to every run they submit.
 // Two runs by player A plus one by B must render two rows, with A's best only.
 const rankDb=new DatabaseSync(":memory:");
-rankDb.exec(`CREATE TABLE scores(player_id TEXT,mode TEXT,season TEXT,score INTEGER,rounds INTEGER,created_at INTEGER,hidden INTEGER); INSERT INTO scores VALUES('a','normal','${SEASON}',100,0,1,0),('a','normal','${SEASON}',180,0,2,0),('b','normal','${SEASON}',150,0,3,0),('c','normal','old',999,0,4,0),('d','normal','${SEASON}',999,0,5,1)`);
-const bestRows=rankDb.prepare("WITH filtered AS (SELECT s.*,ROW_NUMBER() OVER(PARTITION BY player_id ORDER BY rounds DESC,score DESC,created_at ASC) player_best FROM scores s WHERE mode=? AND season=? AND hidden=0) SELECT player_id,score FROM filtered WHERE player_best=1 ORDER BY rounds DESC,score DESC,created_at ASC").all("normal",SEASON).map((row)=>({...row}));
+rankDb.exec(`CREATE TABLE players(id TEXT,is_test INTEGER); CREATE TABLE scores(player_id TEXT,mode TEXT,season TEXT,score INTEGER,rounds INTEGER,created_at INTEGER,hidden INTEGER); INSERT INTO players VALUES('a',0),('b',0),('c',0),('d',0),('e',1); INSERT INTO scores VALUES('a','normal','${SEASON}',100,0,1,0),('a','normal','${SEASON}',180,0,2,0),('b','normal','${SEASON}',150,0,3,0),('c','normal','old',999,0,4,0),('d','normal','${SEASON}',999,0,5,1),('e','normal','${SEASON}',9999,0,6,0)`);
+const bestRows=rankDb.prepare("WITH filtered AS (SELECT s.*,ROW_NUMBER() OVER(PARTITION BY player_id ORDER BY rounds DESC,score DESC,created_at ASC) player_best FROM scores s WHERE mode=? AND season=? AND hidden=0 AND EXISTS(SELECT 1 FROM players allowed WHERE allowed.id=s.player_id AND allowed.is_test=0)) SELECT player_id,score FROM filtered WHERE player_best=1 ORDER BY rounds DESC,score DESC,created_at ASC").all("normal",SEASON).map((row)=>({...row}));
 assert.deepEqual(bestRows,[{player_id:"a",score:180},{player_id:"b",score:150}]);
 console.log("server deterministic tests passed");
