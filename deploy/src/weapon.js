@@ -700,8 +700,8 @@ export const WEAPONS = {
     choiceOnly: true, // 不可开局携带,只在局内选卡出现(用户原案)
     enhance: { desc: "宏期间全部伤害 +50%", detail: "重复选择 +20%" },
     evolve: {
-      name: "宏风暴",
-      desc: "一行脚本,全部技能——5连发,期间攻速+30%",
+      name: "宏",
+      desc: "全部技能,连续五轮齐射",
       tier: { casts: 5, haste: 0.3, rateMult: 0.22 },
     },
     tiers: [
@@ -720,8 +720,8 @@ export const WEAPONS = {
     color: "#f2ead8",
     enhance: { desc: "全部比例 +2.5%", detail: "最多叠加 10 次" },
     evolve: {
-      name: "删除键",
-      desc: "DELETE——从存档里抹去;比例升至精英75/首领30/天意8",
+      name: "血镰处刑",
+      desc: "一刀更深——精英75%/首领30%/天意8%",
       tier: { blade: 195, p1: 0.75, p2: 0.3, p3: 0.08, rateMult: 0.52 },
     },
     tiers: [
@@ -740,8 +740,8 @@ export const WEAPONS = {
     color: "#dfe6f2",
     enhance: { desc: "永久禁锢改为直接斩杀,斩杀线 +5%", detail: "最多叠加 5 次" },
     evolve: {
-      name: "系统蓝屏",
-      desc: "BSOD——范围×1.6,击退×1.5,缴械必附2秒禁锢",
+      name: "物理震荡",
+      desc: "范围×1.6,击退×1.5,缴械必附2秒禁锢",
       tier: { radius: 304, push: 300, bonusRoot: 2, rateMult: 0.38 },
     },
     tiers: [
@@ -760,8 +760,8 @@ export const WEAPONS = {
     color: "#dce8f0",
     enhance: { desc: "被撞到的敌人缴械 5 秒", detail: "重复选择 +2 秒" },
     evolve: {
-      name: "物理引擎滥用",
-      desc: "这不是漏洞,是特性——去程回程双撞,炮体+40%,炮击×2",
+      name: "龙骨决裁",
+      desc: "去程回程双撞,炮体+40%,炮击翻倍",
       tier: { size: 90, chargeDmg: 4.3, fireDmg: 9.2, doublePass: true, rateMult: 0.4 },
     },
     tiers: [
@@ -800,8 +800,8 @@ export const WEAPONS = {
     color: "#d8e2f0",
     enhance: { desc: "宿主也吃 200% 伤害与缴械", detail: "重复选择 +50%" },
     evolve: {
-      name: "木马引爆",
-      desc: "TROJAN——被缴械者也可作二级炸点,连锁一次",
+      name: "超载引爆",
+      desc: "被缴械者也会连锁殉爆一次",
       tier: { targets: 6, blast: 86, chain: true, dmgMult: 5.2, rateMult: 0.52 },
     },
     tiers: [
