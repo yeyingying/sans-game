@@ -610,7 +610,7 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
       ty += 22;
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 12px monospace";
-      ctx.fillText(`觉醒:「${w.evolve.name}」— ${w.evolve.desc}`, tx, ty);
+      ctx.fillText(t(`觉醒:「${w.evolve.name}」— ${w.evolve.desc}`, `Awakened: '${pick(w.evolve, "name")}' — ${pick(w.evolve, "desc")}`), tx, ty);
       ty += 17;
       ctx.fillStyle = "#9a93ab";
       ctx.font = "11px monospace";
@@ -1058,7 +1058,7 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     }
     ctx.fillStyle = m.ghost ? "#3a3346" : seen ? "#f2ead8" : "#453f52";
     ctx.font = "bold 12px monospace";
-    ctx.fillText(m.ghost ? m.name : seen ? m.name : "？？？", x + box.w / 2, y + 55);
+    ctx.fillText(m.ghost ? pick(m, "name") : seen ? pick(m, "name") : t("？？？", "???"), x + box.w / 2, y + 55);
     ctx.fillStyle = seen ? (m.elite ? m.color : "#9a93ab") : "#3c3548";
     ctx.font = "10px monospace";
     const rank = m.champion ? "首领 · " : m.elite ? "精英 · " : "";
@@ -1079,7 +1079,8 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.textAlign = "left";
     ctx.fillStyle = chosen.color;
     ctx.font = "bold 18px monospace";
-    ctx.fillText(`${chosen.name}  ${chosen.english}`, detail.x + 130, detail.y + 28);
+    // zh shows 中文名+英文名 side by side; EN mode would duplicate, so EN shows one
+    ctx.fillText(t(`${chosen.name}  ${chosen.english}`, chosen.english), detail.x + 130, detail.y + 28);
     // 裂缝外批注: community graffiti pinned to the corner of the dossier
     if (chosen.note) {
       ctx.textAlign = "right";

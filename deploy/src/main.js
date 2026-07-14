@@ -587,9 +587,8 @@ function queueTipOnce(flag, title, lines) {
 
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
 const ENEMY_NAMES = Object.fromEntries(BASE_MONSTERS.map((m) => [m.type, m.name]));
-// canon EN names live here (codex.js is Codex's file); named elites/champions
-// fall back to their zh profile name until codex.js grows nameEn
-const ENEMY_NAMES_EN = { slime: "Froggit", bat: "Whimsun", ghost: "Vegetoid", tank: "Jerry", red: "Loox", orange: "Madjick", blue: "Woshua", purple: "Icecap" };
+// canon EN names come straight from the codex profiles' `english` field
+const ENEMY_NAMES_EN = Object.fromEntries(BASE_MONSTERS.map((m) => [m.type, m.english]));
 function enemyName(type) {
   return t(ENEMY_NAMES[type] || "怪物", ENEMY_NAMES_EN[type] || ENEMY_NAMES[type] || "a monster");
 }
@@ -1591,15 +1590,15 @@ function rollChestRewards() {
   if (endlessRound >= 4) count = 1; // deep judgement pays single rewards only
   const rewards = [];
   for (let i = 0; i < count; i++) {
-    const pick = Math.random() * 100;
-    if (pick < 22) {
+    const roll = Math.random() * 100; // NOTE: 别叫 pick — 会遮蔽 i18n 的 pick()
+    if (roll < 22) {
       rewards.push({ label: "羊妈的派", detail: "生命上限+15 · 回满", color: "#ff8fc7", icon: ICONS.pie, apply: () => {
         player.maxHp += 15; // 永久上限,然后全回复 — 一大口家的味道
         player.hp = player.maxHp;
         healFlash = 0.6;
         candyBanner = { text: "* 黄油太妃派。有家的味道。生命上限 +15!", t: 3 };
       }});
-    } else if (pick < 40) {
+    } else if (roll < 40) {
       rewards.push({ label: "骨白审判", detail: "清除全部普通怪", color: "#f2ead8", icon: ICONS.skull, apply: () => {
         let reaped = 0;
         for (const e of enemies) {
@@ -1611,12 +1610,12 @@ function rollChestRewards() {
         killFlash = 0.3;
         candyBanner = { text: `* 骨白审判降下。${reaped} 个身影同时化尘。`, t: 3 };
       }});
-    } else if (pick < 55) {
+    } else if (roll < 55) {
       rewards.push({ label: "热狗 ×3('dogs)", detail: "残血自动回血 · 3次", color: "#ffb066", icon: ICONS.hotdog, apply: () => {
         hotdogStock = Math.min(9, hotdogStock + 3); // 残血自动吃,用完为止
         candyBanner = { text: "* 三根热狗揣进口袋。残血时会自动想起它们。", t: 3 };
       }});
-    } else if (pick < 67) {
+    } else if (roll < 67) {
       // 六魂遗物: 机制型独特物件 — rogue-like 的 item 心跳,卡池永远给不了
       const relic = pickRelic(relics);
       if (relic) {
@@ -1646,7 +1645,7 @@ function rollChestRewards() {
           if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
         }});
       }
-    } else if (pick < 81) {
+    } else if (roll < 81) {
       // 觉醒骨: 宝箱的圣杯 — 三层逻辑永无死槽
       rewards.push({ label: "觉醒骨", detail: "进化或强化一件武器", color: "#ffd93d", icon: ICONS.awakening, apply: () => {
         const ready = player.weapons.find((w) => canEvolve(w));
@@ -1655,7 +1654,7 @@ function rollChestRewards() {
           const w = WEAPONS[ready.id];
           killFlash = 0.35;
           sfxFanfare();
-          candyBanner = { text: `* 觉醒骨共鸣!${w.name} 觉醒为 ${w.evolve.name}!!`, t: 3.5 };
+          candyBanner = { text: t(`* 觉醒骨共鸣!${w.name} 觉醒为 ${w.evolve.name}!!`, `* Bone resonance! ${pick(w, "name")} awakens as ${pick(w.evolve, "name")}!!`), t: 3.5 };
           return;
         }
         const up = player.weapons.filter((w) => w.tier < 4);
@@ -3647,7 +3646,11 @@ function update(dt) {
       b.xp = Math.round(b.xp * 6);
       b.eliteSkillTimer = 1.8;
       enemies.push(b);
-      roundBanner = { text: `⚠ ${profile.name} 接近`, sub: `${profile.english} · 第 ${endlessRound} 轮审判`, t: 2.2 };
+      roundBanner = {
+        text: t(`⚠ ${profile.name} 接近`, `⚠ ${profile.english} approaching`),
+        sub: t(`${profile.english} · 第 ${endlessRound} 轮审判`, `Judgement round ${endlessRound}`),
+        t: 2.2,
+      };
       // champion entrance quote rides the UT narration box under the banner
       const entrance = championEntrance(profile.championId);
       if (entrance) candyBanner = { text: entrance, t: 3.6 };

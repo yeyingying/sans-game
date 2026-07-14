@@ -420,6 +420,9 @@ export const ROUND_CHAMPIONS = [
 ];
 
 export const CODEX_MONSTERS = [...BASE_MONSTERS, ...ELITE_MONSTERS, ...ROUND_CHAMPIONS];
+// EN display name == the canon `english` field already on every profile;
+// derive nameEn once so i18n's pick(obj, "name") works without duplication
+for (const m of CODEX_MONSTERS) m.nameEn = m.english;
 export const MONSTER_BY_TYPE = Object.fromEntries(BASE_MONSTERS.map((m) => [m.type, m]));
 
 const ELITE_BY_KEY = Object.fromEntries(ELITE_MONSTERS.map((m) => [m.key, m]));
