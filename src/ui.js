@@ -360,7 +360,7 @@ export function contractChipRect(i, width, height) {
   const w = 214;
   const gap = 14;
   const total = 3 * w + 2 * gap;
-  return { x: width / 2 - total / 2 + i * (w + gap), y: height - 152, w, h: 60 };
+  return { x: width / 2 - total / 2 + i * (w + gap), y: height - 142, w, h: 56 };
 }
 
 // contracts: [{name, up, down}]; selected -1 = 无契
@@ -374,7 +374,7 @@ export function drawContractChips(ctx, width, height, contracts, selected) {
     ICONS.pact,
     selected < 0 ? "审判契约(可选):点击签订,再点解除 · 按 C 循环" : "已签契约——审判会记得你的选择",
     width / 2,
-    height - 164,
+    height - 148,
     15,
     6
   );
@@ -1337,9 +1337,12 @@ function drawDifficultyRow(ctx, width, height, diffs) {
   ctx.save();
   ctx.textAlign = "center";
   const activeDiff = diffs.find((d) => d.active);
-  ctx.fillStyle = "#9a93ab";
-  ctx.font = "12px monospace";
-  drawIconLabel(ctx, ICONS.difficulty, `难度：${activeDiff ? activeDiff.hint : ""}`, width / 2, diffPillRect(0, width, height).y - 10, 13, 5);
+  if (!IS_TOUCH) {
+    // 触屏不画提示行: 胶囊高亮已表达当前难度,腾出的间距给选中角色详情行
+    ctx.fillStyle = "#9a93ab";
+    ctx.font = "12px monospace";
+    drawIconLabel(ctx, ICONS.difficulty, `难度：${activeDiff ? activeDiff.hint : ""}`, width / 2, diffPillRect(0, width, height).y - 10, 13, 5);
+  }
   for (let i = 0; i < diffs.length; i++) {
     const d = diffs[i];
     const box = diffPillRect(i, width, height);
@@ -1446,12 +1449,8 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
         fitFill(`专精 Lv${m.lvl}`, box.y + 284);
       }
     }
-    // 数字快捷键仍可用(1-5 选卡),但不再占卡面一行(2026-07-13 用户点名)
-    if (active) {
-      ctx.fillStyle = c.color;
-      ctx.font = "bold 18px monospace";
-      ctx.fillText("▼", box.x + box.w / 2, box.y - 12);
-    }
+    // 数字快捷键仍可用(1-5 选卡);选中态由加粗彩色边框表达——
+    // ▼ 标记已删(冗余,且触屏下与翻页箭头重叠,2026-07-14 拥挤专项)
   }
 
   // 渐进披露: 当前选中角色的完整描述+最高分,单独一行居中
