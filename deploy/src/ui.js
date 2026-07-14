@@ -1227,7 +1227,7 @@ const SHOP_ICONS = {
 };
 
 // souls: [{id, name, color, desc, price, owned, equipped}]
-export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = [], infoLine = "", showCosmetics = true, flashId = null) {
+export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls = [], infoLine = "", showCosmetics = true, flashId = null, powerIndex = null, powerPulse = null) {
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.96)";
   ctx.fillRect(0, 0, width, height);
@@ -1248,20 +1248,39 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
     ctx.font = "bold 14px monospace";
     ctx.fillText(label, r.x + r.w / 2, r.y + 21);
   }
-  ctx.fillStyle = "#f2ead8";
-  ctx.font = "13px monospace";
-  ctx.font = "12px monospace";
-  drawIconLabel(
-    ctx,
-    ICONS.coin,
-    tab === 0
-      ? `${coins} · ${infoLine}`
-      : `${coins} · ${t("灵魂外观,不影响属性", "Cosmetic only, no stats")} · ${infoLine}`,
-    width / 2,
-    112,
-    14,
-    5
-  );
+  // 钱包 = 本页最高频决策输入,右上角大号常驻(不再和摘要挤一行)
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#ffd166";
+  ctx.font = "bold 20px monospace";
+  const walletText = String(coins);
+  ctx.fillText(walletText, width - 26, 48);
+  drawPixelIcon(ctx, ICONS.coin, width - 26 - ctx.measureText(walletText).width - 24, 32, 18);
+  // 战力指数 = 钱包的镜像位(左上):买战力件数字当场跳涨,
+  // "花钱→变强"一眼闭环;+Δ 随脉冲放大后淡出
+  if (tab === 0 && powerIndex !== null) {
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#c8c2d4";
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(t("战力指数", "POWER INDEX"), 26, 34);
+    const pulse = powerPulse ? Math.min(1, powerPulse.t / 1.4) : 0;
+    ctx.fillStyle = pulse > 0 ? "#7cf28a" : "#f2ead8";
+    ctx.font = `bold ${Math.round(20 + pulse * 5)}px monospace`;
+    ctx.fillText(String(powerIndex), 26, 58);
+    if (powerPulse) {
+      ctx.globalAlpha = Math.min(1, powerPulse.t / 0.5);
+      ctx.fillStyle = "#7cf28a";
+      ctx.font = "bold 14px monospace";
+      ctx.fillText(`+${powerPulse.delta}`, 26 + ctx.measureText(String(powerIndex)).width + 46, 54);
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.textAlign = "center";
+
+  if (tab === 1) {
+    ctx.fillStyle = "#9a93ab";
+    ctx.font = "12px monospace";
+    ctx.fillText(`${t("灵魂外观,不影响属性", "Cosmetic only, no stats")} · ${infoLine}`, width / 2, 112);
+  }
 
   if (tab === 1) {
     for (let i = 0; i < souls.length; i++) {
@@ -1312,54 +1331,90 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
     return;
   }
 
+  // 双列列头: 分组即导购——想变强看左列,要舒服看右列
+  ctx.font = "bold 12px monospace";
+  ctx.fillStyle = "#8d8798";
+  const colHeadY = shopItemRect(0, width, height).y - 10;
+  ctx.fillText(t("— 战 力 —", "— P O W E R —"), shopItemRect(0, width, height).x + 215, colHeadY);
+  ctx.fillText(t("— 品 质 —", "— Q o L —"), shopItemRect(5, width, height).x + 215, colHeadY);
+
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const box = shopItemRect(i, width, height);
     const affordable = it.cost !== null && coins >= it.cost;
     const flashing = flashId && it.id === flashId;
-    ctx.fillStyle = "#1d1828";
+    // 锁定行整体压暗: 一眼分清"现在能碰的"和"以后再来的"
+    ctx.fillStyle = it.gate ? "#141020" : "#1d1828";
     ctx.fillRect(box.x, box.y, box.w, box.h);
-    ctx.strokeStyle = flashing ? "#7cf28a" : it.cost === null ? "#453f52" : affordable ? it.color : "#5a5468";
-    ctx.lineWidth = flashing ? 3 : 2;
+    ctx.strokeStyle = flashing ? "#7cf28a" : it.hot ? "#ffd93d" : it.cost === null ? "#453f52" : it.gate ? "#38304a" : affordable ? it.color : "#5a5468";
+    ctx.lineWidth = flashing || it.hot ? 3 : 2;
     ctx.strokeRect(box.x, box.y, box.w, box.h);
 
     ctx.textAlign = "left";
     const icon = ICONS[SHOP_ICONS[it.id]];
-    if (icon) drawPixelIcon(ctx, icon, box.x + 12, box.y + 12, 16);
-    ctx.fillStyle = it.color;
-    ctx.font = "bold 16px monospace";
-    ctx.fillText(it.name, box.x + (icon ? 36 : 16), box.y + 24);
-    // 购买瞬间数值行短闪绿色: 新数值就是反馈,不加弹窗
-    ctx.fillStyle = flashing ? "#7cf28a" : "#b9b2c9";
-    ctx.font = "12px monospace";
-    ctx.fillText(it.desc, box.x + 16, box.y + 44);
+    if (icon) drawPixelIcon(ctx, icon, box.x + 12, box.y + 10, 16);
+    ctx.fillStyle = it.gate ? "#7d7690" : it.color;
+    ctx.font = "bold 15px monospace";
+    ctx.fillText(it.name, box.x + (icon ? 36 : 16), box.y + 22);
+    // ★推荐: 和结算页"去变强"教练句同一决策模型,进店第一眼就有答案
+    if (it.hot) {
+      const tag = t("★推荐", "★BEST");
+      ctx.font = "bold 11px monospace";
+      const tagW = ctx.measureText(tag).width + 10;
+      const tagX = box.x + (icon ? 36 : 16) + ctx.measureText(it.name).width + 26;
+      ctx.fillStyle = "#3a3010";
+      ctx.fillRect(tagX, box.y + 8, tagW, 16);
+      ctx.strokeStyle = "#ffd93d";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(tagX, box.y + 8, tagW, 16);
+      ctx.fillStyle = "#ffd93d";
+      ctx.fillText(tag, tagX + 5, box.y + 20);
+    }
+    // 购买瞬间数值行短闪绿色: 新数值就是反馈,不加弹窗;
+    // 锁定行的这一行直接写解锁条件(信息前置,不用点了才知道)
+    ctx.fillStyle = flashing ? "#7cf28a" : it.gate ? "#d9c47a" : "#b9b2c9";
+    const descText = it.gate || it.desc;
+    const descMax = box.w - 32 - (it.gate ? 20 : 78); // 让出右下角"点击购买"/锁的空间
+    let descFont = 12;
+    ctx.font = `${descFont}px monospace`;
+    while (descFont > 9 && ctx.measureText(descText).width > descMax) {
+      descFont -= 1;
+      ctx.font = `${descFont}px monospace`;
+    }
+    ctx.fillText(descText, box.x + 16, box.y + 42);
 
     ctx.textAlign = "right";
-    ctx.fillStyle = "#f2ead8";
+    ctx.fillStyle = it.gate ? "#5a5468" : "#f2ead8";
     ctx.font = "bold 14px monospace";
     // level pips
-    ctx.fillText(`${"■".repeat(it.lvl)}${"□".repeat(it.max - it.lvl)}`, box.x + box.w - 118, box.y + 24);
-    ctx.fillStyle = it.cost === null ? "#7cf28a" : affordable ? "#ffd166" : "#6b6578";
+    ctx.fillText(`${"■".repeat(it.lvl)}${"□".repeat(it.max - it.lvl)}`, box.x + box.w - 118, box.y + 22);
+    ctx.fillStyle = it.cost === null ? "#7cf28a" : it.gate ? "#6b6578" : affordable ? "#ffd166" : "#6b6578";
     if (it.cost === null) {
-      ctx.fillText(t("已满级", "MAX"), box.x + box.w - 16, box.y + 24);
+      ctx.fillText(t("已满级", "MAX"), box.x + box.w - 16, box.y + 22);
     } else {
       const costText = String(it.cost);
       const costW = ctx.measureText(costText).width;
-      drawPixelIcon(ctx, ICONS.coin, box.x + box.w - 22 - costW - 16, box.y + 10, 14);
-      ctx.fillText(costText, box.x + box.w - 16, box.y + 24);
+      drawPixelIcon(ctx, ICONS.coin, box.x + box.w - 22 - costW - 16, box.y + 8, 14);
+      ctx.fillText(costText, box.x + box.w - 16, box.y + 22);
     }
     if (it.cost !== null) {
-      // 统一状态语义: 可买/金币不足/未解锁(锁图标);门槛原因点击后弹一次,
-      // 不再每个条目常驻一整句
+      // 统一状态语义: 可买/金币不足/锁图标(条件已在数值行,不再重复文字)
       ctx.fillStyle = it.gate ? "#d9c47a" : affordable ? "#7d7690" : "#5a5468";
       ctx.font = "11px monospace";
-      const statusText = it.gate ? t("未解锁", "Locked") : affordable ? t("点击购买", "Tap to buy") : t("金币不足", "Not enough");
       if (it.gate) {
-        const statusW = ctx.measureText(statusText).width;
-        drawPixelIcon(ctx, ICONS.lock, box.x + box.w - statusW - 31, box.y + 31, 11);
+        drawPixelIcon(ctx, ICONS.lock, box.x + box.w - 27, box.y + 30, 11);
+      } else {
+        ctx.fillText(affordable ? t("点击购买", "Tap to buy") : t("金币不足", "Not enough"), box.x + box.w - 16, box.y + 42);
       }
-      ctx.fillText(statusText, box.x + box.w - 16, box.y + 44);
     }
+  }
+
+  // 已生效摘要退居栅格下方: 是"账单"不是"决策",别占黄金位
+  if (infoLine) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#7d7690";
+    ctx.font = "11px monospace";
+    ctx.fillText(infoLine, width / 2, shopItemRect(4, width, height).y + 52 + 24);
   }
 
   ctx.textAlign = "center";

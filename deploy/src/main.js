@@ -784,6 +784,7 @@ let temVisit = null; // {x, y, t} hOI!!!
 let letterVisit = null; // {x, y, t} 帕子的信 — walk over it to read
 let visitorRolls = { dog: false, flower: false, spare: false, tem: false, letter: false }; // once each per run
 let shopMsg = null; // {text, t} UT-style denial line in the shop
+let shopPowerPulse = null; // {delta, t} 战力指数跳涨动画(买战力件时)
 let shopFlash = null; // {id, t} 购买成功后的数值短闪(美术批: 不加弹窗,行内反馈)
 let hotdogStock = 0; // 🌭 chest hot dogs: auto-eaten at low HP, run-scoped
 let hotdogCd = 0; // one dog per second, not a chug
@@ -1038,11 +1039,19 @@ function shopCompareLine(id, lvl, max) {
     }
     case "bulwark":
       return maxed
-        ? t(`已满级 · 减伤 ${3 * lvl}%`, `Maxed · damage taken -${3 * lvl}%`)
-        : t(`减伤 ${3 * lvl}% → ${3 * (lvl + 1)}%(Boss也吃这套)`, `Damage taken -${3 * lvl}% → -${3 * (lvl + 1)}% (works on the Boss too)`);
+        ? t(`已满级 · 减伤 ${3 * lvl}%`, `Maxed · damage cut ${3 * lvl}%`)
+        : t(`减伤 ${3 * lvl}% → ${3 * (lvl + 1)}%(Boss也吃这套)`, `Damage cut ${3 * lvl}% → ${3 * (lvl + 1)}% (Boss included)`);
     default:
       return null;
   }
+}
+
+// 战力指数: 商店战力件折算的单一数字(基准100)——买完"能力提升"最直白的
+// 感知锚点。DPS乘区×EHP乘区: 伤害×(1.06^atk·1.05^crystal),血/(1-减伤)。
+function metaPowerIndex() {
+  const dmg = Math.pow(1.06, upgradeLevel("atk")) * Math.pow(1.05, upgradeLevel("crystal"));
+  const ehp = (1 + 0.07 * upgradeLevel("hp")) / (1 - 0.03 * upgradeLevel("bulwark"));
+  return Math.round(100 * dmg * ehp);
 }
 
 function shopItems() {
@@ -1060,12 +1069,23 @@ function shopItems() {
   items.push({
     id: "reviveStock",
     name: t("重燃决心", "Rekindled DT"),
-    desc: t("一次性复活,带入下局(每局限1次;屠杀无效)", "One revive, carried into runs (1/run; void on GENOCIDE)"),
+    desc: t("一次性复活,带入下局(每局限1次;屠杀无效)", "One revive carried into runs; no GENOCIDE"),
     lvl: reviveStock(),
     max: 3,
     cost: reviveCost(),
     color: "#ffffff",
   });
+  // UIUX(2026-07-15): 左列=战力(变强买这排),右列=品质(舒服买这排)——
+  // 分组本身就是购买指引;顺序即渲染格位(shopItemRect 按 index 排两列)
+  const ORDER = ["atk", "hp", "crystal", "bulwark", "reviveStock", "speed", "magnet", "greed", "reroll", "gear"];
+  items.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
+  // ★推荐 = 当前买得起的最便宜战力件(和结算页教练句同一决策模型):
+  // 玩家从"去变强"跳进来,第一眼就该知道钱花哪
+  const POWER_LANE = new Set(["atk", "hp", "crystal", "bulwark"]);
+  const best = items
+    .filter((x) => POWER_LANE.has(x.id) && x.cost !== null && !x.gate && x.cost <= getCoins())
+    .sort((a, b) => a.cost - b.cost)[0];
+  if (best) best.hot = true;
   return items;
 }
 
@@ -2134,6 +2154,26 @@ function startGame() {
     }
     tipQueue.push({ title: t("行前整备已生效", "Provisions equipped"), lines: [granted.join(" · "), t("本局构筑可在暂停页与结算详情查看", "Check your build on the pause and results screens")], t: 6 });
   }
+  // 局外强化开局回响(2026-07-15 用户"买了如何感知提升"): 只在战力构成
+  // 变化后的第一局提示——刚买完的那局才是感知时刻,之后不刷屏。
+  // 浮字活不过开场黑幕,走 tip 管道(前车之鉴见上)。
+  if (!dailyMode) {
+    const sig = `${player.metaDmg.toFixed(3)}|${player.hpAmp.toFixed(3)}|${upgradeLevel("bulwark")}`;
+    let seen = null;
+    try { seen = localStorage.getItem("metaPowerSeen"); } catch {}
+    if (sig !== seen && (player.metaDmg > 1 || player.hpAmp > 1 || upgradeLevel("bulwark") > 0)) {
+      const metaParts = [];
+      if (player.metaDmg > 1) metaParts.push(`${t("伤害", "DMG")} ×${player.metaDmg.toFixed(2)}`);
+      if (player.hpAmp > 1) metaParts.push(`${t("生命", "HP")} +${Math.round((player.hpAmp - 1) * 100)}%`);
+      if (upgradeLevel("bulwark") > 0) metaParts.push(`${t("减伤", "DR")} ${3 * upgradeLevel("bulwark")}%`);
+      tipQueue.push({
+        title: t("⚒ 局外强化已就位", "⚒ Upgrades locked in"),
+        lines: [metaParts.join(" · "), t(`战力指数 ${metaPowerIndex()}——这一局,亲手验货`, `Power index ${metaPowerIndex()} — go feel the difference`)],
+        t: 6,
+      });
+      try { localStorage.setItem("metaPowerSeen", sig); } catch {}
+    }
+  }
   // warm-up welcome party: composition, size and formation vary per run
   // (and by difficulty) so no two openings look the same
   if (DEBUG_BOSS === null) {
@@ -2807,10 +2847,13 @@ function handleCanvasTap(pos) {
     const items = shopItems();
     for (let i = 0; i < items.length; i++) {
       if (inRect(pos, shopItemRect(i, WIDTH, HEIGHT))) {
+        const idxBefore = metaPowerIndex();
         const ok = items[i].id === "reviveStock" ? buyReviveStock() : buyUpgrade(items[i].id);
         if (ok) {
           sfxEquip();
           shopFlash = { id: items[i].id, t: 0.6 }; // 数值短闪: 行内看到新值
+          const delta = metaPowerIndex() - idxBefore;
+          if (delta > 0) shopPowerPulse = { delta, t: 1.4 }; // 战力指数跳涨
         } else {
           sfxHurt(); // maxed or broke: denial buzz + a UT-style line
           const it = items[i];
@@ -5965,7 +6008,9 @@ function draw() {
       })),
       shopTab === 0 ? metaBonusLine() : cosmeticEquipLine(),
       COSMETICS_SHOP_ENABLED,
-      shopFlash?.id ?? null
+      shopFlash?.id ?? null,
+      metaPowerIndex(),
+      shopPowerPulse
     );
     // UT-style denial narration for maxed / gated / broke purchases
     if (shopMsg) {
@@ -6894,6 +6939,7 @@ function loop(now) {
   if (deathShatter && state === "gameover") deathShatter.t += dt;
   if (chapterShow && state === "chapter") chapterShow.t += dt;
   if (shopMsg && (shopMsg.t -= dt) <= 0) shopMsg = null;
+  if (shopPowerPulse && (shopPowerPulse.t -= dt) <= 0) shopPowerPulse = null;
   if (shopFlash && (shopFlash.t -= dt) <= 0) shopFlash = null;
   if (tapFlash && (tapFlash.t -= dt) <= 0) tapFlash = null;
   if (state === "chest" && chestCeremony) {
