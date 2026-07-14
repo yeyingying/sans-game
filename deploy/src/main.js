@@ -2445,6 +2445,12 @@ function inRect(p, r) {
 
 function handleCanvasTap(pos) {
   if ((state === "playing" || state === "paused" || state === "choice") && inRect(pos, speedButtonRect(WIDTH))) {
+    if (dailyMode) {
+      // 明确拒绝而不是静默无视——玩家才知道是规则不是bug
+      sfxHurt();
+      floatingTexts.push(new FloatingText(player.x, player.y - 40, "每日挑战锁定 1× 倍速", "#c59bff"));
+      return;
+    }
     cycleSpeed();
     sfxClick();
     return;
@@ -5717,7 +5723,7 @@ function draw() {
   // 结算页上别再画Boss血条/台词(死在Boss战时它们会压住结算文案)
   if (bossFight && state !== "gameover") bossFight.drawOverlay(ctx);
   if (state === "playing" || state === "paused" || state === "choice") {
-    drawSpeedButton(ctx, WIDTH, timeScale);
+    drawSpeedButton(ctx, WIDTH, timeScale, dailyMode);
     drawPauseButton(ctx, WIDTH, state === "paused");
   }
   if (state === "playing") drawJoystick(ctx, getJoystick());

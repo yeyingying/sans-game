@@ -59,18 +59,20 @@ export function drawJoystick(ctx, joy) {
   ctx.restore();
 }
 
-export function drawSpeedButton(ctx, width, timeScale) {
+export function drawSpeedButton(ctx, width, timeScale, locked = false) {
   const btn = speedButtonRect(width);
   ctx.save();
-  ctx.fillStyle = "#241f2b";
+  ctx.fillStyle = locked ? "#1a1622" : "#241f2b";
   ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
-  ctx.strokeStyle = timeScale > 1 ? "#ffd166" : "#5a5468";
+  ctx.strokeStyle = locked ? "#453f52" : timeScale > 1 ? "#ffd166" : "#5a5468";
   ctx.lineWidth = 2;
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
-  ctx.fillStyle = timeScale > 1 ? "#ffd166" : "#c8c2d4";
+  ctx.fillStyle = locked ? "#6b6578" : timeScale > 1 ? "#ffd166" : "#c8c2d4";
   ctx.font = "bold 13px monospace";
   ctx.textAlign = "center";
-  ctx.fillText(`▶▶ x${timeScale}`, btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
+  // 每日锁1×: 明示锁定,不再是"按了没反应"的假按钮(2026-07-14 用户困惑)
+  if (locked) drawIconLabel(ctx, ICONS.lock, "x1", btn.x + btn.w / 2, btn.y + btn.h / 2 + 5, 12, 4);
+  else ctx.fillText(`▶▶ x${timeScale}`, btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
   ctx.restore();
 }
 
