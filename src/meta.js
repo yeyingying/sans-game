@@ -51,6 +51,10 @@ export const UPGRADES = [
   { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", nameEn: "Fortune", descEn: "Coin gain +20% / lv", max: 5, base: 160, color: "#ffd166" },
   { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", nameEn: "Spare Dice", descEn: "Card rerolls +1 per pick", max: 2, base: 280, color: "#5ee6e6" },
   { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", nameEn: "Provisions", descEn: "Start each run with 1 random gear / lv", max: 3, base: 220, color: "#7ea8ff" },
+  // 第二梯队(2026-07-15 用户"商店买满没增加多少,加更贵更强的商品"):
+  // 高价长线大件,逐级压进度门槛(滞后一级),是付费角色同价位的金币去处
+  { id: "crystal", name: "决心结晶", desc: "最终伤害再 ×1.05 / 级(与力量刻印相乘)", nameEn: "DT Crystal", descEn: "Final damage ×1.05 / lv more (stacks with Power Sigil)", max: 4, base: 1000, color: "#ff3d5a" },
+  { id: "bulwark", name: "骨之壁垒", desc: "受到的伤害 -3% / 级", nameEn: "Bone Bulwark", descEn: "Damage taken -3% / lv", max: 3, base: 800, color: "#8fd6ff" },
 ];
 
 let upgrades = readJson("metaUpgrades", {});
@@ -61,7 +65,7 @@ export function upgradeLevel(id) {
 
 // 力量类升级的难度门槛: money can never buy power beyond your skill.
 // Lv3 needs a 狂暴 clear, Lv4 地狱, Lv5 屠杀 (QoL upgrades are never gated).
-const POWER_GATED = new Set(["atk", "hp"]);
+const POWER_GATED = new Set(["atk", "hp", "crystal", "bulwark"]);
 
 export function upgradeGate(id) {
   if (!POWER_GATED.has(id)) return null;
@@ -69,6 +73,15 @@ export function upgradeGate(id) {
   // gates lag ONE tier behind the wall: the power that helps you beat a
   // difficulty is always grindable while you are stuck on it, but power
   // two tiers ahead can never be bought (2026-07-12 user design call)
+  if (id === "crystal" || id === "bulwark") {
+    // 第二梯队从 Lv1 就压门槛(它们是通关后的深水区商品),
+    // 逐级递进:普通→狂暴→地狱(→结晶末级要屠杀)
+    if (stats.bossKills < 1) return t("通关普通难度后解锁", "Unlocks after a NORMAL clear");
+    if (lvl >= 1 && stats.diffCleared < 1) return t("狂暴难度通关后解锁", "Unlocks after a FURY clear");
+    if (lvl >= 2 && stats.diffCleared < 2) return t("地狱难度通关后解锁", "Unlocks after a HELL clear");
+    if (id === "crystal" && lvl >= 3 && stats.diffCleared < 3) return t("屠杀难度通关后解锁", "Unlocks after a GENOCIDE clear");
+    return null;
+  }
   if (lvl >= 2 && stats.bossKills < 1) return t("通关普通难度后解锁", "Unlocks after a NORMAL clear");
   if (lvl >= 3 && stats.diffCleared < 1) return t("狂暴难度通关后解锁", "Unlocks after a FURY clear");
   if (lvl >= 4 && stats.diffCleared < 2) return t("地狱难度通关后解锁", "Unlocks after a HELL clear");
@@ -94,15 +107,18 @@ export function buyUpgrade(id) {
 
 // starting-stat bonuses, applied right after the Player is created
 export function applyMetaUpgrades(player) {
-  // 力量刻印: an INDEPENDENT multiplier lane (metaDmg), applied inside
-  // weaponDmg alongside in-run amp cards — its relative value never dilutes
-  player.metaDmg = Math.pow(1.06, upgradeLevel("atk"));
+  // 力量刻印 + 决心结晶: an INDEPENDENT multiplier lane (metaDmg), applied
+  // inside weaponDmg alongside in-run amp cards — never dilutes
+  player.metaDmg = Math.pow(1.06, upgradeLevel("atk")) * Math.pow(1.05, upgradeLevel("crystal"));
   // 决心之心: percentage bulk that also scales every level-up hp gain
   player.hpAmp = 1 + 0.07 * upgradeLevel("hp");
   player.maxHp = Math.round(player.maxHp * player.hpAmp);
   player.hp = player.maxHp;
   player.moveSpeed += 8 * upgradeLevel("speed");
   player.magnetRadius += 25 * upgradeLevel("magnet");
+  // 骨之壁垒: flat damage reduction lane — the one shop stat the boss's
+  // bulk-scaling can never neutralize (与局内减伤卡同池,上限一并生效)
+  player.dmgReduction = Math.min(0.9, (player.dmgReduction || 0) + 0.03 * upgradeLevel("bulwark"));
 }
 
 // ---- 重燃决心: consumable revives -------------------------------------------

@@ -277,7 +277,7 @@ function run(seconds, onFrame) {
     for (let l = 0; l < u.max; l++) tt += Math.round(u.base * Math.pow(2.3, l));
     return sum + tt;
   }, 0);
-  check("geometric shop curve totals 20374 (2.3^lvl 方案B)", geoTotal === 20374, `total=${geoTotal}`);
+  check("geometric shop curve totals 48003 (2.3^lvl + 第二梯队结晶20757/壁垒6872)", geoTotal === 48003, `total=${geoTotal}`);
   M.addCoins(300);
   check("coins added", M.getCoins() === 300);
   check("upgrade cost scales", M.upgradeCost("atk") === 90);
@@ -321,6 +321,8 @@ function run(seconds, onFrame) {
   check("QoL upgrades never gated", M.upgradeGate("magnet") === null);
   M.recordRun({ bossKilled: true, difficulty: 1 }); // 狂暴 cleared
   check("Lv4 opens, Lv5 still gated", M.buyUpgrade("atk") && M.upgradeLevel("atk") === 4 && M.upgradeGate("atk") !== null);
+  // 第二梯队: 通关普通+狂暴后,结晶/壁垒 Lv1、Lv2 都开;结晶 Lv3 要地狱
+  check("second-tier items open with progress", M.upgradeGate("crystal") === null && M.upgradeGate("bulwark") === null);
   M.spendCoins(2000 - 180 - 360 - 720); // burn surplus: 屠杀-threshold checks below assume poverty
   // new shop items: 行前整备 (start gear) and 重燃决心 (revive)
   M.addCoins(1400); // gear 320 + revives 3×300

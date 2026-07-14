@@ -1188,13 +1188,13 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
 // ---- permanent upgrade shop ------------------------------------------------
 
 export function shopItemRect(i, width, height) {
-  // two columns x four rows
+  // two columns x five rows (第二梯队上架后 10 件正好填满)
   const w = 430;
-  const h = 56;
-  const gap = 10;
-  const col = Math.floor(i / 4);
+  const h = 52;
+  const gap = 8;
+  const col = Math.floor(i / 5);
   const x = col === 0 ? width / 2 - w - 8 : width / 2 + 8;
-  return { x, y: 120 + (i % 4) * (h + gap), w, h };
+  return { x, y: 120 + (i % 5) * (h + gap), w, h };
 }
 
 // tab pills: 0 = 能力升级, 1 = 灵魂加护 (cosmetics)
@@ -1221,6 +1221,8 @@ const SHOP_ICONS = {
   greed: "coin",
   reroll: "refresh",
   gear: "chest",
+  crystal: "star",
+  bulwark: "relic",
   reviveStock: "awakening",
 };
 

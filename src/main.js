@@ -142,7 +142,7 @@ import { utPrompt, utNotice } from "./dialog.js";
 import { t, pick, currentLang, toggleLang } from "./i18n.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
-const GAME_VERSION = "s2-20260716"; // 新角色黑客结局+缴械体系上线
+const GAME_VERSION = "s2-20260717"; // Boss伤害标定剔除hpAmp+商店第二梯队(结晶/壁垒)
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
@@ -936,6 +936,8 @@ function metaBonusLine() {
   if (upgradeLevel("greed")) parts.push(`${t("金币", "Coins")}+${20 * upgradeLevel("greed")}%`);
   if (upgradeLevel("reroll")) parts.push(`${t("选卡刷新", "Rerolls")}+${upgradeLevel("reroll")}`);
   if (upgradeLevel("gear")) parts.push(`${t("开局装备", "Start gear")}+${upgradeLevel("gear")}`);
+  if (upgradeLevel("crystal")) parts.push(`${t("结晶", "Crystal")}×${Math.pow(1.05, upgradeLevel("crystal")).toFixed(2)}`);
+  if (upgradeLevel("bulwark")) parts.push(`${t("减伤", "DR")}+${3 * upgradeLevel("bulwark")}%`);
   if (reviveStock()) parts.push(`${t("复活", "Revives")}×${reviveStock()}`);
   return parts.length ? `${t("已生效", "Active")}:${parts.join(" ")}` : t("还没买过强化——买了的每一局自动生效", "No upgrades yet — anything you buy applies every run");
 }
@@ -1027,6 +1029,17 @@ function shopCompareLine(id, lvl, max) {
       return maxed
         ? t(`已满级 · 开局装备 ${lvl} 件`, `Maxed · ${lvl} starting gear`)
         : t(`开局装备 ${lvl} 件 → ${lvl + 1} 件`, `Starting gear ${lvl} → ${lvl + 1}`);
+    case "crystal": {
+      const a = Math.pow(1.05, lvl).toFixed(2);
+      const b = Math.pow(1.05, lvl + 1).toFixed(2);
+      return maxed
+        ? t(`已满级 · 结晶增幅 ×${a}(与力量刻印相乘)`, `Maxed · crystal ×${a} (stacks with Power Sigil)`)
+        : t(`结晶增幅 ×${a} → ×${b}(与力量刻印相乘)`, `Crystal ×${a} → ×${b} (stacks with Power Sigil)`);
+    }
+    case "bulwark":
+      return maxed
+        ? t(`已满级 · 减伤 ${3 * lvl}%`, `Maxed · damage taken -${3 * lvl}%`)
+        : t(`减伤 ${3 * lvl}% → ${3 * (lvl + 1)}%(Boss也吃这套)`, `Damage taken -${3 * lvl}% → -${3 * (lvl + 1)}% (works on the Boss too)`);
     default:
       return null;
   }
@@ -1046,8 +1059,8 @@ function shopItems() {
   // consumable revive rides in the same list with its stock as "pips"
   items.push({
     id: "reviveStock",
-    name: "重燃决心",
-    desc: "一次性复活,带入下局(每局限1次;屠杀无效)",
+    name: t("重燃决心", "Rekindled DT"),
+    desc: t("一次性复活,带入下局(每局限1次;屠杀无效)", "One revive, carried into runs (1/run; void on GENOCIDE)"),
     lvl: reviveStock(),
     max: 3,
     cost: reviveCost(),
