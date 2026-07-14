@@ -139,6 +139,7 @@ import { circleHit } from "./utils.js";
 import { initLeaderboard, loadLeaderboard, beginRankedRun, recordRankedStageClear, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=s2-20260716-4";
 
 import { utPrompt, utNotice } from "./dialog.js";
+import { t, pick, currentLang, toggleLang } from "./i18n.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
 const GAME_VERSION = "s2-20260716"; // 新角色黑客结局+缴械体系上线
@@ -227,6 +228,8 @@ import {
   menuButtonRect,
   muteButtonRect,
   drawMuteButton,
+  langButtonRect,
+  drawLangButton,
   titleMenuItemRect,
   bookCharPillRect,
   bookRowRect,
@@ -387,8 +390,8 @@ function charLocksNow() {
     if (!c.cost || charOwned(c.id)) continue;
     const gated = c.gate === "hell" && (getStats().diffCleared ?? -1) < 2;
     locks[c.id] = gated
-      ? { hint: "地狱难度通关后可购", progress: `买断价 ${c.cost} 金币`, cost: c.cost, gated: true }
-      : { hint: `${c.cost} 金币买断`, progress: `钱包 ${getCoins()}`, cost: c.cost };
+      ? { hint: t("地狱难度通关后可购", "Clear HELL to purchase"), progress: `${t("买断价", "Price")} ${c.cost}`, cost: c.cost, gated: true }
+      : { hint: `${c.cost} ${t("金币买断", "coins to own")}`, progress: `${t("钱包", "Wallet")} ${getCoins()}`, cost: c.cost };
   }
   return locks;
 }
@@ -416,7 +419,7 @@ let selectedChar = 0;
 // 选人分页(2026-07-14 用户裁决): 第1页本家四人,第2页付费「裂缝时间线」
 let charPage = 0;
 const CHAR_PAGES = () => [CHARACTERS.filter((c) => !c.cost), CHARACTERS.filter((c) => c.cost)];
-const CHAR_PAGE_LABELS = ["本家时间线", "裂缝时间线"];
+const CHAR_PAGE_LABELS = () => [t("本家时间线", "Main Timeline"), t("裂缝时间线", "Rift Timelines")];
 function charPageList() {
   return CHAR_PAGES()[charPage];
 }
@@ -606,12 +609,12 @@ let tutorialChoseCard = false;
 const TUTORIAL_MIN_T = 1.2; // 每步至少露脸1.2s,防瞬跳
 function tutorialSteps() {
   return [
-    { text: IS_TOUCH ? "拖动屏幕任意位置——移动" : "方向键或 WASD——移动", done: () => tutorialMoved > 140 },
-    { text: "武器全自动开火,你只管走位", done: () => player.kills >= 1 },
-    { text: "捡绿色经验点,攒满就升级", done: () => player.level > 1 || player.xp >= 3 },
-    { text: "每15秒弹三选一,选卡变强", done: () => tutorialChoseCard },
-    { text: "金币死了也带走,商店里换永久强化", done: () => runCoins > 0 },
-    { text: "目标:活到 5:00。他会来的。", done: () => tutorialStepT > 5 },
+    { text: IS_TOUCH ? t("拖动屏幕任意位置——移动", "Drag anywhere to move") : t("方向键或 WASD——移动", "Arrow keys / WASD to move"), done: () => tutorialMoved > 140 },
+    { text: t("武器全自动开火,你只管走位", "Weapons fire on their own — just dodge"), done: () => player.kills >= 1 },
+    { text: t("捡绿色经验点,攒满就升级", "Grab green XP to level up"), done: () => player.level > 1 || player.xp >= 3 },
+    { text: t("每15秒弹三选一,选卡变强", "Every 15s: pick 1 of 3 upgrades"), done: () => tutorialChoseCard },
+    { text: t("金币死了也带走,商店里换永久强化", "Coins persist — spend them in the shop"), done: () => runCoins > 0 },
+    { text: t("目标:活到 5:00。他会来的。", "Goal: survive to 5:00. He is coming."), done: () => tutorialStepT > 5 },
   ];
 }
 function tutorialBannerRect(w) {
@@ -940,13 +943,13 @@ function cosmeticEquipLine() {
 function diffPills() {
   const active = getDifficulty().id;
   return DIFFICULTIES.map((d) => ({
-    name: d.name,
+    name: pick(d, "name"),
     active: d.id === active,
     locked: !isDifficultyUnlocked(d.id),
     hint:
       d.id === active
         ? d.id === 0
-          ? "标准体验"
+          ? t("标准体验", "The standard experience")
           : `怪物血×${d.hpMult} 伤×${d.dmgMult} · 金币×${d.coinMult} 分数×${d.scoreMult}`
         : d.hint || "",
   }));
@@ -1001,8 +1004,8 @@ function shopCompareLine(id, lvl, max) {
 function shopItems() {
   const items = UPGRADES.map((u) => ({
     id: u.id,
-    name: u.name,
-    desc: shopCompareLine(u.id, upgradeLevel(u.id), u.max) || u.desc,
+    name: pick(u, "name"),
+    desc: shopCompareLine(u.id, upgradeLevel(u.id), u.max) || pick(u, "desc"),
     lvl: upgradeLevel(u.id),
     max: u.max,
     cost: upgradeCost(u.id),
@@ -2184,8 +2187,8 @@ function buildChoicePool() {
       kind: "speed",
       weight: 12,
       make: () => ({
-        title: "移动速度 +18",
-        desc: `跑得更快，风筝更稳\n当前 ${Math.round(player.moveSpeed)} → ${Math.round(player.moveSpeed) + 18}`,
+        title: t("移动速度 +18", "Move Speed +18"),
+        desc: `${t("跑得更快，风筝更稳", "Run faster, kite safer")}\n${t("当前", "Now")} ${Math.round(player.moveSpeed)} → ${Math.round(player.moveSpeed) + 18}`,
         color: "#8fd6ff",
         apply: () => {
           player.moveSpeed += 18;
@@ -2196,8 +2199,8 @@ function buildChoicePool() {
       kind: "fireRate",
       weight: 12,
       make: () => ({
-        title: "攻速 +10%",
-        desc: `所有武器攻击更快\n当前 ${player.fireRate.toFixed(2)} → ${(player.fireRate * 1.1).toFixed(2)}`,
+        title: t("攻速 +10%", "Attack Speed +10%"),
+        desc: `${t("所有武器攻击更快", "All weapons fire faster")}\n${t("当前", "Now")} ${player.fireRate.toFixed(2)} → ${(player.fireRate * 1.1).toFixed(2)}`,
         color: "#5ee6e6",
         apply: () => {
           player.fireRate *= 1.1;
@@ -2208,9 +2211,9 @@ function buildChoicePool() {
       kind: "regen",
       weight: 12,
       make: () => ({
-        title: "每秒回血 +1%",
+        title: t("每秒回血 +1%", "Regen +1%/s"),
         // scales with max hp so it never falls behind late game
-        desc: `每秒回复 1% 最大生命\n(当前 ${(player.regen + player.maxHp * player.regenPct).toFixed(1)}/秒，上限 5%)`,
+        desc: `${t("每秒回复 1% 最大生命", "Restore 1% max HP per second")}\n(${t("当前", "Now")} ${(player.regen + player.maxHp * player.regenPct).toFixed(1)}/s, ${t("上限", "cap")} 5%)`,
         color: "#7cf28a",
         apply: () => {
           player.regenPct = Math.min(player.regenPct + 0.01, 0.05);
@@ -2224,8 +2227,8 @@ function buildChoicePool() {
     kind: "thorns",
     weight: 10,
     make: () => ({
-      title: "荆棘之躯",
-      desc: `触碰你的敌人受到伤害\n(当前 ${player.thorns} → ${player.thorns + 5})`,
+      title: t("荆棘之躯", "Thorn Body"),
+      desc: `${t("触碰你的敌人受到伤害", "Enemies that touch you take damage")}\n(${t("当前", "Now")} ${player.thorns} → ${player.thorns + 5})`,
       color: "#d9c47a",
       apply: () => {
         player.thorns += 5;
@@ -2236,9 +2239,9 @@ function buildChoicePool() {
     kind: "heal50",
     weight: 12,
     make: () => ({
-      title: "紧急治疗",
+      title: t("紧急治疗", "Emergency Heal"),
       // percentage-based so it never becomes chip healing late game
-      desc: `立即恢复 35% 最大生命 (约${Math.max(50, Math.round(player.maxHp * 0.35))}点)`,
+      desc: `${t("立即恢复 35% 最大生命", "Instantly restore 35% max HP")} (~${Math.max(50, Math.round(player.maxHp * 0.35))})`,
       color: "#7cf28a",
       apply: () => {
         const amount = Math.max(50, Math.round(player.maxHp * 0.35));
@@ -2250,8 +2253,8 @@ function buildChoicePool() {
     kind: "amp20",
     weight: 10,
     make: () => ({
-      title: "增伤 +20%",
-      desc: `所有武器最终伤害提升\n(当前 ${Math.round(player.dmgAmp * 100)}%)`,
+      title: t("增伤 +20%", "Damage +20%"),
+      desc: `${t("所有武器最终伤害提升", "All weapons deal more damage")}\n(${t("当前", "Now")} ${Math.round(player.dmgAmp * 100)}%)`,
       color: "#ff6b6b",
       apply: () => {
         player.dmgAmp += 0.2;
@@ -2263,8 +2266,8 @@ function buildChoicePool() {
     kind: "amp100",
     weight: 3,
     make: () => ({
-      title: "毁灭强化 +100%",
-      desc: `极稀有！最终伤害翻倍\n(当前 ${Math.round(player.dmgAmp * 100)}%)`,
+      title: t("毁灭强化 +100%", "DEVASTATION +100%"),
+      desc: `${t("极稀有！最终伤害翻倍", "Ultra rare! Final damage doubled")}\n(${t("当前", "Now")} ${Math.round(player.dmgAmp * 100)}%)`,
       color: "#ffd166",
       apply: () => {
         player.dmgAmp += 1;
@@ -2324,8 +2327,8 @@ function buildChoicePool() {
       make: () => {
         const w = unowned[Math.floor(Math.random() * unowned.length)];
         return {
-          title: "获得新武器",
-          desc: `${w.name}\n[${w.tag}]`,
+          title: t("获得新武器", "New Weapon"),
+          desc: `${pick(w, "name")}\n[${pick(w, "tag")}]`,
           color: w.color,
           apply: () => {
             player.weapons.push(createWeaponInstance(w.id));
@@ -2348,8 +2351,8 @@ function buildChoicePool() {
         // 效果一句 + 层数/进化路标一句
         const evoHint = w.evolve && !inst.evolved && stacks < 3 ? " · 满阶+3层可进化" : "";
         return {
-          title: `专属强化·${w.name}`,
-          desc: `${w.enhance.desc}\n(${stacks > 0 ? `当前 ${stacks} → ${stacks + 1} 层` : "首层"}${evoHint})`,
+          title: `${t("专属强化", "Signature")}·${pick(w, "name")}`,
+          desc: `${pick(w.enhance, "desc")}\n(${stacks > 0 ? `${t("当前", "Now")} ${stacks} → ${stacks + 1} ${t("层", "stacks")}` : t("首层", "First stack")}${evoHint})`,
           color: w.color,
           apply: () => {
             inst.enhance += 1;
@@ -2369,8 +2372,8 @@ function buildChoicePool() {
         const inst = evolvable[Math.floor(Math.random() * evolvable.length)];
         const w = WEAPONS[inst.id];
         return {
-          title: `武器进化·${w.evolve.name}`,
-          desc: `${w.name} 觉醒为 ${w.evolve.name}！\n${w.evolve.desc}`,
+          title: `${t("武器进化", "EVOLVE")}·${pick(w.evolve, "name")}`,
+          desc: currentLang() === "en" ? `${pick(w, "name")} awakens as ${pick(w.evolve, "name")}!\n${pick(w.evolve, "desc")}` : `${w.name} 觉醒为 ${w.evolve.name}！\n${w.evolve.desc}`,
           color: "#ffd166",
           fanfare: true,
           apply: () => {
@@ -2391,8 +2394,8 @@ function buildChoicePool() {
         const inst = upgradable[Math.floor(Math.random() * upgradable.length)];
         const w = WEAPONS[inst.id];
         return {
-          title: "武器品阶提升",
-          desc: `${w.name}\nLv${inst.tier + 1} → Lv${inst.tier + 2}`,
+          title: t("武器品阶提升", "Weapon Tier Up"),
+          desc: `${pick(w, "name")}\nLv${inst.tier + 1} → Lv${inst.tier + 2}`,
           color: w.color,
           apply: () => {
             inst.tier = Math.min(inst.tier + 1, 4);
@@ -2524,6 +2527,11 @@ function handleCanvasTap(pos) {
           return;
         }
       }
+    }
+    if (inRect(pos, langButtonRect(WIDTH))) {
+      toggleLang();
+      sfxClick();
+      return;
     }
     if (inRect(pos, muteButtonRect(WIDTH))) {
       toggleAudioMuted();
@@ -5811,7 +5819,7 @@ function draw() {
       ctx.textAlign = "center";
       ctx.fillStyle = "#6b6578";
       ctx.font = `${IS_TOUCH ? 13 : 12}px monospace`;
-      ctx.fillText("跳过 ▸", s.x + s.w / 2, s.y + s.h / 2 + 4);
+      ctx.fillText(t("跳过 ▸", "Skip ▸"), s.x + s.w / 2, s.y + s.h / 2 + 4);
       ctx.restore();
       ctx.textAlign = "left";
     }
@@ -5841,6 +5849,7 @@ function draw() {
       questView().some((q) => !q.done) // gold dot: bounties waiting
     );
     drawMuteButton(ctx, WIDTH, audioMuted);
+    drawLangButton(ctx, WIDTH);
     // 主线目标(2026-07-12 评审「玩家要知道现在最值得做什么」): one line,
     // evolves with account progress — everything else serves these three
     {
@@ -5952,7 +5961,7 @@ function draw() {
             return [c.id, { lvl: masteryOf(k), kills: k, next: masteryNextAt(masteryOf(k)) }];
           })
         ),
-        { page: charPage, pages: 2, label: CHAR_PAGE_LABELS[charPage] }
+        { page: charPage, pages: 2, label: CHAR_PAGE_LABELS()[charPage] }
       );
     }
   } else if (state === "select") {
@@ -5962,7 +5971,7 @@ function draw() {
       HEIGHT,
       currentWeaponList(),
       selectedWeapon,
-      currentCharacter().name,
+      pick(currentCharacter(), "name"),
       weaponLocks(),
       charLocksNow()[currentCharacter().id]?.gated ? null : charLocksNow()[currentCharacter().id]?.cost || null // 预览: 确认键=买断,门槛未过只看不卖
     );
@@ -6474,11 +6483,11 @@ function draw() {
   } else if (state === "gameover") {
     const title =
       runOutcome === "victory"
-        ? { text: "通关成功！", font: "bold 32px monospace", color: "#7cf28a" }
+        ? { text: t("通关成功！", "STAGE CLEAR!"), font: "bold 32px monospace", color: "#7cf28a" }
         : runOutcome === "endlessDeath"
-          ? { text: "无尽终局", font: "bold 32px monospace", color: "#ff8a5d" }
+          ? { text: t("无尽终局", "ENDLESS END"), font: "bold 32px monospace", color: "#ff8a5d" }
           : runOutcome === "retreat"
-            ? { text: "主动撤离", font: "bold 32px monospace", color: "#8fd6ff" }
+            ? { text: t("主动撤离", "EXTRACTED"), font: "bold 32px monospace", color: "#8fd6ff" }
             : { text: "GAME OVER", font: "bold 32px monospace", color: "#ff5d73" };
     // 结算两段式(2026-07-12 UX批次)+第一屏六行收敛(美术批): 第一屏只讲
     // "这局怎么样、下一步干嘛",最多六行;流水账折到第二屏并按
@@ -6553,19 +6562,19 @@ function draw() {
       : [
           title,
           ...(lastDeathBy && runOutcome !== "retreat"
-            ? [{ text: `死于:${lastDeathBy}`, font: "13px monospace", color: "#c95d5d" }]
+            ? [{ text: `${t("死于", "Slain by")}:${lastDeathBy}`, font: "13px monospace", color: "#c95d5d" }]
             : []),
           endlessResult
-            ? { text: `无尽得分 ${endlessResult.score} · ${endlessResult.newBest ? "新纪录！" : `历史最佳 ${endlessResult.best}`}`, font: "bold 22px monospace", color: "#ffd166" }
+            ? { text: `${t("无尽得分", "Endless score")} ${endlessResult.score} · ${endlessResult.newBest ? t("新纪录！", "NEW BEST!") : `${t("历史最佳", "Best")} ${endlessResult.best}`}`, font: "bold 22px monospace", color: "#ffd166" }
             : wasDaily
-              ? { text: `每日得分 ${lastScore} · 今日最佳 ${dailyBestToday}${dailyNewBest ? " 新纪录！" : ""}`, font: "bold 22px monospace", color: "#ffd166" }
-              : { text: `${bossDefeated ? "通关得分" : "得分"} ${lastScore} · ${newRecord ? "新纪录！" : `历史最高 ${lastBest}`}`, font: "bold 22px monospace", color: "#ffd166" },
+              ? { text: `${t("每日得分", "Daily score")} ${lastScore} · ${t("今日最佳", "Today best")} ${dailyBestToday}${dailyNewBest ? t(" 新纪录！", " NEW BEST!") : ""}`, font: "bold 22px monospace", color: "#ffd166" }
+              : { text: `${bossDefeated ? t("通关得分", "Clear score") : t("得分", "Score")} ${lastScore} · ${newRecord ? t("新纪录！", "NEW BEST!") : `${t("历史最高", "Best")} ${lastBest}`}`, font: "bold 22px monospace", color: "#ffd166" },
           ...(rankResultLine ? [rankResultLine] : []),
           {
-            text: `${endlessResult ? `审判 ${endlessResult.rounds} 轮 · ` : ""}存活 ${Math.floor(bossDefeated ? stageClearTime : elapsed)} 秒 · 击杀 ${player.kills} · 连杀 ${runMaxStreak} · Lv${player.level}`,
+            text: `${endlessResult ? `${t("审判", "Round")} ${endlessResult.rounds} ${t("轮", "")} · ` : ""}${t("存活", "Survived")} ${Math.floor(bossDefeated ? stageClearTime : elapsed)}${t(" 秒", "s")} · ${t("击杀", "Kills")} ${player.kills} · ${t("连杀", "Streak")} ${runMaxStreak} · Lv${player.level}`,
             font: "15px monospace",
           },
-          { text: `金币 +${lastRunCoins}(钱包 ${getCoins()})`, font: "14px monospace", color: "#ffd166" },
+          { text: `${t("金币", "Coins")} +${lastRunCoins}(${t("钱包", "Wallet")} ${getCoins()})`, font: "14px monospace", color: "#ffd166" },
           ...(coachAdvice
             ? [{ text: coachAdvice, font: "bold 13px monospace", color: "#7cf28a" }]
             : nearMiss
@@ -6602,7 +6611,7 @@ function draw() {
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 20px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(gameoverCta?.label || "⟳ 再 来 一 局", b.x + b.w / 2, b.y + b.h / 2 + 7);
+      ctx.fillText(gameoverCta?.label || t("⟳ 再 来 一 局", "⟳ Play Again"), b.x + b.w / 2, b.y + b.h / 2 + 7);
       ctx.restore();
       ctx.textAlign = "left";
     }
@@ -6620,7 +6629,7 @@ function draw() {
       ctx.fillStyle = gains > 0 && !gameoverDetail ? "#7cf28a" : "#9a93ab";
       ctx.font = "bold 13px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(gameoverDetail ? "▾ 返回成绩" : `▸ 本局详情${gains ? ` · 新收获×${gains}` : ""}`, b.x + b.w / 2, b.y + b.h / 2 + 5);
+      ctx.fillText(gameoverDetail ? t("▾ 返回成绩", "▾ Back to results") : `${t("▸ 本局详情", "▸ Run details")}${gains ? ` · ${t("新收获", "new")}×${gains}` : ""}`, b.x + b.w / 2, b.y + b.h / 2 + 5);
       ctx.restore();
       ctx.textAlign = "left";
     }

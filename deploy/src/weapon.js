@@ -1,17 +1,23 @@
 import { circleHit } from "./utils.js";
+import { pick } from "./i18n.js";
 
 export const WEAPONS = {
   bone: {
     id: "bone",
     name: "碎骨投掷",
+    nameEn: "Bone Toss",
     tag: "远程单发",
+    tagEn: "Ranged",
     desc: "向最近的敌人投出骨头，升级后扇形多发",
+    descEn: "Throws a bone at the nearest enemy; upgrades add a spread of extra bones",
     color: "#f2ead8",
-    enhance: { desc: "骨头穿透 +2", detail: "重复选择穿透 +1/层" },
+    enhance: { desc: "骨头穿透 +2", descEn: "Bone pierce +2", detail: "重复选择穿透 +1/层", detailEn: "Repeat: +1 pierce" },
     // evolution: max tier + 3 enhance stacks unlocks the awakened form
     evolve: {
       name: "灭骨风暴",
+      nameEn: "Bone Storm",
       desc: "8连赤骨齐射，穿透与攻速全面觉醒",
+      descEn: "A relentless fan of piercing bones",
       tier: { projectiles: 8, spread: 36, pierce: 6, dmgMult: 3.2, rateMult: 1.4, size: 14 },
     },
     tiers: [
@@ -25,13 +31,18 @@ export const WEAPONS = {
   orbit: {
     id: "orbit",
     name: "骨之环",
+    nameEn: "Bone Cyclone",
     tag: "近战环绕",
+    tagEn: "Melee Orbit",
     desc: "骨头环绕自身旋转，把靠近的敌人撞飞出去",
+    descEn: "Bones circle your body and knock nearby enemies away",
     color: "#8fd6ff",
-    enhance: { desc: "骨环固定大小，击退 +50%", detail: "重复选择击退 +10%/层" },
+    enhance: { desc: "骨环固定大小，击退 +50%", descEn: "Ring size locks, knockback 1.5x", detail: "重复选择击退 +10%/层", detailEn: "Repeat: +0.1x knockback" },
     evolve: {
       name: "白骨领域",
+      nameEn: "Judgement Ring",
       desc: "12根巨骨织成绞杀领域，靠近者皆碎",
+      descEn: "A frozen ring of maximum knockback",
       tier: { count: 12, radius: 98, spin: 5.2, dmgMult: 5.0, size: 24 },
     },
     tiers: [
@@ -45,13 +56,18 @@ export const WEAPONS = {
   homing: {
     id: "homing",
     name: "追踪骨弹",
+    nameEn: "Homing Bone",
     tag: "远程追踪",
+    tagEn: "Seeker",
     desc: "骨弹自动转向，追着敌人打",
+    descEn: "Bones steer themselves toward enemies",
     color: "#ff9e6b",
-    enhance: { desc: "命中禁锢 0.5 秒", detail: "重复选择 +0.25s/层" },
+    enhance: { desc: "命中禁锢 0.5 秒", descEn: "Projectiles +1", detail: "重复选择 +0.25s/层", detailEn: "Repeat: +1 projectile" },
     evolve: {
       name: "万骨归宗",
+      nameEn: "True Seeker",
       desc: "7发追魂骨弹，转向如影随形",
+      descEn: "Never misses, never stops",
       tier: { projectiles: 7, pierce: 5, dmgMult: 3.6, rateMult: 1.15, turn: 9, size: 14 },
     },
     tiers: [
@@ -65,13 +81,18 @@ export const WEAPONS = {
   bomb: {
     id: "bomb",
     name: "骨雷",
+    nameEn: "Bone Bomb",
     tag: "投掷范围",
+    tagEn: "Area Burst",
     desc: "抛出骨雷，爆炸造成大范围伤害",
+    descEn: "Lobbed bombs deal wide blast damage",
     color: "#ffd166",
-    enhance: { desc: "爆炸次数 +2", detail: "重复选择爆炸次数 +1/层" },
+    enhance: { desc: "爆炸次数 +2", descEn: "Echo blast +1", detail: "重复选择爆炸次数 +1/层", detailEn: "Repeat: +1 echo" },
     evolve: {
       name: "歼灭轰炸",
+      nameEn: "Mega Detonation",
       desc: "5连骨雷地毯式覆盖，半径暴涨",
+      descEn: "Every blast echoes into shockwaves",
       tier: { bombs: 5, blast: 150, dmgMult: 5.5, rateMult: 0.65 },
     },
     tiers: [
@@ -85,13 +106,18 @@ export const WEAPONS = {
   beam: {
     id: "beam",
     name: "贯穿骨矛",
+    nameEn: "Piercing Spear",
     tag: "直线穿透",
+    tagEn: "Line Pierce",
     desc: "笔直飞行，无限穿透路径上所有敌人",
+    descEn: "Flies straight, piercing every enemy in its path",
     color: "#c59bff",
-    enhance: { desc: "每穿透一个敌人引发小爆炸", detail: "重复选择扩大爆炸范围" },
+    enhance: { desc: "每穿透一个敌人引发小爆炸", descEn: "Width +50%", detail: "重复选择扩大爆炸范围", detailEn: "Repeat: +20% width" },
     evolve: {
       name: "审判之枪",
+      nameEn: "Judgement Lance",
       desc: "5道巨型骨矛，贯穿一切的白色审判",
+      descEn: "A wall-wide piercing volley",
       tier: { projectiles: 5, spread: 24, dmgMult: 4.0, rateMult: 1.0, size: 17 },
     },
     tiers: [
@@ -105,13 +131,18 @@ export const WEAPONS = {
   spike: {
     id: "spike",
     name: "地刺骨牢",
+    nameEn: "Floor Spikes",
     tag: "地面召唤",
+    tagEn: "Ground Trap",
     desc: "从地下召唤骨刺刺穿敌人，升级后骨刺和目标更多",
+    descEn: "Bone spikes erupt under enemies; upgrades add spikes and targets",
     color: "#d9c47a",
-    enhance: { desc: "攻击时在身边召唤骨牢环", detail: "重复选择增加环上骨头数" },
+    enhance: { desc: "攻击时在身边召唤骨牢环", descEn: "Spikes echo, +1 wave", detail: "重复选择增加环上骨头数", detailEn: "Repeat: +1 wave" },
     evolve: {
       name: "白骨刑场",
+      nameEn: "Spike Field",
       desc: "16根骨刺同时贯穿7个目标",
+      descEn: "The floor itself turns hostile",
       tier: { targets: 7, spikes: 16, dmgMult: 4.0, rateMult: 0.75 },
     },
     tiers: [
@@ -125,13 +156,18 @@ export const WEAPONS = {
   laser: {
     id: "laser",
     name: "风车激光",
+    nameEn: "Windmill Laser",
     tag: "旋转光束",
+    tagEn: "Sweep Beam",
     desc: "低频率召唤旋转一整圈的激光风车，触碰持续掉血",
+    descEn: "A rotating laser rig that shreds anything it touches",
     color: "#9bd7ff",
-    enhance: { desc: "激光待机时 +50% 减伤", detail: "每层 +10%，上限 90%" },
+    enhance: { desc: "激光待机时 +50% 减伤", descEn: "Standby damage reduction", detail: "每层 +10%，上限 90%", detailEn: "Repeat: +5%/stack" },
     evolve: {
       name: "湮灭风车",
+      nameEn: "Gamma Windmill",
       desc: "7叶巨型光轮，触者皆熔",
+      descEn: "Twin beams, double sweep",
       tier: { beams: 7, dmgMult: 12, rateMult: 0.36, duration: 3.4, width: 20 },
     },
     tiers: [
@@ -145,13 +181,18 @@ export const WEAPONS = {
   boomerang: {
     id: "boomerang",
     name: "回旋骨镖",
+    nameEn: "Bone Boomerang",
     tag: "回旋折返",
+    tagEn: "Return Cut",
     desc: "扔出后折返回手，去程回程各伤一次",
+    descEn: "Hits on the way out and on the way home",
     color: "#7ce8a8",
-    enhance: { desc: "回程伤害 +100%", detail: "重复选择 +20%/层" },
+    enhance: { desc: "回程伤害 +100%", descEn: "Rethrow +1", detail: "重复选择 +20%/层", detailEn: "Repeat: +1 rethrow" },
     evolve: {
       name: "无归之镖",
+      nameEn: "Infinity Arc",
       desc: "6把巨镖织成往返绞杀网",
+      descEn: "It simply refuses to land",
       tier: { boomerangs: 6, dmgMult: 3.2, rateMult: 0.95, size: 16 },
     },
     tiers: [
@@ -166,13 +207,18 @@ export const WEAPONS = {
   bluebind: {
     id: "bluebind",
     name: "蓝骨禁锢",
+    nameEn: "Blue Bind",
     tag: "地面禁锢",
+    tagEn: "Ground Root",
     desc: "地下伸出蓝骨伤害并禁锢敌人，升级加目标和禁锢时长",
+    descEn: "Blue bones that root everything they touch",
     color: "#4f9dff",
-    enhance: { desc: "攻击附带小爆炸", detail: "爆炸波及的敌人禁锢 0.25s/层" },
+    enhance: { desc: "攻击附带小爆炸", descEn: "Root duration +", detail: "爆炸波及的敌人禁锢 0.25s/层", detailEn: "Repeat: +duration" },
     evolve: {
       name: "蓝色审判",
+      nameEn: "Still Judgement",
       desc: "蓝骨天降：这次轮到你们不许动了(禁锢4秒)",
+      descEn: "Blue attack. Don't move.",
       tier: { targets: 12, root: 4.0, dmgMult: 4.0, rateMult: 0.7 },
     },
     tiers: [
@@ -186,13 +232,18 @@ export const WEAPONS = {
   wave: {
     id: "wave",
     name: "骨之浪潮",
+    nameEn: "Purple Wave",
     tag: "扇形浪涌",
+    tagEn: "Zone Denial",
     desc: "地下涌出层层骨浪扇形推进，升级加浪数和骨头数",
+    descEn: "Waves of purple bones wash over the field",
     color: "#c59bff",
-    enhance: { desc: "骨浪附带击退", detail: "重复选择击退 +10%/层" },
+    enhance: { desc: "骨浪附带击退", descEn: "Wave width +", detail: "重复选择击退 +10%/层", detailEn: "Repeat: wider still" },
     evolve: {
       name: "审判长廊",
+      nameEn: "Tide of Judgement",
       desc: "9波白骨海啸淹没长廊，无处落脚",
+      descEn: "The whole lane becomes a wave",
       tier: { waves: 9, bones: 14, dmgMult: 3.2, rateMult: 0.7 },
     },
     tiers: [
@@ -206,13 +257,18 @@ export const WEAPONS = {
   cross: {
     id: "cross",
     name: "十字骨射",
+    nameEn: "Cross Volley",
     tag: "定向弹幕",
+    tagEn: "Aimed Barrage",
     desc: "向固定方向同时射出骨头，每级 +2 根",
+    descEn: "Fires bone volleys along crossing lanes",
     color: "#f2ead8",
-    enhance: { desc: "延长敌人的禁锢", detail: "命中禁锢中的敌人 +1s，每层再 +0.5s" },
+    enhance: { desc: "延长敌人的禁锢", descEn: "Volley +1", detail: "命中禁锢中的敌人 +1s，每层再 +0.5s", detailEn: "Repeat: +1 volley" },
     evolve: {
       name: "业报乱刺·KR",
+      nameEn: "Cross Requiem",
       desc: "20根业骨十六向穿刺，伤口不会愈合",
+      descEn: "Every lane is a firing line",
       tier: { bones: 20, pierce: 5, dmgMult: 3.8, rateMult: 1.35, size: 16 },
     },
     tiers: [
@@ -226,13 +282,18 @@ export const WEAPONS = {
   orbitburst: {
     id: "orbitburst",
     name: "环绕骨雷",
+    nameEn: "Orbit Burst",
     tag: "环绕爆破",
+    tagEn: "Spin Burst",
     desc: "骨雷绕身一周后掷向敌人爆炸，升级加骨雷数和爆炸半径",
+    descEn: "Orbiting bones fling outward in bursts",
     color: "#ffd166",
-    enhance: { desc: "环绕时周期小爆炸", detail: "每 0.5s 一次，每层提高频率" },
+    enhance: { desc: "环绕时周期小爆炸", descEn: "Burst shards +", detail: "每 0.5s 一次，每层提高频率", detailEn: "Repeat: +shards" },
     evolve: {
       name: "审判日轮",
+      nameEn: "Nova Revolution",
       desc: "9颗骨雷绕身引爆，半径140",
+      descEn: "Every revolution detonates",
       tier: { count: 9, blast: 140, dmgMult: 4.5, rateMult: 0.65, size: 24 },
     },
     tiers: [
@@ -249,13 +310,18 @@ export const WEAPONS = {
     // solo starter, so it is in-run only — the card pool still offers it
     support: true,
     name: "紫魂护盾",
+    nameEn: "Bone Ward",
     tag: "反弹护体",
+    tagEn: "Guard",
     desc: "每 4.5 秒开盾，全额反弹伤害并击退，升级加持续时间",
+    descEn: "Raises a damage-blocking ward",
     color: "#9a5df0",
-    enhance: { desc: "开盾时狂化", detail: "+100% 移速和回血，每层 +25%" },
+    enhance: { desc: "开盾时狂化", descEn: "Uptime +", detail: "+100% 移速和回血，每层 +25%", detailEn: "Repeat: +uptime" },
     evolve: {
       name: "紫魂蛛网",
+      nameEn: "Aegis of Bone",
       desc: "6秒紫网庇护，反弹一切恶意",
+      descEn: "A ward that barely rests",
       tier: { duration: 6.0 },
     },
     tiers: [
@@ -269,13 +335,18 @@ export const WEAPONS = {
   soundwave: {
     id: "soundwave",
     name: "音波骨降",
+    nameEn: "Sound Crash",
     tag: "天降音波",
+    tagEn: "Sky Waves",
     desc: "骨头从天而降释放紫色音波，伤害并击退，升级加骨数和半径",
+    descEn: "Sonic bones drop from above in waves",
     color: "#e08fff",
-    enhance: { desc: "巨大骨伤害 +100%", detail: "音波范围不变，每层再 +20%" },
+    enhance: { desc: "巨大骨伤害 +100%", descEn: "Waves +", detail: "音波范围不变，每层再 +20%", detailEn: "Repeat: +waves" },
     evolve: {
       name: "MEGALOVANIA",
+      nameEn: "Requiem Fall",
       desc: "6根天骨奏响灭世强音，半径180音爆",
+      descEn: "The sky sings, everything falls",
       tier: { bones: 6, radius: 180, dmgMult: 8.0, rateMult: 0.65 },
     },
     tiers: [
@@ -289,13 +360,18 @@ export const WEAPONS = {
   chain: {
     id: "chain",
     name: "缚魂锁链",
+    nameEn: "Soul Chain",
     tag: "锁链牵引",
+    tagEn: "Drag & Bind",
     desc: "锁链拖敌到面前，途中掉血，到达重击禁锢并小范围爆炸",
+    descEn: "Chains drag enemies toward you and bind them",
     color: "#b8a5d0",
-    enhance: { desc: "到达爆炸附带禁锢", detail: "波及的敌人禁锢 0.25s/层" },
+    enhance: { desc: "到达爆炸附带禁锢", descEn: "Chain targets +1", detail: "波及的敌人禁锢 0.25s/层", detailEn: "Repeat: +1 target" },
     evolve: {
       name: "蓝魂操纵",
+      nameEn: "Gallows Chain",
       desc: "9条魂链拖拽灵魂，傀儡任凭摆布",
+      descEn: "Everyone answers the summons",
       tier: { chains: 9, root: 2.5, dmgMult: 5.0, rateMult: 0.65 },
     },
     tiers: [
@@ -309,13 +385,18 @@ export const WEAPONS = {
   plaser: {
     id: "plaser",
     name: "紫透激光",
+    nameEn: "Purple Laser",
     tag: "穿透灼烧",
+    tagEn: "Charge Beam",
     desc: "瞬间闪射贯穿全屏的激光，一次性伤害并减速，升级加锁定目标数",
+    descEn: "A charged beam that punishes straight lines",
     color: "#c95df0",
-    enhance: { desc: "减速效果 +100%", detail: "重复选择每层再 +20%" },
+    enhance: { desc: "减速效果 +100%", descEn: "Beam width +", detail: "重复选择每层再 +20%", detailEn: "Repeat: wider" },
     evolve: {
       name: "加斯特余响",
+      nameEn: "Royal Cannon",
       desc: "9道紫光洪流——来自虚空的注视",
+      descEn: "The corridor becomes the weapon",
       tier: { beams: 9, dmgMult: 6.0, width: 26, duration: 0.15, rateMult: 0.5 },
     },
     tiers: [
@@ -330,13 +411,18 @@ export const WEAPONS = {
   sweep: {
     id: "sweep",
     name: "横扫之骨",
+    nameEn: "Great Sweep",
     tag: "近战横扫",
+    tagEn: "Arc Slash",
     desc: "巨骨扫向最近的敌人，范围伤害并持续推挤，升级加范围次数",
+    descEn: "A huge bone sweeps a half-circle",
     color: "#ff5d5d",
-    enhance: { desc: "击退 +50%", detail: "重复选择 +10%/层" },
+    enhance: { desc: "击退 +50%", descEn: "Sweep arc +", detail: "重复选择 +10%/层", detailEn: "Repeat: wider arc" },
     evolve: {
       name: "猎杀时刻",
+      nameEn: "Full Moon Sweep",
       desc: "半径170的四连横扫，猎物无处可逃",
+      descEn: "A complete circle of pain",
       tier: { radius: 170, swings: 4, dmgMult: 4.2, rateMult: 0.85 },
     },
     tiers: [
@@ -350,13 +436,18 @@ export const WEAPONS = {
   feast: {
     id: "feast",
     name: "噬骨归宗",
+    nameEn: "Bone Feast",
     tag: "吸血骨弹",
+    tagEn: "Lifesteal Shot",
     desc: "敌人背后召唤骨头飞回，沿途伤敌，回收时概率回血",
+    descEn: "Bone shots that feed HP back to you",
     color: "#ff8f8f",
-    enhance: { desc: "回血概率 +10%", detail: "重复选择 +5%/层" },
+    enhance: { desc: "回血概率 +10%", descEn: "Lifesteal +", detail: "重复选择 +5%/层", detailEn: "Repeat: +lifesteal" },
     evolve: {
       name: "雪镇飨宴",
+      nameEn: "Devourer's Rite",
       desc: "7目标必定吸血——今晚不会挨饿",
+      descEn: "The feast never ends",
       tier: { targets: 7, bonesPer: 3, healChance: 1.0, dmgMult: 3.2, rateMult: 0.85, size: 14 },
     },
     tiers: [
@@ -370,13 +461,18 @@ export const WEAPONS = {
   slam: {
     id: "slam",
     name: "重砸",
+    nameEn: "Heavy Slam",
     tag: "禁锢重击",
+    tagEn: "Root Smash",
     desc: "周身连续砸击，高伤害并禁锢，升级加次数和禁锢",
+    descEn: "A crushing blow that roots its victims",
     color: "#d63a3a",
-    enhance: { desc: "每砸中一个敌人获得 0.15s 无敌", detail: "重复选择 +0.1s/层，累计上限 1.5s" },
+    enhance: { desc: "每砸中一个敌人获得 0.15s 无敌", descEn: "i-frames per hit", detail: "重复选择 +0.1s/层，累计上限 1.5s", detailEn: "Repeat: +i-frames" },
     evolve: {
       name: "开颅重锤",
+      nameEn: "Seismic Verdict",
       desc: "10连重砸+禁锢2.5秒，给他们也开个洞",
+      descEn: "The ground remembers every hit",
       tier: { smashes: 10, root: 2.5, dmgMult: 5.5, rateMult: 0.6 },
     },
     tiers: [
@@ -390,13 +486,18 @@ export const WEAPONS = {
   axes: {
     id: "axes",
     name: "穿透飞斧",
+    nameEn: "Piercing Axe",
     tag: "穿透投掷",
+    tagEn: "Pierce Throw",
     desc: "掷出穿透一切的飞斧，升级加飞斧数量",
+    descEn: "Thrown axes that punch through lines",
     color: "#c7cdd8",
-    enhance: { desc: "飞斧变为回旋镖，去而复返", detail: "重复选择 +1 次回旋" },
+    enhance: { desc: "飞斧变为回旋镖，去而复返", descEn: "Axes +", detail: "重复选择 +1 次回旋", detailEn: "Repeat: +axes" },
     evolve: {
       name: "千斧断魂",
+      nameEn: "Butcher Volley",
       desc: "8把巨斧撕裂全场，伤害翻倍",
+      descEn: "A storm of spinning steel",
       tier: { count: 8, dmgMult: 4.0, rateMult: 0.95, size: 24 },
     },
     tiers: [
@@ -410,13 +511,18 @@ export const WEAPONS = {
   quake: {
     id: "quake",
     name: "崩地巨骨",
+    nameEn: "Quake Bone",
     tag: "震荡击退",
+    tagEn: "Shock Knock",
     desc: "脚下召出巨骨掀起击退波，升级加波数和巨骨大小",
+    descEn: "A ground-shaking bone that batters and repels",
     color: "#ff5d5d",
-    enhance: { desc: "被震波杀死的敌人爆炸", detail: "重复选择扩大爆炸半径" },
+    enhance: { desc: "被震波杀死的敌人爆炸", descEn: "Kills explode", detail: "重复选择扩大爆炸半径", detailEn: "Repeat: bigger blasts" },
     evolve: {
       name: "雪镇崩塌",
+      nameEn: "Fault Line",
       desc: "5波半径200的塌方震荡",
+      descEn: "The arena itself cracks",
       tier: { waves: 5, radius: 200, boneSize: 80, dmgMult: 4.5, rateMult: 0.55 },
     },
     tiers: [
@@ -430,13 +536,18 @@ export const WEAPONS = {
   lasso: {
     id: "lasso",
     name: "斧旋捕猎",
+    nameEn: "Axe Lasso",
     tag: "环绕捕掷",
+    tagEn: "Grab & Slam",
     desc: "斧子绕身两圈粘住敌人后连人掷出，升级加斧子大小",
+    descEn: "Hooks an enemy and slams it down",
     color: "#aab2c2",
-    enhance: { desc: "每粘住一个敌人回复 1 血", detail: "重复选择 +1 回血/层" },
+    enhance: { desc: "每粘住一个敌人回复 1 血", descEn: "Slam blast +", detail: "重复选择 +1 回血/层", detailEn: "Repeat: bigger blast" },
     evolve: {
       name: "屠夫巨斧",
+      nameEn: "Gallows Hook",
       desc: "斧刃尺寸翻倍，绞碎猎物",
+      descEn: "The hook comes back heavier",
       tier: { size: 52, dmgMult: 5.0, rateMult: 0.55 },
     },
     tiers: [
@@ -450,13 +561,18 @@ export const WEAPONS = {
   cleave: {
     id: "cleave",
     name: "幻影重劈",
+    nameEn: "Phantom Cleave",
     tag: "二段劈砍",
+    tagEn: "Echo Chop",
     desc: "斧头轻砸后，大斧虚影劈向同处造成大额伤害，升级加砸击次数",
+    descEn: "A phantom axe repeats your chop for massive damage",
     color: "#e8ecf4",
-    enhance: { desc: "每次砸击分裂 2 个额外幻影", detail: "重复选择 +1 幻影" },
+    enhance: { desc: "每次砸击分裂 2 个额外幻影", descEn: "Split phantoms +2", detail: "重复选择 +1 幻影", detailEn: "Repeat: +1 phantom" },
     evolve: {
       name: "断头幻影",
+      nameEn: "Headsman Phantom",
       desc: "6连劈斩首风暴",
+      descEn: "A six-fold beheading storm",
       tier: { combos: 6, dmgMult: 2.6, rateMult: 0.75 },
     },
     tiers: [
@@ -470,13 +586,18 @@ export const WEAPONS = {
   boneringH: {
     id: "boneringH",
     name: "震地骨阵",
+    nameEn: "Quake Bone Ring",
     tag: "地阵爆发",
+    tagEn: "Ground Burst",
     desc: "原地重砸一击，随后在四周立起一圈骨头，升级加骨头数量",
+    descEn: "Slam the ground and raise a ring of bones",
     color: "#e8dcc0",
-    enhance: { desc: "骨头圈数 +2", detail: "重复选择 +1 圈" },
+    enhance: { desc: "骨头圈数 +2", descEn: "Bone rings +2", detail: "重复选择 +1 圈", detailEn: "Repeat: +1 ring" },
     evolve: {
       name: "白骨猎场",
+      nameEn: "White Hunting Ground",
       desc: "32根巨骨圈出死亡猎场",
+      descEn: "32 great bones fence the kill zone",
       tier: { bones: 32, ring: 150, dmgMult: 4.0, rateMult: 0.7 },
     },
     tiers: [
@@ -492,13 +613,18 @@ export const WEAPONS = {
   ifist: {
     id: "ifist",
     name: "血色重拳",
+    nameEn: "Crimson Fist",
     tag: "爆发击飞",
+    tagEn: "Burst Knock",
     desc: "重拳轰出小型爆炸,击飞范围内敌人,落地禁锢3秒,升级加拳围和击飞距离",
+    descEn: "A blasting punch that flings enemies; landing binds them",
     color: "#ff4d5e",
-    enhance: { desc: "被击飞的敌人撞到敌人时爆炸", detail: "重复选择增加爆炸半径" },
+    enhance: { desc: "被击飞的敌人撞到敌人时爆炸", descEn: "Mid-flight collisions explode", detail: "重复选择增加爆炸半径", detailEn: "Repeat: bigger blasts" },
     evolve: {
       name: "血色扣杀",
+      nameEn: "Crimson Dunk",
       desc: "GET DUNKED ON——撞墙撞怪必爆",
+      descEn: "GET DUNKED ON, walls included",
       tier: { dmgMult: 5.0, rateMult: 0.65, blast: 140, fling: 260, bind: 4 },
     },
     tiers: [
@@ -512,13 +638,18 @@ export const WEAPONS = {
   ipounce: {
     id: "ipounce",
     name: "扑杀",
+    nameEn: "Pounce",
     tag: "锁定骑乘",
+    tagEn: "Lock & Maul",
     desc: "扑住敌人连续撕咬,期间减伤90%,敌人死亡才罢休,升级加撕咬频率",
+    descEn: "Leap onto an enemy and maul it; 90% damage cut while riding",
     color: "#d92535",
-    enhance: { desc: "起跳时拖最多3个近身敌人一起禁锢", detail: "重复选择 +1 敌人上限" },
+    enhance: { desc: "起跳时拖最多3个近身敌人一起禁锢", descEn: "Drag up to 3 neighbors in", detail: "重复选择 +1 敌人上限", detailEn: "Repeat: +1 victim" },
     evolve: {
       name: "轮回噬咬",
+      nameEn: "Cycle Bite",
       desc: "目标死亡立即锁定下一只,最多3连扑",
+      descEn: "Kill, lock the next, chain of 3",
       tier: { tick: 1.9, interval: 0.45, guard: 0.95, chain: 3, rateMult: 0.34 },
     },
     tiers: [
@@ -532,13 +663,18 @@ export const WEAPONS = {
   iblaster: {
     id: "iblaster",
     name: "龙骨狂轰",
+    nameEn: "Blaster Frenzy",
     tag: "随机炮阵",
+    tagEn: "Random Volley",
     desc: "头顶召唤龙骨炮轰向随机方向,不索敌,升级加炮数",
+    descEn: "Skull cannons above fire in random directions",
     color: "#b31226",
-    enhance: { desc: "每门龙骨炮轰击次数 +1", detail: "重复选择再 +1 次" },
+    enhance: { desc: "每门龙骨炮轰击次数 +1", descEn: "Shots per cannon +1", detail: "重复选择再 +1 次", detailEn: "Repeat: +1 shot" },
     evolve: {
       name: "乱码狂轰",
+      nameEn: "Glitch Barrage",
       desc: "W.D.的符文尖啸——10门齐鸣,每门连轰两次",
+      descEn: "Ten cannons, two volleys, no aim",
       tier: { count: 10, volleys: 2, dmgMult: 4.3, rateMult: 0.6 },
     },
     tiers: [
@@ -552,13 +688,18 @@ export const WEAPONS = {
   ihook: {
     id: "ihook",
     name: "骨刺跳跃",
+    nameEn: "Spike Leap",
     tag: "突进爆破",
+    tagEn: "Hook & Blast",
     desc: "骨刺钉住最近的敌人,借力跃过去引爆,跳跃全程无敌,升级加爆炸次数",
+    descEn: "Pin the nearest enemy, leap over, detonate; invincible mid-leap",
     color: "#c93a5a",
-    enhance: { desc: "落点随机竖起骨头", detail: "重复选择增加骨头数量" },
+    enhance: { desc: "落点随机竖起骨头", descEn: "Bones sprout at the landing", detail: "重复选择增加骨头数量", detailEn: "Repeat: +bones" },
     evolve: {
       name: "猩红捷径",
+      nameEn: "Crimson Shortcut",
       desc: "sans的捷径,染了色——连跳3段,落点连环爆",
+      descEn: "Three chained leaps, double blasts",
       tier: { jumps: 3, blasts: 2, dmgMult: 4.55, rateMult: 0.6 },
     },
     tiers: [
@@ -572,13 +713,18 @@ export const WEAPONS = {
   ipull: {
     id: "ipull",
     name: "拉近爆破",
+    nameEn: "Execution Pull",
     tag: "处刑连爆",
+    tagEn: "Drag & Burst",
     desc: "把最近的敌人拽到面前,在它身上连环起爆,升级加爆炸次数",
+    descEn: "Drags the nearest enemy in and detonates it repeatedly",
     color: "#e01030",
-    enhance: { desc: "爆炸附带轻微击退", detail: "重复选择增加击退力度" },
+    enhance: { desc: "爆炸附带轻微击退", descEn: "Blasts knock back", detail: "重复选择增加击退力度", detailEn: "Repeat: stronger knockback" },
     evolve: {
       name: "决心灼烧",
+      nameEn: "DT Burn",
       desc: "过量的决心在体内点燃——6连爆+灼烧",
+      descEn: "Six blasts, then the burning",
       tier: { blasts: 6, burn: 2, dmgMult: 3.85, rateMult: 0.58 },
     },
     tiers: [
@@ -592,13 +738,18 @@ export const WEAPONS = {
   ihand: {
     id: "ihand",
     name: "手掌幻影",
+    nameEn: "Phantom Grip",
     tag: "握合禁锢",
+    tagEn: "Clench Bind",
     desc: "掷出手掌幻影,飞行后猛然握合,高额伤害并禁锢,升级略增幻影体型",
+    descEn: "A phantom hand flies out, then clenches for huge damage and bind",
     color: "#ff7a6b",
-    enhance: { desc: "脚下同时伸出一只幻影手", detail: "重复选择增加体型" },
+    enhance: { desc: "脚下同时伸出一只幻影手", descEn: "A second hand under your feet", detail: "重复选择增加体型", detailEn: "Repeat: bigger hands" },
     evolve: {
       name: "加斯特之手",
+      nameEn: "Gaster's Hands",
       desc: "洞穿的手掌自虚空合围——前后双手",
+      descEn: "Two holed hands close from both sides",
       tier: { size: 2.0, bind: 2.5, twin: true, dmgMult: 6.0, rateMult: 0.55 },
     },
     tiers: [
@@ -612,13 +763,18 @@ export const WEAPONS = {
   irain: {
     id: "irain",
     name: "骨雨",
+    nameEn: "Bone Rain",
     tag: "范围压制",
+    tagEn: "Area Barrage",
     desc: "在四周随机砸下50根骨头,升级增加骨头数量",
+    descEn: "Fifty bones crash down around you",
     color: "#a01822",
-    enhance: { desc: "骨头体积 +100%", detail: "重复选择再 +20%" },
+    enhance: { desc: "骨头体积 +100%", descEn: "Bone size +100%", detail: "重复选择再 +20%", detailEn: "Repeat: +20% size" },
     evolve: {
       name: "糟糕时光",
+      nameEn: "Bad Time",
       desc: "you're gonna have a bad time——3秒骨幕不停歇",
+      descEn: "3 seconds of unbroken downpour",
       tier: { bones: 140, duration: 3, dmgMult: 1.8, rateMult: 0.5 },
     },
     tiers: [
@@ -632,13 +788,18 @@ export const WEAPONS = {
   ispike: {
     id: "ispike",
     name: "分裂骨刺",
+    nameEn: "Splitting Spike",
     tag: "点名分裂",
+    tagEn: "Marked Split",
     desc: "怪物脚下刺出骨刺,命中后炸裂成小骨刺,升级加目标和分裂数",
+    descEn: "Spikes under enemies burst into smaller spikes",
     color: "#ff5d73",
-    enhance: { desc: "分裂骨命中后追加小爆炸", detail: "重复选择增加半径,上限=主爆" },
+    enhance: { desc: "分裂骨命中后追加小爆炸", descEn: "Child spikes explode", detail: "重复选择增加半径,上限=主爆", detailEn: "Repeat: bigger, capped at parent" },
     evolve: {
       name: "审判乱葬",
+      nameEn: "Judgement Graves",
       desc: "审判厅的地板下,埋着所有失败的时间线",
+      descEn: "The hall floor buries its failures",
       tier: { targets: 6, splits: 8, dmgMult: 3.6, rateMult: 0.62 },
     },
     tiers: [
@@ -654,13 +815,18 @@ export const WEAPONS = {
   hfling: {
     id: "hfling",
     name: "越界甩掷",
+    nameEn: "Boundary Toss",
     tag: "全屏清场",
+    tagEn: "Screen Clear",
     desc: "把随机一侧的全部敌人甩向屏幕边缘,落点小爆炸,升级加爆炸半径",
+    descEn: "Hurls one whole side of enemies to the screen edge; landing blasts",
     color: "#e8ecf4",
-    enhance: { desc: "敌人飞行途中也会爆炸", detail: "重复选择提升爆炸频率" },
+    enhance: { desc: "敌人飞行途中也会爆炸", descEn: "Explosions mid-flight", detail: "重复选择提升爆炸频率", detailEn: "Repeat: faster ticks" },
     evolve: {
       name: "越界删除",
+      nameEn: "Out of Bounds",
       desc: "OUT OF BOUNDS——边缘爆径翻倍,并反弹回场造成路径伤害",
+      descEn: "Edge blasts double, and they bounce back",
       tier: { blast: 52, edgeMult: 2, bounce: true, dmgMult: 5.4, rateMult: 0.5 },
     },
     tiers: [
@@ -674,13 +840,18 @@ export const WEAPONS = {
   hgrab: {
     id: "hgrab",
     name: "权限抓取",
+    nameEn: "Permission Grab",
     tag: "缴械爆破",
+    tagEn: "Disarm Blast",
     desc: "抓住最近的敌人甩出,落地爆炸并永久缴械受波及者,升级加抓取数和爆径",
+    descEn: "Grab and throw the nearest enemies; the blast disarms permanently",
     color: "#c8d2e8",
-    enhance: { desc: "爆炸额外附带 2 秒禁锢", detail: "重复选择 +0.5 秒" },
+    enhance: { desc: "爆炸额外附带 2 秒禁锢", descEn: "Blast adds a 2s root", detail: "重复选择 +0.5 秒", detailEn: "Repeat: +0.5s" },
     evolve: {
       name: "权限回收",
+      nameEn: "Access Revoked",
       desc: "他们的攻击函数,被注释掉了——抓3只,爆径+50%,另附1s禁锢",
+      descEn: "Grab three; their attacks get commented out",
       tier: { grabs: 3, blast: 120, bonusRoot: 1, dmgMult: 5.8, rateMult: 0.52 },
     },
     tiers: [
@@ -694,14 +865,19 @@ export const WEAPONS = {
   hmacro: {
     id: "hmacro",
     name: "宏",
+    nameEn: "Macro",
     tag: "脚本连发",
+    tagEn: "Script Combo",
     desc: "立刻连续释放你已获得的全部其他技能,升级加释放次数",
+    descEn: "Instantly re-fires every other skill you own",
     color: "#9adcff",
     choiceOnly: true, // 不可开局携带,只在局内选卡出现(用户原案)
-    enhance: { desc: "宏期间全部伤害 +50%", detail: "重复选择 +20%" },
+    enhance: { desc: "宏期间全部伤害 +50%", descEn: "All damage +50% during macro", detail: "重复选择 +20%", detailEn: "Repeat: +20%" },
     evolve: {
       name: "宏",
+      nameEn: "Macro",
       desc: "全部技能,连续五轮齐射",
+      descEn: "Every skill, five volleys straight",
       tier: { casts: 5, haste: 0.3, rateMult: 0.22 },
     },
     tiers: [
@@ -715,13 +891,18 @@ export const WEAPONS = {
   hscythe: {
     id: "hscythe",
     name: "删除镰刀",
+    nameEn: "Delete Scythe",
     tag: "百分比斩",
+    tagEn: "Percent Cut",
     desc: "挥镰按目标最大生命比例结算:普通100%/精英50%/首领20%/天意5%,升级加刀径",
+    descEn: "Swings deal % of max HP: mob 100 / elite 50 / boss 20 / GOD 5",
     color: "#f2ead8",
-    enhance: { desc: "全部比例 +2.5%", detail: "最多叠加 10 次" },
+    enhance: { desc: "全部比例 +2.5%", descEn: "All ratios +2.5%", detail: "最多叠加 10 次", detailEn: "Max 10 stacks" },
     evolve: {
       name: "血镰处刑",
+      nameEn: "Blood Harvest",
       desc: "一刀更深——精英75%/首领30%/天意8%",
+      descEn: "Deeper cuts: elite 75 / boss 30 / GOD 8",
       tier: { blade: 195, p1: 0.75, p2: 0.3, p3: 0.08, rateMult: 0.52 },
     },
     tiers: [
@@ -735,13 +916,18 @@ export const WEAPONS = {
   hshock: {
     id: "hshock",
     name: "系统震荡",
+    nameEn: "System Shock",
     tag: "控场处决",
+    tagEn: "Crowd Execute",
     desc: "以自身为心的无伤震荡:击退+禁锢+永久缴械;低血的普通/精英被永久禁锢",
+    descEn: "A no-damage shockwave: knockback, root, permanent disarm; low-HP mobs get sealed",
     color: "#dfe6f2",
-    enhance: { desc: "永久禁锢改为直接斩杀,斩杀线 +5%", detail: "最多叠加 5 次" },
+    enhance: { desc: "永久禁锢改为直接斩杀,斩杀线 +5%", descEn: "Seal becomes execution, +5% line", detail: "最多叠加 5 次", detailEn: "Max 5 stacks" },
     evolve: {
       name: "物理震荡",
+      nameEn: "Physical Shock",
       desc: "范围×1.6,击退×1.5,缴械必附2秒禁锢",
+      descEn: "1.6x radius, 1.5x knockback, bonus root",
       tier: { radius: 304, push: 300, bonusRoot: 2, rateMult: 0.38 },
     },
     tiers: [
@@ -755,13 +941,18 @@ export const WEAPONS = {
   hride: {
     id: "hride",
     name: "龙骨骑乘",
+    nameEn: "Blaster Ride",
     tag: "冲锋后座",
+    tagEn: "Charge & Recoil",
     desc: "骑上脚下召唤的龙骨炮冲锋撞开敌人,随后炮击并借后坐力弹回原地,升级加炮体",
+    descEn: "Ride a skull cannon forward, then its blast recoils you home",
     color: "#dce8f0",
-    enhance: { desc: "被撞到的敌人缴械 5 秒", detail: "重复选择 +2 秒" },
+    enhance: { desc: "被撞到的敌人缴械 5 秒", descEn: "Rammed enemies disarmed 5s", detail: "重复选择 +2 秒", detailEn: "Repeat: +2s" },
     evolve: {
       name: "龙骨决裁",
+      nameEn: "Bone Verdict",
       desc: "去程回程双撞,炮体+40%,炮击翻倍",
+      descEn: "Both passes hit, bigger cannon, double blast",
       tier: { size: 90, chargeDmg: 4.3, fireDmg: 9.2, doublePass: true, rateMult: 0.4 },
     },
     tiers: [
@@ -775,13 +966,18 @@ export const WEAPONS = {
   hslash: {
     id: "hslash",
     name: "半月斩",
+    nameEn: "Crescent Slash",
     tag: "穿透减速",
+    tagEn: "Pierce Slow",
     desc: "镰刀斩出快速飞行的剑气,命中减速5秒,升级加剑气宽度和射程",
+    descEn: "A flying crescent that slows everything it cuts",
     color: "#f2ead8",
-    enhance: { desc: "额外挥舞 2 次", detail: "重复选择 +1 次" },
+    enhance: { desc: "额外挥舞 2 次", descEn: "Two extra swings", detail: "重复选择 +1 次", detailEn: "Repeat: +1 swing" },
     evolve: {
       name: "降频斩",
+      nameEn: "Downclock Slash",
       desc: "把他们的帧率砍到5——三道扇形,命中先冻结0.5秒再减速",
+      descEn: "A three-blade fan that freezes first",
       tier: { width: 120, fan: 3, freeze: 0.5, dmgMult: 4.6, rateMult: 0.55 },
     },
     tiers: [
@@ -795,13 +991,18 @@ export const WEAPONS = {
   htrojan: {
     id: "htrojan",
     name: "木马爆破",
+    nameEn: "Trojan Blast",
     tag: "宿主免伤",
+    tagEn: "Host Spared",
     desc: "在敌人身上引爆,宿主本身无伤,爆炸伤害其他敌人并缴械,升级加目标和爆径",
+    descEn: "Detonates on an enemy: the host is spared, neighbors are hit and disarmed",
     color: "#d8e2f0",
-    enhance: { desc: "宿主也吃 200% 伤害与缴械", detail: "重复选择 +50%" },
+    enhance: { desc: "宿主也吃 200% 伤害与缴械", descEn: "Host takes 200% too", detail: "重复选择 +50%", detailEn: "Repeat: +50%" },
     evolve: {
       name: "超载引爆",
+      nameEn: "Overload Blast",
       desc: "被缴械者也会连锁殉爆一次",
+      descEn: "Disarmed victims chain-detonate",
       tier: { targets: 6, blast: 86, chain: true, dmgMult: 5.2, rateMult: 0.52 },
     },
     tiers: [
@@ -816,13 +1017,18 @@ export const WEAPONS = {
   dash: {
     id: "dash",
     name: "极限突刺",
+    nameEn: "Limit Dash",
     tag: "突进穿透",
+    tagEn: "Pierce Rush",
     desc: "向目标突刺并穿透路径，返回原位时爆炸，升级加突刺次数",
+    descEn: "Dash through enemies and detonate on return",
     color: "#5db9ff",
-    enhance: { desc: "突刺时减伤 +10%", detail: "重复选择 +5%/层" },
+    enhance: { desc: "突刺时减伤 +10%", descEn: "Dash guard +10%", detail: "重复选择 +5%/层", detailEn: "Repeat: +5%/stack" },
     evolve: {
       name: "橙魂疾冲",
+      nameEn: "Orange Rush",
       desc: "9连突刺——橙色攻击，永不停步",
+      descEn: "Nine dashes, never stop moving",
       tier: { dashes: 9, dmgMult: 4.0, rateMult: 0.75 },
     },
     tiers: [
@@ -836,13 +1042,18 @@ export const WEAPONS = {
   splitbone: {
     id: "splitbone",
     name: "裂变骨雨",
+    nameEn: "Splitting Rain",
     tag: "空中分裂",
+    tagEn: "Air Split",
     desc: "射出 6 根骨头，悬停后各自裂成子骨，升级加分裂数量",
+    descEn: "Bones split apart mid-air",
     color: "#f2ead8",
-    enhance: { desc: "子骨再裂出 4 个子子骨", detail: "重复选择增加分裂数量" },
+    enhance: { desc: "子骨再裂出 4 个子子骨", descEn: "Splits +", detail: "重复选择增加分裂数量", detailEn: "Repeat: +splits" },
     evolve: {
       name: "蓝橙骤雨",
+      nameEn: "Cluster Rain",
       desc: "14裂变蓝橙弹幕铺天盖地",
+      descEn: "The rain divides, and divides",
       tier: { split: 14, dmgMult: 3.0, rateMult: 0.8, size: 14 },
     },
     tiers: [
@@ -856,13 +1067,18 @@ export const WEAPONS = {
   bonemark: {
     id: "bonemark",
     name: "蓝骨降罚",
+    nameEn: "Bone Sigil",
     tag: "标记爆破",
+    tagEn: "Marked Blast",
     desc: "在目标身上召唤蓝骨爆炸并环出骨圈，升级加爆炸、目标与骨数",
+    descEn: "Marks enemies, then detonates the marks",
     color: "#4f9dff",
-    enhance: { desc: "骨圈变蓝并禁锢 1 秒", detail: "重复选择禁锢 +0.5s/层" },
+    enhance: { desc: "骨圈变蓝并禁锢 1 秒", descEn: "Mark radius +", detail: "重复选择禁锢 +0.5s/层", detailEn: "Repeat: wider" },
     evolve: {
       name: "静止蓝罚",
+      nameEn: "Sigil of Ruin",
       desc: "8目标蓝骨降罚+半径100爆环",
+      descEn: "Every mark is a promise",
       tier: { targets: 8, blast: 100, ringBones: 14, dmgMult: 3.8, rateMult: 0.75 },
     },
     tiers: [
@@ -876,13 +1092,18 @@ export const WEAPONS = {
   megabone: {
     id: "megabone",
     name: "天坠巨骨",
+    nameEn: "Mega Bone",
     tag: "坠地分裂",
+    tagEn: "Sky Drop",
     desc: "头顶巨骨砸地爆炸，裂成小骨四射，升级多一圈骨头",
+    descEn: "A giant bone falls from above",
     color: "#ffd166",
-    enhance: { desc: "碎骨 3 层穿透且不消失", detail: "重复选择穿透 +2/层" },
+    enhance: { desc: "碎骨 3 层穿透且不消失", descEn: "Drop shards", detail: "重复选择穿透 +2/层", detailEn: "Repeat: +shards" },
     evolve: {
       name: "终焉之骨",
+      nameEn: "Titan Bone",
       desc: "8环弹幕+半径160巨爆——这是最后一根骨头",
+      descEn: "The sky itself takes a swing",
       tier: { shards: 36, rings: 8, dmgMult: 5.5, rateMult: 0.42, blast: 160 },
     },
     tiers: [
@@ -896,13 +1117,18 @@ export const WEAPONS = {
   orb: {
     id: "orb",
     name: "蓝魂光球",
+    nameEn: "Gravity Orb",
     tag: "缓速禁锢",
+    tagEn: "Pull Field",
     desc: "缓慢前进的暗蓝光环，触碰持续伤害并禁锢，升级加索敌目标",
+    descEn: "An orb that drags enemies inward",
     color: "#2f6ea8",
-    enhance: { desc: "敌人粘在光球上(上限 5)", detail: "重复选择上限 +3/层" },
+    enhance: { desc: "敌人粘在光球上(上限 5)", descEn: "Pull strength +", detail: "重复选择上限 +3/层", detailEn: "Repeat: stronger" },
     evolve: {
       name: "蓝魂引力",
+      nameEn: "Event Horizon",
       desc: "9颗引力光球拖拽灵魂",
+      descEn: "Nothing leaves the orbit",
       tier: { orbs: 9, dmgMult: 3.6, rateMult: 0.62 },
     },
     tiers: [
@@ -916,13 +1142,18 @@ export const WEAPONS = {
   gaster: {
     id: "gaster",
     name: "龙骨炮",
+    nameEn: "Gaster Blaster",
     tag: "头顶轰击",
+    tagEn: "Beam Volley",
     desc: "头顶召唤龙骨炮向目标轰出巨大光束，升级加数量(同向齐射)",
+    descEn: "Skull cannons fire aligned beams",
     color: "#fddefe",
-    enhance: { desc: "龙骨炮体积 +50%", detail: "重复选择 +20%/层" },
+    enhance: { desc: "龙骨炮体积 +50%", descEn: "Blaster size +50%", detail: "重复选择 +20%/层", detailEn: "Repeat: +20%" },
     evolve: {
       name: "W.D.加斯特炮阵",
+      nameEn: "W.D. Special",
       desc: "9门龙骨炮齐轰——记得那个被遗忘的人",
+      descEn: "The signature volley, unabridged",
       tier: { count: 9, dmgMult: 8.0, rateMult: 0.65 },
     },
     tiers: [
@@ -936,13 +1167,18 @@ export const WEAPONS = {
   ringlaser: {
     id: "ringlaser",
     name: "环阵闪射",
+    nameEn: "Ring Laser",
     tag: "环状激光",
+    tagEn: "Radial Beams",
     desc: "36 根短激光绕圈依次闪射，命中禁锢，升级加激光数",
+    descEn: "Lasers flash outward in a ring",
     color: "#8fd6ff",
-    enhance: { desc: "激光命中处小爆炸", detail: "重复选择扩大爆炸半径" },
+    enhance: { desc: "激光命中处小爆炸", descEn: "Beams +", detail: "重复选择扩大爆炸半径", detailEn: "Repeat: +beams" },
     evolve: {
       name: "最终审判环",
+      nameEn: "Halo of Ruin",
       desc: "120道环射光刃，无处可躲",
+      descEn: "A full circle of light",
       tier: { lasers: 120, dmgMult: 3.0, rateMult: 0.36 },
     },
     tiers: [
@@ -956,13 +1192,18 @@ export const WEAPONS = {
   turret: {
     id: "turret",
     name: "旋地骨桩",
+    nameEn: "Bone Turret",
     tag: "旋转炮台",
+    tagEn: "Sentry Ring",
     desc: "骨桩插地环转，撞击碾过的敌人，升级 +2 根",
+    descEn: "A breathing ring of sentry bones",
     color: "#9be8a8",
-    enhance: { desc: "撞击附带击退", detail: "重复选择提高击退力度" },
+    enhance: { desc: "撞击附带击退", descEn: "Bones +", detail: "重复选择提高击退力度", detailEn: "Repeat: +bones" },
     evolve: {
       name: "白骨丛林",
+      nameEn: "Bone Bastion",
       desc: "20根骨桩拔地绞杀",
+      descEn: "The ring becomes a fortress",
       tier: { bones: 20, dmgMult: 4.2, rateMult: 0.7 },
     },
     tiers: [
@@ -977,14 +1218,14 @@ export const WEAPONS = {
 
 export const CHARACTERS = [
   // tags = 选人卡面的两个玩法标签(backlog 第6项: 卡面只留名/标签/专精,长描述渐进披露)
-  { id: "sans", name: "传说之下", color: "#7ea8ff", tags: ["正统骨系", "均衡"], desc: "经典骨骼战士，八种正统骨系武器" },
-  { id: "ukb", name: "因果报应", color: "#c59bff", tags: ["禁锢", "反震"], desc: "紫光神秘骷髅，禁锢与反震的掌控者" },
-  { id: "horror", name: "恐惧传说", color: "#ff5d5d", tags: ["巨骨", "飞斧"], desc: "猎手骷髅，巨骨与飞斧的狂宴" },
-  { id: "hard", name: "困难模式", color: "#5db9ff", tags: ["蓝光", "极限攻势"], desc: "蓝光缠身，极限攻势的化身" },
+  { id: "sans", name: "传说之下", color: "#7ea8ff", tags: ["正统骨系", "均衡"], nameEn: "Classic", tagsEn: ["Orthodox bones", "Balanced"], desc: "经典骨骼战士，八种正统骨系武器", descEn: "The classic skeleton warrior with eight orthodox bone weapons" },
+  { id: "ukb", name: "因果报应", color: "#c59bff", tags: ["禁锢", "反震"], nameEn: "Karma", tagsEn: ["Bind", "Payback"], desc: "紫光神秘骷髅，禁锢与反震的掌控者", descEn: "A violet-lit skeleton who masters binds and retribution" },
+  { id: "horror", name: "恐惧传说", color: "#ff5d5d", tags: ["巨骨", "飞斧"], nameEn: "Horror", tagsEn: ["Great bones", "Axes"], desc: "猎手骷髅，巨骨与飞斧的狂宴", descEn: "A hunter skeleton feasting on great bones and flying axes" },
+  { id: "hard", name: "困难模式", color: "#5db9ff", tags: ["蓝光", "极限攻势"], nameEn: "Hard Mode", tagsEn: ["Blue light", "All-out"], desc: "蓝光缠身，极限攻势的化身", descEn: "Wreathed in blue light, the embodiment of extreme offense" },
   // 血疯线:决心过量实验体——解锁价与商店总价同级,是账号的长线目标
-  { id: "insanity", name: "Insanity", color: "#d92535", tags: ["禁锢", "处刑"], desc: "决心过量实验体，天性增伤与生命+15%", cost: 10000 },
+  { id: "insanity", name: "Insanity", color: "#d92535", tags: ["禁锢", "处刑"], nameEn: "Insanity", tagsEn: ["Bind", "Execution"], desc: "决心过量实验体，天性增伤与生命+15%", descEn: "A DT-overdosed subject; +15% damage and HP by nature", cost: 10000 },
   // 黑客结局:本体彩蛋黑屋守门人;付费天性梯度 15/15 → 20/20;需通关地狱
-  { id: "hacker", name: "黑客结局", color: "#e8ecf4", tags: ["缴械", "处决"], desc: "黑屋的守门人，天性增伤与生命+20%", cost: 15000, gate: "hell" },
+  { id: "hacker", name: "黑客结局", color: "#e8ecf4", tags: ["缴械", "处决"], nameEn: "Hacker Ending", tagsEn: ["Disarm", "Execute"], desc: "黑屋的守门人，天性增伤与生命+20%", descEn: "The dark room's gatekeeper; +20% damage and HP by nature", cost: 15000, gate: "hell" },
 ];
 
 export const WEAPON_LISTS = {
@@ -1148,7 +1389,7 @@ export function applyLevelUpBonus(inst) {
 
 export function weaponSummary(player, sep = " · ") {
   return player.weapons
-    .map((i) => (i.evolved ? `★${WEAPONS[i.id].evolve.name}` : `${WEAPONS[i.id].name} Lv${i.tier + 1}`))
+    .map((i) => (i.evolved ? `★${pick(WEAPONS[i.id].evolve, "name")}` : `${pick(WEAPONS[i.id], "name")} Lv${i.tier + 1}`))
     .join(sep);
 }
 

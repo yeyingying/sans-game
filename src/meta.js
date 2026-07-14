@@ -42,13 +42,13 @@ export function spendCoins(n) {
 
 // cost = base * (level+1); apply() runs once at the start of every run
 export const UPGRADES = [
-  { id: "atk", name: "力量刻印", desc: "最终伤害 ×1.06 / 级(独立乘区,永不稀释)", max: 5, base: 90, color: "#ff6b6b" },
-  { id: "hp", name: "决心之心", desc: "生命上限 +7% / 级(升级成长同享)", max: 5, base: 75, color: "#ff8fc7" },
-  { id: "speed", name: "疾行之靴", desc: "初始移速 +8 / 级", max: 3, base: 110, color: "#8fd6ff" },
-  { id: "magnet", name: "引魂磁石", desc: "初始磁吸范围 +25 / 级", max: 3, base: 90, color: "#c59bff" },
-  { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", max: 5, base: 160, color: "#ffd166" },
-  { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", max: 2, base: 280, color: "#5ee6e6" },
-  { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", max: 3, base: 220, color: "#7ea8ff" },
+  { id: "atk", name: "力量刻印", desc: "最终伤害 ×1.06 / 级(独立乘区,永不稀释)", nameEn: "Power Sigil", descEn: "Final damage x1.06 / lv (own multiplier, never dilutes)", max: 5, base: 90, color: "#ff6b6b" },
+  { id: "hp", name: "决心之心", desc: "生命上限 +7% / 级(升级成长同享)", nameEn: "Heart of DT", descEn: "Max HP +7% / lv (level-ups share the bonus)", max: 5, base: 75, color: "#ff8fc7" },
+  { id: "speed", name: "疾行之靴", desc: "初始移速 +8 / 级", nameEn: "Swift Boots", descEn: "Starting move speed +8 / lv", max: 3, base: 110, color: "#8fd6ff" },
+  { id: "magnet", name: "引魂磁石", desc: "初始磁吸范围 +25 / 级", nameEn: "Soul Magnet", descEn: "Starting pickup radius +25 / lv", max: 3, base: 90, color: "#c59bff" },
+  { id: "greed", name: "财运亨通", desc: "金币获取 +20% / 级", nameEn: "Fortune", descEn: "Coin gain +20% / lv", max: 5, base: 160, color: "#ffd166" },
+  { id: "reroll", name: "备用骰子", desc: "每次选卡可刷新次数 +1", nameEn: "Spare Dice", descEn: "Card rerolls +1 per pick", max: 2, base: 280, color: "#5ee6e6" },
+  { id: "gear", name: "行前整备", desc: "每局开局自带 1 件随机装备 / 级", nameEn: "Provisions", descEn: "Start each run with 1 random gear / lv", max: 3, base: 220, color: "#7ea8ff" },
 ];
 
 let upgrades = readJson("metaUpgrades", {});
@@ -533,10 +533,10 @@ export function weaponUnlockInfo(charId, slot) {
 // ---- difficulty tiers ------------------------------------------------------
 
 export const DIFFICULTIES = [
-  { id: 0, name: "普通", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, xpMult: 1, hint: null },
-  { id: 1, name: "狂暴", hpMult: 2.8, dmgMult: 2.2, coinMult: 1.6, scoreMult: 1.8, xpMult: 1.5, hint: "击败一次Boss解锁" },
-  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 2.0, scoreMult: 3.0, xpMult: 1.9, hint: "狂暴难度击败Boss解锁" },
-  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 2.6, scoreMult: 4.5, xpMult: 2.4, hint: "地狱通关且钱包曾达2000解锁" },
+  { id: 0, name: "普通", nameEn: "NORMAL", hpMult: 1, dmgMult: 1, coinMult: 1, scoreMult: 1, xpMult: 1, hint: null },
+  { id: 1, name: "狂暴", hpMult: 2.8, dmgMult: 2.2, coinMult: 1.6, scoreMult: 1.8, xpMult: 1.5, hint: "击败一次Boss解锁", nameEn: "FURY", hintEn: "Beat the Boss once" },
+  { id: 2, name: "地狱", hpMult: 3.5, dmgMult: 2.6, coinMult: 2.0, scoreMult: 3.0, xpMult: 1.9, hint: "狂暴难度击败Boss解锁", nameEn: "HELL", hintEn: "Beat the Boss on FURY" },
+  { id: 3, name: "屠杀", hpMult: 5.0, dmgMult: 3.5, coinMult: 2.6, scoreMult: 4.5, xpMult: 2.4, hint: "地狱通关且钱包曾达2000解锁", nameEn: "GENOCIDE", hintEn: "Clear HELL, wallet once 2000" },
 ];
 
 export function isDifficultyUnlocked(id) {

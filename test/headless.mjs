@@ -41,7 +41,7 @@ globalThis.document = {
 };
 
 let rafCb = null;
-const storage = {};
+const storage = { tutorialDone: "1" }; // 教程链路由 tutorial_probe 覆盖;这里测常规局(教程会压掉存档点箴言)
 globalThis.window = {
   addEventListener: record(listeners.window),
   screen: { width: 1440, height: 900 },

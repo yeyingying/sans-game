@@ -1,4 +1,5 @@
 import { ICONS, drawIconLabel, drawPixelIcon } from "./sprites.js";
+import { t, pick, currentLang } from "./i18n.js";
 
 // 触屏设备: 触控目标放大到 ≥68 画布px(画布600高缩到手机≈390,≈44物理px);
 // 桌面鼠标保持紧凑。?touch=1 可在桌面强制预览触屏布局
@@ -37,7 +38,7 @@ export function drawPauseButton(ctx, width, paused) {
   ctx.fillStyle = "#8fd6ff";
   ctx.font = "bold 13px monospace";
   ctx.textAlign = "center";
-  ctx.fillText(paused ? "▶ 继续" : "❚❚ 暂停", btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
+  ctx.fillText(paused ? t("▶ 继续", "▶ Resume") : t("❚❚ 暂停", "❚❚ Pause"), btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
   ctx.restore();
 }
 
@@ -148,7 +149,7 @@ export function drawResumeButton(ctx, width, height) {
   ctx.fillStyle = "#7cf28a";
   ctx.font = "bold 17px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("继 续", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
+  ctx.fillText(t("继 续", "Resume"), btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
   ctx.restore();
 }
 
@@ -167,7 +168,7 @@ export function drawQuitButton(ctx, width, height) {
   ctx.fillStyle = "#ff5d73";
   ctx.font = "bold 17px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("退 出", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
+  ctx.fillText(t("退 出", "Quit"), btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
   ctx.restore();
 }
 
@@ -183,6 +184,27 @@ export function creditsButtonRect(width, height) {
 // 标题页静音开关(2026-07-13 用户点名:页面开着浏览器就一直有声)
 export function muteButtonRect(width) {
   return { x: width - T(60, 74), y: 14, w: T(44, 58), h: T(36, 48) };
+}
+
+// 标题页语言切换(静音左侧): 中 ⇄ EN
+export function langButtonRect(width) {
+  const m = muteButtonRect(width);
+  return { x: m.x - m.w - 8, y: m.y, w: m.w, h: m.h };
+}
+
+export function drawLangButton(ctx, width) {
+  const b = langButtonRect(width);
+  ctx.save();
+  ctx.fillStyle = "#141a26";
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.strokeStyle = "#8fd6ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(b.x, b.y, b.w, b.h);
+  ctx.fillStyle = "#8fd6ff";
+  ctx.font = "bold 14px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(currentLang() === "zh" ? "EN" : "中", b.x + b.w / 2, b.y + b.h / 2 + 5);
+  ctx.restore();
 }
 
 export function drawMuteButton(ctx, width, muted) {
@@ -225,7 +247,7 @@ export function drawBackButton(ctx, width, height) {
   ctx.fillStyle = "#8fd6ff";
   ctx.font = "bold 17px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("← 返回", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
+  ctx.fillText(t("← 返回", "← Back"), btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
   ctx.restore();
 }
 
@@ -243,7 +265,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
     // 触屏抽屉更高,展开时标题让位避免文字互压
     ctx.fillStyle = "#7ea8ff";
     ctx.font = "bold 44px monospace";
-    ctx.fillText("我做了一个Sans割草游戏.", width / 2, height / 2 - 130);
+    ctx.fillText(t("我做了一个Sans割草游戏.", "I made a Sans survivors game."), width / 2, height / 2 - 130);
   }
 
   // the cast, bottom-aligned on a common baseline under the title
@@ -268,7 +290,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 22px monospace";
-  ctx.fillText("开 始", width / 2, btn.y + btn.h / 2 + 8);
+  ctx.fillText(t("开 始", "S T A R T"), width / 2, btn.y + btn.h / 2 + 8);
 
   // credits button, tucked into the bottom-right corner
   const cb = creditsButtonRect(width, height);
@@ -279,7 +301,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(cb.x, cb.y, cb.w, cb.h);
   ctx.fillStyle = "#b9b2c9";
   ctx.font = "bold 14px monospace";
-  ctx.fillText("制作名单", cb.x + cb.w / 2, cb.y + cb.h / 2 + 5);
+  ctx.fillText(t("制作名单", "Credits"), cb.x + cb.w / 2, cb.y + cb.h / 2 + 5);
 
   // collapsed drawer: ☰ 菜单 holds shop/codex/echoes/quests
   const mb = menuButtonRect(width, height);
@@ -290,7 +312,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(mb.x, mb.y, mb.w, mb.h);
   ctx.fillStyle = menuOpen ? "#ffd166" : "#8fd6ff";
   ctx.font = "bold 14px monospace";
-  drawIconLabel(ctx, ICONS.menu, menuOpen ? "收起" : "菜单", mb.x + mb.w / 2, mb.y + mb.h / 2 + 5, 14, 5);
+  drawIconLabel(ctx, ICONS.menu, menuOpen ? t("收起", "Close") : t("菜单", "Menu"), mb.x + mb.w / 2, mb.y + mb.h / 2 + 5, 14, 5);
   if (menuBadge && !menuOpen) {
     // gold dot: today's bounties aren't cleared yet
     ctx.fillStyle = "#ffd166";
@@ -343,7 +365,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(db.x, db.y, db.w, db.h);
   ctx.fillStyle = "#c59bff";
   ctx.font = "bold 15px monospace";
-  drawIconLabel(ctx, ICONS.daily, "每日挑战", db.x + db.w / 2, db.y + db.h / 2 + 5, 16, 6);
+  drawIconLabel(ctx, ICONS.daily, t("每日挑战", "Daily Run"), db.x + db.w / 2, db.y + db.h / 2 + 5, 16, 6);
 
   const rb = leaderboardButtonRect(width, height);
   ctx.fillStyle = "#261b16";
@@ -353,7 +375,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(rb.x, rb.y, rb.w, rb.h);
   ctx.fillStyle = "#ff8a5d";
   ctx.font = "bold 15px monospace";
-  drawIconLabel(ctx, ICONS.leaderboard, "排行榜", rb.x + rb.w / 2, rb.y + rb.h / 2 + 5, 16, 6);
+  drawIconLabel(ctx, ICONS.leaderboard, t("排行榜", "Ranking"), rb.x + rb.w / 2, rb.y + rb.h / 2 + 5, 16, 6);
   ctx.restore();
 }
 
@@ -415,7 +437,7 @@ export function drawHomeButton(ctx, width, height) {
   ctx.fillStyle = "#8fd6ff";
   ctx.font = "bold 15px monospace";
   ctx.textAlign = "center";
-  drawIconLabel(ctx, ICONS.home, "回主页", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6, 16, 6);
+  drawIconLabel(ctx, ICONS.home, t("回主页", "Home"), btn.x + btn.w / 2, btn.y + btn.h / 2 + 6, 16, 6);
   ctx.restore();
 }
 
@@ -434,7 +456,7 @@ export function drawShareButton(ctx, width, height) {
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 15px monospace";
   ctx.textAlign = "center";
-  drawIconLabel(ctx, ICONS.share, "分享战绩", btn.x + btn.w / 2, btn.y + btn.h / 2 + 6, 16, 6);
+  drawIconLabel(ctx, ICONS.share, t("分享战绩", "Share"), btn.x + btn.w / 2, btn.y + btn.h / 2 + 6, 16, 6);
   ctx.restore();
 }
 
@@ -509,10 +531,10 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
     ctx.textAlign = "left";
     ctx.fillStyle = on ? "#ffffff" : "#c8c2d4";
     ctx.font = "bold 13px monospace";
-    ctx.fillText(w.name, r.x + 32, r.y + 19);
+    ctx.fillText(pick(w, "name"), r.x + 32, r.y + 19);
     ctx.fillStyle = "#7d7690";
     ctx.font = "10px monospace";
-    ctx.fillText(`[${w.tag}]${w.support ? " · 辅助:仅局内获取" : ""}`, r.x + 32, r.y + 34);
+    ctx.fillText(`[${pick(w, "tag")}]${w.support ? t(" · 辅助:仅局内获取", " · Support: in-run only") : ""}`, r.x + 32, r.y + 34);
     ctx.textAlign = "center";
   });
 
@@ -529,10 +551,10 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
     ctx.strokeRect(px, 112, pw, height - 178);
     ctx.fillStyle = w.color;
     ctx.font = "bold 20px monospace";
-    ctx.fillText(`${w.name}  [${w.tag}]`, px + 18, 140);
+    ctx.fillText(`${pick(w, "name")}  [${pick(w, "tag")}]`, px + 18, 140);
     ctx.fillStyle = "#c8c2d4";
     ctx.font = "12px monospace";
-    ctx.fillText(w.desc, px + 18, 162);
+    ctx.fillText(pick(w, "desc"), px + 18, 162);
 
     // tier table: rows = fields, cols = Lv1..Lv5 (+ 觉醒 gold column)
     const keys = [];
@@ -1185,7 +1207,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 30px monospace";
-  ctx.fillText("商 店", width / 2, 46);
+  ctx.fillText(t("商 店", "S H O P"), width / 2, 46);
   for (const [i, label] of showCosmetics ? [[0, "能力升级"], [1, "灵魂加护"]] : []) {
     const r = shopTabRect(i, width);
     const active = tab === i;
@@ -1253,7 +1275,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
         ctx.fillText(priceText, box.x + box.w - 14, box.y + 20);
         ctx.font = "10px monospace";
         ctx.fillStyle = affordable ? "#7d7690" : "#5a5468";
-        ctx.fillText(affordable ? "点击购买" : "金币不足", box.x + box.w - 14, box.y + 36);
+        ctx.fillText(affordable ? t("点击购买", "Tap to buy") : t("金币不足", "Not enough"), box.x + box.w - 14, box.y + 36);
       }
     }
     ctx.textAlign = "center";
@@ -1291,7 +1313,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
     ctx.fillText(`${"■".repeat(it.lvl)}${"□".repeat(it.max - it.lvl)}`, box.x + box.w - 118, box.y + 24);
     ctx.fillStyle = it.cost === null ? "#7cf28a" : affordable ? "#ffd166" : "#6b6578";
     if (it.cost === null) {
-      ctx.fillText("已满级", box.x + box.w - 16, box.y + 24);
+      ctx.fillText(t("已满级", "MAX"), box.x + box.w - 16, box.y + 24);
     } else {
       const costText = String(it.cost);
       const costW = ctx.measureText(costText).width;
@@ -1303,7 +1325,7 @@ export function drawShopScreen(ctx, width, height, items, coins, tab = 0, souls 
       // 不再每个条目常驻一整句
       ctx.fillStyle = it.gate ? "#d9c47a" : affordable ? "#7d7690" : "#5a5468";
       ctx.font = "11px monospace";
-      const statusText = it.gate ? "未解锁" : affordable ? "点击购买" : "金币不足";
+      const statusText = it.gate ? t("未解锁", "Locked") : affordable ? t("点击购买", "Tap to buy") : t("金币不足", "Not enough");
       if (it.gate) {
         const statusW = ctx.measureText(statusText).width;
         drawPixelIcon(ctx, ICONS.lock, box.x + box.w - statusW - 31, box.y + 31, 11);
@@ -1370,10 +1392,10 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.textAlign = "center";
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 32px monospace";
-  ctx.fillText("我做了一个Sans割草游戏.", width / 2, 66);
+  ctx.fillText(t("我做了一个Sans割草游戏.", "I made a Sans survivors game."), width / 2, 66);
   ctx.fillStyle = "#f2ead8";
   ctx.font = "14px monospace";
-  ctx.fillText(pageInfo ? `${pageInfo.label} · ${pageInfo.page + 1}/${pageInfo.pages}` : "选择你的角色", width / 2, 100);
+  ctx.fillText(pageInfo ? `${pageInfo.label} · ${pageInfo.page + 1}/${pageInfo.pages}` : t("选择你的角色", "Choose your character"), width / 2, 100);
   // 分页箭头(复用图鉴的放大箭头,下移让开标题): 本家 ⇄ 裂缝时间线
   if (pageInfo && pageInfo.pages > 1) {
     for (const direction of [-1, 1]) {
@@ -1434,21 +1456,21 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
     // 完整描述与最高分只讲当前选中的角色,显示在卡排下方一行
     ctx.fillStyle = lock ? "#7d7690" : active ? "#ffffff" : "#c8c2d4";
     ctx.font = "bold 22px monospace";
-    if (lock) drawIconLabel(ctx, ICONS.lock, c.name, box.x + box.w / 2, box.y + 234, 17, 5);
-    else ctx.fillText(c.name, box.x + box.w / 2, box.y + 234);
+    if (lock) drawIconLabel(ctx, ICONS.lock, pick(c, "name"), box.x + box.w / 2, box.y + 234, 17, 5);
+    else ctx.fillText(pick(c, "name"), box.x + box.w / 2, box.y + 234);
     if (lock) {
       ctx.fillStyle = "#d9c47a";
       fitFill(lock.hint, box.y + 262);
       // 种草入口: 选中后再点一次卡片可预览武器库
       ctx.fillStyle = active ? "#c8c2d4" : "#6f6880";
-      fitFill(active ? "再点一次 → 预览武器库" : (c.tags || []).join(" · "), box.y + 284);
+      fitFill(active ? t("再点一次 → 预览武器库", "Tap again → preview arsenal") : (c.tags || []).map((x) => t(x, c.tagsEn?.[(c.tags || []).indexOf(x)])).join(" · "), box.y + 284);
     } else {
       ctx.fillStyle = active ? "#b9b2c9" : "#6f6880";
-      fitFill((c.tags || []).join(" · "), box.y + 262);
+      fitFill(currentLang() === "en" && c.tagsEn ? c.tagsEn.join(" · ") : (c.tags || []).join(" · "), box.y + 262);
       const m = masteries[c.id];
       if (m) {
         ctx.fillStyle = "#ffd166";
-        fitFill(`专精 Lv${m.lvl}`, box.y + 284);
+        fitFill(`${t("专精", "Mastery")} Lv${m.lvl}`, box.y + 284);
       }
     }
     // 数字快捷键仍可用(1-5 选卡);选中态由加粗彩色边框表达——
@@ -1463,8 +1485,8 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
     ctx.fillStyle = sLock ? "#9a93ab" : "#c8c2d4";
     ctx.font = "12px monospace";
     const line = sLock
-      ? `${sel.desc} · ${sLock.progress}`
-      : `${sel.desc}${bests[sel.id] > 0 ? ` · 最高 ${bests[sel.id]}` : ""}`;
+      ? `${pick(sel, "desc")} · ${sLock.progress}`
+      : `${pick(sel, "desc")}${bests[sel.id] > 0 ? ` · ${t("最高", "Best")} ${bests[sel.id]}` : ""}`;
     ctx.fillText(line, width / 2, sBox.y + sBox.h + T(26, 16));
   }
 
@@ -1481,9 +1503,9 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
-  if (selLock && selLock.gated) ctx.fillText("地狱通关后可购", width / 2, btn.y + btn.h / 2 + 7);
-  else if (selLock) drawIconLabel(ctx, ICONS.coin, `${selLock.cost} 解锁`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
-  else ctx.fillText("确 定", width / 2, btn.y + btn.h / 2 + 7);
+  if (selLock && selLock.gated) ctx.fillText(t("地狱通关后可购", "Clear HELL to buy"), width / 2, btn.y + btn.h / 2 + 7);
+  else if (selLock) drawIconLabel(ctx, ICONS.coin, `${selLock.cost} ${t("解锁", "Unlock")}`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
+  else ctx.fillText(t("确 定", "Confirm"), width / 2, btn.y + btn.h / 2 + 7);
   drawBackButton(ctx, width, height);
   ctx.restore();
 }
@@ -1515,10 +1537,10 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
   ctx.textAlign = "center";
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 32px monospace";
-  ctx.fillText(charName ? `${charName} 的武器库` : "我做了一个Sans割草游戏.", width / 2, 62);
+  ctx.fillText(charName ? (currentLang() === "en" ? `${charName} — Arsenal` : `${charName} 的武器库`) : t("我做了一个Sans割草游戏.", "I made a Sans survivors game."), width / 2, 62);
   ctx.fillStyle = charPrice ? "#d9c47a" : "#f2ead8";
   ctx.font = "14px monospace";
-  ctx.fillText(charPrice ? "预览中——解锁后即可带它们开局" : "选择你的初始武器", width / 2, 98);
+  ctx.fillText(charPrice ? t("预览中——解锁后即可带它们开局", "Preview — unlock to wield them") : t("选择你的初始武器", "Choose your starting weapon"), width / 2, 98);
 
   for (let i = 0; i < weapons.length; i++) {
     const w = weapons[i];
@@ -1541,7 +1563,7 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
       ctx.font = "bold 14px monospace";
       ctx.fillText(`${i + 1}.`, box.x + 40, box.y + 25);
       drawPixelIcon(ctx, ICONS.lock, box.x + 64, box.y + 12, 13);
-      ctx.fillText(w.name, box.x + 82, box.y + 25);
+      ctx.fillText(pick(w, "name"), box.x + 82, box.y + 25);
       ctx.fillStyle = "#d9c47a";
       ctx.font = "12px monospace";
       ctx.fillText(`解锁：${lock.hint} · 进度 ${lock.progress}`, box.x + 40, box.y + 47);
@@ -1552,26 +1574,26 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
     ctx.textAlign = "left";
     ctx.fillStyle = active ? "#ffffff" : "#c8c2d4";
     ctx.font = "bold 14px monospace";
-    ctx.fillText(`${i + 1}. ${w.name}`, box.x + 40, box.y + 25);
+    ctx.fillText(`${i + 1}. ${pick(w, "name")}`, box.x + 40, box.y + 25);
     ctx.textAlign = "right";
     ctx.fillStyle = w.color;
     ctx.font = "11px monospace";
-    ctx.fillText(`[${w.tag}]`, box.x + box.w - 10, box.y + 25);
+    ctx.fillText(`[${pick(w, "tag")}]`, box.x + box.w - 10, box.y + 25);
     ctx.textAlign = "left";
     ctx.fillStyle = active ? "#b9b2c9" : "#7d7690";
     // auto-fit: shrink the font a little, then truncate if still too wide
     const maxW = box.w - 50;
     let descFont = 12;
     ctx.font = `${descFont}px monospace`;
-    while (descFont > 9 && ctx.measureText(w.desc).width > maxW) {
+    while (descFont > 9 && ctx.measureText(pick(w, "desc")).width > maxW) {
       descFont -= 1;
       ctx.font = `${descFont}px monospace`;
     }
-    let desc = w.desc;
+    let desc = pick(w, "desc");
     while (desc.length > 1 && ctx.measureText(desc + "…").width > maxW) {
       desc = desc.slice(0, -1);
     }
-    if (desc !== w.desc) desc += "…";
+    if (desc !== pick(w, "desc")) desc += "…";
     ctx.fillText(desc, box.x + 40, box.y + 47);
     ctx.textAlign = "center";
 
@@ -1591,8 +1613,8 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
-  if (charPrice) drawIconLabel(ctx, ICONS.coin, `${charPrice} 解锁`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
-  else ctx.fillText("确 定", width / 2, btn.y + btn.h / 2 + 7);
+  if (charPrice) drawIconLabel(ctx, ICONS.coin, `${charPrice} ${t("解锁", "Unlock")}`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
+  else ctx.fillText(t("确 定", "Confirm"), width / 2, btn.y + btn.h / 2 + 7);
   drawBackButton(ctx, width, height);
   ctx.restore();
 }
@@ -1640,10 +1662,10 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 30px monospace";
-  ctx.fillText("强 化 时 间 !", width / 2, height / 2 - 130);
+  ctx.fillText(t("强 化 时 间 !", "P O W E R  U P !"), width / 2, height / 2 - 130);
   ctx.fillStyle = "#f2ead8";
   ctx.font = "14px monospace";
-  ctx.fillText("选择一项强化", width / 2, height / 2 - 102);
+  ctx.fillText(t("选择一项强化", "Pick one upgrade"), width / 2, height / 2 - 102);
 
   for (let i = 0; i < options.length; i++) {
     const opt = options[i];
@@ -1688,7 +1710,7 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   drawIconLabel(
     ctx,
     ICONS.refresh,
-    canReroll ? (rerolls > 1 ? `刷新 ×${rerolls}` : "刷新") : "已刷新",
+    canReroll ? (rerolls > 1 ? `${t("刷新", "Reroll")} ×${rerolls}` : t("刷新", "Reroll")) : t("已刷新", "Used"),
     btn.x + btn.w / 2,
     btn.y + btn.h / 2 + 5,
     14,
