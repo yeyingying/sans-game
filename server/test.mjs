@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { SEASON, dailyKey, expectedScore, isValidCharacter, randomNickname, runProgressError, validateNickname } from "./core.mjs";
-import { adminAuthorized, adminPage, displayWeapons, passwordMatches, passwordMatchesHash } from "./admin.mjs";
+import { adminAuthorized, adminOverview, adminPage, displayWeapons, passwordMatches, passwordMatchesHash, playerCharacters } from "./admin.mjs";
 import { deviceSummary, maskIp, networkTag, parseRegion } from "./geo.mjs";
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:0,silence:false}),202);
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:1,silence:true}),492);
@@ -28,12 +28,25 @@ assert.equal(passwordMatchesHash("wrong","27042f4e6eca7d0b2a7ee4026df2ecfa51d333
 assert.equal(passwordMatchesHash("right","not-a-hash"),false);
 assert.deepEqual(displayWeapons(["bone:2","gaster*:4"]),["碎骨投掷 Lv3","龙骨炮（进化） Lv5"]);
 assert.deepEqual(displayWeapons(["ifist:0","ispike*:4"]),["血色重拳 Lv1","分裂骨刺（进化） Lv5"]);
+assert.deepEqual(playerCharacters("sans,horror,ukb","horror"),["horror","sans","ukb"]);
+assert.deepEqual(playerCharacters("",null),[]);
 assert.equal(SEASON,"s2");
 assert.equal(isValidCharacter("insanity"),true);
 assert.equal(isValidCharacter("unknown"),false);
 assert.match(adminPage(),/insanity:'Insanity'/);
+assert.match(adminPage(),/玩过的角色/);
 const cookieReq={headers:{cookie:"sg_admin=token"}};
 assert.equal(adminAuthorized(cookieReq,"secret","password",req=>Object.fromEntries(req.headers.cookie.split(";").map(x=>x.trim().split("=")))),false);
+
+const adminDb=new DatabaseSync(":memory:");
+adminDb.exec(`CREATE TABLE players(id TEXT PRIMARY KEY,nickname TEXT,created_at INTEGER,last_seen_at INTEGER,last_ip_masked TEXT,last_network_tag TEXT,last_device TEXT,last_region TEXT,last_isp TEXT);
+CREATE TABLE runs(id TEXT PRIMARY KEY,player_id TEXT,character TEXT,difficulty INTEGER,started_at INTEGER,last_at INTEGER,last_elapsed REAL,last_kills INTEGER,last_rounds INTEGER,checkpoints INTEGER,settled INTEGER,report TEXT,ip_masked TEXT,network_tag TEXT,device TEXT,region TEXT,isp TEXT);
+CREATE TABLE scores(id INTEGER PRIMARY KEY,player_id TEXT,run_id TEXT,mode TEXT,character TEXT,difficulty INTEGER,score INTEGER,rounds INTEGER,created_at INTEGER,hidden INTEGER);
+INSERT INTO players VALUES('p1','玩家甲',1,30,'','','','',''),('p2','玩家乙',2,2,'','','','','');
+INSERT INTO runs VALUES('r1','p1','sans',0,10,10,0,0,0,0,0,'','','','','',''),('r2','p1','horror',0,20,20,0,0,0,0,0,'','','','','',''),('r3','p1','sans',0,30,30,0,0,0,0,0,'','','','','','');`);
+const adminPlayers=adminOverview(adminDb).players;
+assert.deepEqual(adminPlayers.find(x=>x.id==="p1").characters,["sans","horror"]);
+assert.deepEqual(adminPlayers.find(x=>x.id==="p2").characters,[]);
 
 // A leaderboard position belongs to a player, not to every run they submit.
 // Two runs by player A plus one by B must render two rows, with A's best only.
