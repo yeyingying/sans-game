@@ -641,8 +641,8 @@ export const WEAPONS = {
     nameEn: "Pounce",
     tag: "锁定骑乘",
     tagEn: "Lock & Maul",
-    desc: "扑住敌人连续撕咬,期间减伤90%,敌人死亡才罢休,升级加撕咬频率",
-    descEn: "Leap onto an enemy and maul it; 90% damage cut while riding",
+    desc: "扑住敌人连续撕咬,期间无敌,敌人死亡才罢休,升级加撕咬频率",
+    descEn: "Leap onto an enemy and maul it; invincible while riding",
     color: "#d92535",
     enhance: { desc: "起跳时拖最多3个近身敌人一起禁锢", descEn: "Drag up to 3 neighbors in", detail: "重复选择 +1 敌人上限", detailEn: "Repeat: +1 victim" },
     evolve: {
@@ -1572,6 +1572,11 @@ export function getDashInfo(inst) {
 }
 
 // ---- Insanity helpers -------------------------------------------------------
+// 突进/骑乘类技能把玩家朝向对准目标(2026-07-15 用户反馈:过程中要按面对方向换贴图)
+function faceDir(player, dx, dy) {
+  player.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
+}
+
 // 扑杀与骨刺跳跃都会锁定玩家本体,二者互斥(用户原案裁定)
 export function insanityBusy(player) {
   for (const i of player.weapons) {
@@ -1877,7 +1882,15 @@ function updateInstance(player, inst, dt, world) {
       if (side === "left") return e.x < player.x;
       return e.x > player.x;
     });
-    if (!picked.length) return;
+    if (!picked.length) {
+      // Boss兜底(2026-07-15 用户反馈"打Boss完全不索敌"): 甩不动天意,
+      // 但越界删除的判定本身照样砸在它身上
+      const b = enemies.find((e) => e.boss && Math.hypot(e.x - player.x, e.y - player.y) < 470);
+      if (!b) return;
+      world.spawnBlast({ x: b.x, y: b.y, dmg: weaponDmg(player, tier.dmgMult), blast: tier.blast * (inst.evolved ? tier.edgeMult : 1), color: "#f2ead8" });
+      inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+      return;
+    }
     for (const e of picked) {
       const tx = side === "left" ? player.x - 470 : side === "right" ? player.x + 470 : e.x;
       const ty = side === "up" ? world.bounds.top : side === "down" ? world.bounds.bottom : e.y;
@@ -1920,7 +1933,14 @@ function updateInstance(player, inst, dt, world) {
       .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))
       .slice(0, tier.grabs)
       .filter((e) => Math.hypot(e.x - player.x, e.y - player.y) < effRange + 120);
-    if (!grabs.length) return;
+    if (!grabs.length) {
+      // Boss兜底: 拽不动天意,回收判定原地起爆(缴械由免疫规则裁决)
+      const b = enemies.find((e) => e.boss && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 120);
+      if (!b) return;
+      world.spawnBlast({ x: b.x, y: b.y, dmg: weaponDmg(player, tier.dmgMult), blast: tier.blast, color: "#c8d2e8" });
+      inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+      return;
+    }
     for (const e of grabs) {
       const a = Math.random() * Math.PI * 2;
       inst.hflings.push({
@@ -2164,7 +2184,16 @@ function updateInstance(player, inst, dt, world) {
       .filter((e) => !e.boss && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170) // Boss不当免伤宿主,但吃邻近炸点的溅射
       .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))
       .slice(0, tier.targets);
-    if (!hosts.length) return;
+    if (!hosts.length) {
+      // Boss兜底: 没有宿主时木马直接在天意身上引爆(它不是宿主,吃全额伤害)
+      const b = enemies.find((e) => e.boss && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170);
+      if (!b) return;
+      const bossDmg = weaponDmg(player, tier.dmgMult);
+      world.spawnBlast({ x: b.x, y: b.y, dmg: 0, blast: tier.blast, color: "#d8e2f0" });
+      b.takeDamage(Math.round(bossDmg));
+      inst.cooldown = 1 / (player.fireRate * tier.rateMult);
+      return;
+    }
     const dmg = weaponDmg(player, tier.dmgMult);
     const blastAt = (cx, cy, host, mult) => {
       world.spawnBlast({ x: cx, y: cy, dmg: 0, blast: tier.blast, color: "#d8e2f0" }); // 视觉
@@ -2274,7 +2303,8 @@ function updateInstance(player, inst, dt, world) {
         inst.cooldown = Math.max(1.5, 1 / (player.fireRate * tier.rateMult));
         return;
       }
-      player.guardBonus = Math.max(player.guardBonus, tier.guard); // 90%/95% 减伤
+      player.invuln = Math.max(player.invuln, 0.1); // 扑杀全程无敌(2026-07-15 用户裁决,原为90%减伤)
+      faceDir(player, e.x - player.x, e.y - player.y); // 贴图朝向目标
       if (p.phase === "leap") {
         p.t += dt;
         const prog = Math.min(p.t / 0.22, 1);
@@ -2389,8 +2419,36 @@ function updateInstance(player, inst, dt, world) {
   if (weapon.id === "ihook") {
     if (inst.hook) {
       const h = inst.hook;
+      // 骨刺先行(2026-07-15 用户裁决): 先射出骨刺钉住目标,命中后才起跳
+      if (h.phase === "dart") {
+        const e = h.e;
+        if (!e || e.hp <= 0) {
+          inst.hook = null;
+          inst.cooldown = 0.5; // 目标半路死了: 短冷却重新索敌
+          return;
+        }
+        const d = Math.hypot(e.x - h.x, e.y - h.y) || 1;
+        h.dartAngle = Math.atan2(e.y - h.y, e.x - h.x);
+        faceDir(player, e.x - player.x, e.y - player.y);
+        const step = 640 * dt;
+        if (d <= step + e.radius) {
+          // 钉中: 借力起跳
+          h.phase = "leap";
+          h.t = 0;
+          h.fx = player.x;
+          h.fy = player.y;
+          h.tx = e.x;
+          h.ty = e.y;
+          e.rootTimer = Math.max(e.rootTimer || 0, 0.35);
+        } else {
+          h.x += (Math.cos(h.dartAngle) * step);
+          h.y += (Math.sin(h.dartAngle) * step);
+        }
+        return;
+      }
       h.t += dt;
       player.invuln = Math.max(player.invuln, 0.1); // 跳跃全程无敌
+      faceDir(player, h.tx - h.fx, h.ty - h.fy); // 贴图跟随跳跃方向
       const prog = Math.min(h.t / 0.24, 1);
       player.x = h.fx + (h.tx - h.fx) * prog;
       player.y = h.fy + (h.ty - h.fy) * prog;
@@ -2412,7 +2470,8 @@ function updateInstance(player, inst, dt, world) {
           }
         }
         h.jumpsLeft -= 1;
-        const next = h.jumpsLeft > 0 ? findNearestEnemy(player.x, player.y, 240, enemies.filter((e) => !e.boss)) : null;
+        // 连跳(进化)可以索敌Boss——跳到天意身上引爆也成立(2026-07-15 Boss索敌修补)
+        const next = h.jumpsLeft > 0 ? findNearestEnemy(player.x, player.y, 240, enemies) : null;
         if (next) {
           h.fx = player.x;
           h.fy = player.y;
@@ -2431,9 +2490,9 @@ function updateInstance(player, inst, dt, world) {
       return;
     }
     if (insanityBusy(player)) return; // 扑杀进行中不可跳
-    const t = findNearestEnemy(player.x, player.y, 240, enemies.filter((e) => !e.boss)); // 索敌上限240,别太远
+    const t = findNearestEnemy(player.x, player.y, 240, enemies); // 索敌上限240,别太远;Boss也是合法锚点
     if (!t) return;
-    inst.hook = { t: 0, fx: player.x, fy: player.y, tx: t.x, ty: t.y, jumpsLeft: inst.evolved ? tier.jumps : 1, trail: [] };
+    inst.hook = { phase: "dart", x: player.x, y: player.y - 6, e: t, dartAngle: 0, t: 0, jumpsLeft: inst.evolved ? tier.jumps : 1, trail: [] };
     return;
   }
 
@@ -2441,8 +2500,8 @@ function updateInstance(player, inst, dt, world) {
     if (inst.ipullBurst) {
       const b = inst.ipullBurst;
       b.t += dt;
-      // 拉拽阶段
-      if (b.t < 0.18 && b.e.hp > 0) {
+      // 拉拽阶段(Boss兜底模式跳过——天意拽不动,原地连爆)
+      if (!b.noDrag && b.t < 0.18 && b.e.hp > 0) {
         const prog = b.t / 0.18;
         b.e.x = b.ex + (player.x + b.dirX * 42 - b.ex) * prog;
         b.e.y = Math.min(Math.max(b.ey + (player.y + b.dirY * 42 - b.ey) * prog, world.bounds.top), world.bounds.bottom);
@@ -2492,10 +2551,16 @@ function updateInstance(player, inst, dt, world) {
       inst.cooldown -= dt;
       return;
     }
-    const t = findNearestEnemy(player.x, player.y, effRange + 150, enemies.filter((e) => !e.boss));
-    if (!t) return;
+    let t = findNearestEnemy(player.x, player.y, effRange + 150, enemies.filter((e) => !e.boss));
+    let noDrag = false;
+    if (!t) {
+      // Boss兜底: 拽不动天意,处刑连爆直接在它身上结算
+      t = findNearestEnemy(player.x, player.y, effRange + 150, enemies.filter((e) => e.boss));
+      if (!t) return;
+      noDrag = true;
+    }
     const d = Math.hypot(t.x - player.x, t.y - player.y) || 1;
-    inst.ipullBurst = { t: 0, e: t, ex: t.x, ey: t.y, lx: t.x, ly: t.y, dirX: (t.x - player.x) / d, dirY: (t.y - player.y) / d, fired: 0 };
+    inst.ipullBurst = { t: 0, e: t, ex: t.x, ey: t.y, lx: t.x, ly: t.y, dirX: (t.x - player.x) / d, dirY: (t.y - player.y) / d, fired: 0, noDrag };
     return;
   }
 
@@ -2653,17 +2718,19 @@ function updateInstance(player, inst, dt, world) {
         inst.enhance > 0
           ? { radius: Math.min(30 + 10 * (inst.enhance - 1), mainBlastR), dmg: dmg * 0.4, color: "#ff5d73" }
           : null;
+      // 分裂子刺(2026-07-15 用户反馈"要从底下伸上来"): 整齐环形+逐根
+      // 顺时针破土——地刺语义靠明确的节奏和阵型传达,不再随机散射
       for (let i = 0; i < tier.splits; i++) {
-        const a = (i / tier.splits) * Math.PI * 2 + Math.random() * 0.6;
-        const rr = 34 + Math.random() * 30;
+        const a = (i / tier.splits) * Math.PI * 2 + 0.35;
+        const rr = 42 + (i % 2) * 18; // 内外双环
         inst.ipending.push({
-          t: 0.34 + Math.random() * 0.12,
+          t: 0.26 + i * 0.05,
           opts: {
             x: t.x + Math.cos(a) * rr,
             y: Math.min(Math.max(t.y + Math.sin(a) * rr, world.bounds.top), world.bounds.bottom),
             dmg: dmg * 0.5,
-            delay: 0.12,
-            boneSize: 14,
+            delay: 0.14,
+            boneSize: 18,
             color: "#ff5d73",
             ...(childBlast ? { blast: childBlast } : {}),
           },

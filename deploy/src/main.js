@@ -296,6 +296,9 @@ const ENEMY_SPRITES = {
   blue: tintSprite(ENEMY_WOSHUA, "#5aa8e0", 0.3),
   purple: tintSprite(ENEMY_ICECAP, "#9a86e8", 0.3),
 };
+// 手掌幻影: 全红重染(2026-07-15 用户裁决,配合渲染处的半透明)
+const IHAND_OPEN_RED = tintSprite(IHAND_OPEN, "#e01030", 0.85);
+const IHAND_CLENCH_RED = tintSprite(IHAND_CLENCH, "#e01030", 0.85);
 // ---- 谜之宝箱像素贴图(2026-07-12 美术重做,champion_sprites 同工艺) --------
 function buildPx(rows, palette) {
   const h = rows.length;
@@ -4608,7 +4611,9 @@ function draw() {
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(PROJECTILE_AXE, -size / 2, -size / 2, size, size);
       } else {
-        drawBone(sp.x, sp.y - size * 0.3, size, -Math.PI / 2, spikeBoneSprite(sp));
+        // 底部锚定(2026-07-15 用户反馈"骨头要从底下伸上来"): 骨根钉在
+        // 触发点,只有顶端随 pop 往上长——原来的中心缩放读作"原地冒出"
+        drawBone(sp.x, sp.y - size * 0.5, size, -Math.PI / 2, spikeBoneSprite(sp));
       }
       ctx.restore();
     }
@@ -5284,15 +5289,23 @@ function draw() {
         for (const h of getHandFx(inst)) {
           ctx.save();
           ctx.imageSmoothingEnabled = false;
-          const spr = h.phase === "clench" ? IHAND_CLENCH : IHAND_OPEN;
+          // 全红+半透明(2026-07-15 用户裁决): 幻影就该像幻影
+          const spr = h.phase === "clench" ? IHAND_CLENCH_RED : IHAND_OPEN_RED;
           const hw = 52 * h.size;
-          ctx.globalAlpha = h.phase === "clench" ? Math.max(0, 1 - h.t / 0.35) : 0.92;
+          ctx.globalAlpha = h.phase === "clench" ? Math.max(0, 0.8 - (h.t / 0.35) * 0.8) : 0.55;
           ctx.drawImage(spr, h.x - hw / 2, h.y - hw / 2, hw, hw);
           ctx.restore();
         }
       } else if (inst.id === "ihook") {
         const h = getHookInfo(inst);
         if (h) {
+          if (h.phase === "dart") {
+            // 先行骨刺: 旋转的猩红骨,钉中目标才触发起跳
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            drawBone(h.x, h.y, 26, h.dartAngle, PROJECTILE_BONE_CRIMSON);
+            ctx.restore();
+          }
           for (const tr of h.trail) {
             ctx.save();
             ctx.globalAlpha = Math.max(0, 1 - tr.t / 0.2) * 0.5;
