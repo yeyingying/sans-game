@@ -1625,9 +1625,10 @@ const CHOICE_KIND_ICONS = {
   faster: "speed",
   dodge: "speed",
   thorns: "skull",
-  newWeapon: "weapon",
-  tierUp: "weapon",
-  enhance: "weapon",
+  // 武器类三兄弟必须长得不一样(2026-07-14 用户截图:三卡同图标)
+  newWeapon: "weapon", // 交叉武器=拿新家伙
+  tierUp: "star", // 升星=品阶提升
+  enhance: "edit", // 刻刀=在现有武器上改造
   evolve: "awakening",
 };
 
