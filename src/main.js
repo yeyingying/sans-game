@@ -479,6 +479,10 @@ let dailyBestToday = 0;
 let dailyNewBest = false;
 let lastRunCoins = 0; // shown on the gameover screen
 let bossDefeated = false; // the heart was taken; endless only if the player opts in
+let bossFightStartedAt = 0; // balance telemetry: actual encounter start
+let bossPhaseReached = 0;
+let bossHpPctAtEnd = 0;
+let hpAtBossPct = 0;
 
 // boss-clear choice screen + stage/endless score separation
 let bossClearChoice = 0; // 0 = leave with the loot, 1 = continue (endless)
@@ -1133,6 +1137,10 @@ function reset(weaponId) {
   runCoins = 0;
   runKillsByType = {};
   bossDefeated = false;
+  bossFightStartedAt = 0;
+  bossPhaseReached = 0;
+  bossHpPctAtEnd = 0;
+  hpAtBossPct = 0;
   bossClearChoice = 0;
   stageClearScore = 0;
   stageClearTime = 0;
@@ -1297,6 +1305,10 @@ function settleGame(kind) {
     score: bossDefeated ? stageClearScore : currentScore(),
     bossReached: bossDefeated || elapsed >= bossAppearAt(),
     bossDefeated,
+    bossPhaseReached: bossDefeated ? 2 : bossPhaseReached,
+    bossFightSeconds: bossFightStartedAt > 0 ? Math.max(0, Math.round((bossDefeated ? stageClearTime : elapsed) - bossFightStartedAt)) : 0,
+    bossHpPct: bossDefeated ? 0 : bossHpPctAtEnd,
+    hpAtBossPct,
     rounds: roundsCleared,
     hpPct: player.maxHp > 0 ? Math.round((Math.max(0, player.hp) / player.maxHp) * 100) : 0,
     damageTaken: Math.round(player.damageTaken || 0),
@@ -3639,6 +3651,9 @@ function update(dt) {
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
   if (!bossFight && !bossDefeated && elapsed >= bossAppearAt()) {
     bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H, getDifficulty().id);
+    bossFightStartedAt = elapsed;
+    bossPhaseReached = 1;
+    hpAtBossPct = player.maxHp > 0 ? Math.round((Math.max(0, player.hp) / player.maxHp) * 100) : 0;
     fireBark("boss");
     candyBanner = { text: bossAnthemLine(), t: 3.2 }; // Megalovania = 国歌,B站条件反射;EN = bad time
     enemies.length = 0;
@@ -4136,6 +4151,8 @@ function update(dt) {
         pickups.push(heart);
       },
     });
+    bossPhaseReached = Math.max(bossPhaseReached, Number(bossFight.phase) || 1);
+    bossHpPctAtEnd = bossFight.boss.maxHp > 0 ? Math.max(0, Math.min(100, Math.round((bossFight.boss.hp / bossFight.boss.maxHp) * 100))) : 0;
     if (bossFight.done) enemies = enemies.filter((e) => !e.boss);
     // boss attacks apply damage inside bossFight.update — tag them here
     if (player.hp < hpBeforeBoss - 0.001) {
