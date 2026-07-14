@@ -19,7 +19,9 @@ const MODES = [
 ];
 const CHAR_FILTERS = [null, "sans", "ukb", "horror", "hard", "insanity", "hacker"];
 
-export const leaderboardOnline = typeof location !== "undefined" && /(^|\.)sansgecao\.com$/.test(location.hostname || "");
+export const leaderboardOnline =
+  typeof location !== "undefined" &&
+  (/(^|\.)sansgecao\.com$/.test(location.hostname || "") || /[?&]lb=1/.test(location.search || "")); // ?lb=1: 本地调试榜单布局(请求会失败,只看排版)
 let me = null, run = null, timer = null, retryTimer = null, result = "", rows = [], mode = "normal", character = "", boardDate = "";
 let loading = false, error = "", difficulty = "", myRank = null;
 let identityPromise = null, registrationPromise = null, registrationData = null, registrationStats = null, runGeneration = 0;
@@ -271,7 +273,7 @@ function tabRect(i, w) {
 }
 function filterToggleRect(w) {
   const width = Math.min(620, w - 200);
-  return { x: w / 2 - width / 2, y: 194, w: width, h: 52 }; // phone only
+  return { x: w / 2 - width / 2, y: 206, w: width, h: 48 }; // phone only(2026-07-14 拥挤专项下移)
 }
 function charChipRect(i, w) {
   const ph = isPhone(w);
@@ -407,7 +409,7 @@ export function drawLeaderboard(ctx, w, h) {
     ctx.fillStyle = "#7d7690";
     ctx.font = "18px monospace";
     const modeInfo = MODES.find((m2) => m2.id === mode);
-    ctx.fillText(`${modeInfo.mobileHint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 182);
+    ctx.fillText(`${modeInfo.mobileHint}${mode === "daily" && boardDate ? ` · ${boardDate}` : ""}`, w / 2, 192);
     button(ctx, filterToggleRect(w), fLabel, "#c8c2d4", filtersOpen);
     if (filtersOpen) {
       const firstChar = charChipRect(0, w);
