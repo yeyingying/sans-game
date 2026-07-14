@@ -955,8 +955,11 @@ function diffPills() {
       d.id === active
         ? d.id === 0
           ? t("标准体验", "The standard experience")
-          : `怪物血×${d.hpMult} 伤×${d.dmgMult} · 金币×${d.coinMult} 分数×${d.scoreMult}`
-        : d.hint || "",
+          : t(
+              `怪物血×${d.hpMult} 伤×${d.dmgMult} · 金币×${d.coinMult} 分数×${d.scoreMult}`,
+              `HP×${d.hpMult} DMG×${d.dmgMult} · Coins×${d.coinMult} Score×${d.scoreMult}`
+            )
+        : pick(d, "hint") || "",
   }));
 }
 

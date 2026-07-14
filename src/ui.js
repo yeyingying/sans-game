@@ -484,6 +484,23 @@ const TIER_FIELD_LABELS = {
   orbs: "光球", ring: "阵径",
 };
 
+// EN stat labels stay ≤7 chars so the 64px label column never clips
+const TIER_FIELD_LABELS_EN = {
+  projectiles: "Shots", count: "Count", spread: "Spread", pierce: "Pierce",
+  dmgMult: "DMG", rateMult: "Rate", size: "Size", radius: "Radius",
+  spin: "Spin", turn: "Turn", bombs: "Bombs", blast: "Blast",
+  beams: "Beams", duration: "Time", width: "Width", targets: "Targets",
+  spikes: "Spikes", boomerangs: "Rangs", smashes: "Smashes", root: "Root",
+  waves: "Waves", bones: "Bones", boneSize: "BoneLen", healChance: "Leech",
+  bonesPer: "Per tgt", chains: "Chains", lasers: "Lasers", dashes: "Dashes",
+  split: "Split", ringBones: "R.Bones", shards: "Shards", rings: "Rings",
+  orbs: "Orbs", ring: "Ring",
+};
+
+function tierFieldLabel(k) {
+  return t(TIER_FIELD_LABELS[k] || k, TIER_FIELD_LABELS_EN[k] || TIER_FIELD_LABELS[k] || k);
+}
+
 function fmtTierVal(key, v) {
   if (v === undefined) return "—";
   if (key === "dmgMult" || key === "rateMult") return `×${v}`;
@@ -500,7 +517,7 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
   ctx.textAlign = "center";
   ctx.fillStyle = "#7ea8ff";
   ctx.font = "bold 26px monospace";
-  drawIconLabel(ctx, ICONS.weapon, "武 器 图 鉴", width / 2, 40, 22, 8);
+  drawIconLabel(ctx, ICONS.weapon, t("武 器 图 鉴", "WEAPON CODEX"), width / 2, 40, 22, 8);
 
   chars.forEach((c, i) => {
     const r = bookCharPillRect(i, width, chars.length);
@@ -513,8 +530,8 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
     ctx.fillStyle = on ? c.color : "#8d8798";
     ctx.font = "bold 13px monospace";
     ctx.font = "bold 13px monospace";
-    while (parseInt(ctx.font) > 9 && ctx.measureText(c.name).width > r.w - 10) ctx.font = `bold ${parseInt(ctx.font) - 1}px monospace`;
-    ctx.fillText(c.name, r.x + r.w / 2, r.y + r.h / 2 + 5);
+    while (parseInt(ctx.font) > 9 && ctx.measureText(pick(c, "name")).width > r.w - 10) ctx.font = `bold ${parseInt(ctx.font) - 1}px monospace`;
+    ctx.fillText(pick(c, "name"), r.x + r.w / 2, r.y + r.h / 2 + 5);
   });
 
   // left: weapon list
@@ -558,21 +575,21 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
 
     // tier table: rows = fields, cols = Lv1..Lv5 (+ 觉醒 gold column)
     const keys = [];
-    for (const t of w.tiers) for (const k of Object.keys(t)) if (!keys.includes(k)) keys.push(k);
+    for (const tierObj of w.tiers) for (const k of Object.keys(tierObj)) if (!keys.includes(k)) keys.push(k); // 别叫 t——遮蔽 i18n
     const cols = 5 + (w.evolve ? 1 : 0);
     const colW = Math.min(74, Math.floor((pw - 90) / cols));
     const tx = px + 18;
     let ty = 192;
     ctx.font = "bold 11px monospace";
     ctx.fillStyle = "#9a93ab";
-    ctx.fillText("属性", tx, ty);
+    ctx.fillText(t("属性", "Stat"), tx, ty);
     for (let c = 0; c < 5; c++) {
       ctx.fillStyle = "#9a93ab";
       ctx.fillText(`Lv${c + 1}`, tx + 64 + c * colW, ty);
     }
     if (w.evolve) {
       ctx.fillStyle = "#ffd166";
-      ctx.fillText("觉醒", tx + 64 + 5 * colW, ty);
+      ctx.fillText(t("觉醒", "Awaken"), tx + 64 + 5 * colW, ty);
     }
     ty += 8;
     ctx.strokeStyle = "#3a2f4a";
@@ -584,10 +601,10 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
     ctx.font = "11px monospace";
     for (const k of keys) {
       ctx.fillStyle = "#c8c2d4";
-      ctx.fillText(TIER_FIELD_LABELS[k] || k, tx, ty);
-      w.tiers.forEach((t, c) => {
+      ctx.fillText(tierFieldLabel(k), tx, ty);
+      w.tiers.forEach((tierObj, c) => {
         ctx.fillStyle = "#e8e2d4";
-        ctx.fillText(fmtTierVal(k, t[k]), tx + 64 + c * colW, ty);
+        ctx.fillText(fmtTierVal(k, tierObj[k]), tx + 64 + c * colW, ty);
       });
       if (w.evolve) {
         const evoVal = w.evolve.tier[k] !== undefined ? w.evolve.tier[k] : w.tiers[4][k];
@@ -601,11 +618,11 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
     ty += 10;
     ctx.fillStyle = "#c59bff";
     ctx.font = "bold 12px monospace";
-    ctx.fillText(`专属强化:${w.enhance.desc}`, tx, ty);
+    ctx.fillText(`${t("专属强化", "Signature")}:${pick(w.enhance, "desc")}`, tx, ty);
     ty += 17;
     ctx.fillStyle = "#9a93ab";
     ctx.font = "11px monospace";
-    ctx.fillText(`叠层:${w.enhance.detail}`, tx, ty);
+    ctx.fillText(`${t("叠层", "Stacking")}:${pick(w.enhance, "detail")}`, tx, ty);
     if (w.evolve) {
       ty += 22;
       ctx.fillStyle = "#ffd166";
@@ -614,20 +631,20 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
       ty += 17;
       ctx.fillStyle = "#9a93ab";
       ctx.font = "11px monospace";
-      ctx.fillText("条件:品阶升满 Lv5 且专属强化叠满 3 层 → 选卡出现金色进化卡", tx, ty);
+      ctx.fillText(t("条件:品阶升满 Lv5 且专属强化叠满 3 层 → 选卡出现金色进化卡", "How: reach Lv5 and stack the signature ×3 → a gold card appears"), tx, ty);
       // concrete deltas: only the stats the awakening actually changes
       const lv5 = w.tiers[4];
       const deltas = [];
       for (const dk of Object.keys(w.evolve.tier)) {
         if (w.evolve.tier[dk] !== lv5[dk]) {
-          deltas.push(`${TIER_FIELD_LABELS[dk] || dk} ${fmtTierVal(dk, lv5[dk])}→${fmtTierVal(dk, w.evolve.tier[dk])}`);
+          deltas.push(`${tierFieldLabel(dk)} ${fmtTierVal(dk, lv5[dk])}→${fmtTierVal(dk, w.evolve.tier[dk])}`);
         }
       }
       if (deltas.length) {
         ty += 17;
         ctx.fillStyle = "#ffd93d";
         ctx.font = "bold 11px monospace";
-        ctx.fillText(`觉醒增幅:${deltas.join(" · ")}`, tx, ty);
+        ctx.fillText(`${t("觉醒增幅", "Awaken gains")}:${deltas.join(" · ")}`, tx, ty);
       }
     }
   }
@@ -635,7 +652,7 @@ export function drawWeaponBook(ctx, width, height, chars, charIdx, list, selIdx)
   ctx.textAlign = "center";
   ctx.fillStyle = "#7d7690";
   ctx.font = "11px monospace";
-  ctx.fillText("←→ 切换角色 · ↑↓ 选武器 · Esc 返回", width / 2, height - 26);
+  ctx.fillText(t("←→ 切换角色 · ↑↓ 选武器 · Esc 返回", "←→ character · ↑↓ weapon · Esc back"), width / 2, height - 26);
   drawBackButton(ctx, width, height);
   ctx.restore();
 }
@@ -1370,7 +1387,7 @@ function drawDifficultyRow(ctx, width, height, diffs) {
     // 触屏不画提示行: 胶囊高亮已表达当前难度,腾出的间距给选中角色详情行
     ctx.fillStyle = "#9a93ab";
     ctx.font = "12px monospace";
-    drawIconLabel(ctx, ICONS.difficulty, `难度：${activeDiff ? activeDiff.hint : ""}`, width / 2, diffPillRect(0, width, height).y - 10, 13, 5);
+    drawIconLabel(ctx, ICONS.difficulty, `${t("难度", "Difficulty")}：${activeDiff ? activeDiff.hint : ""}`, width / 2, diffPillRect(0, width, height).y - 10, 13, 5);
   }
   for (let i = 0; i < diffs.length; i++) {
     const d = diffs[i];
