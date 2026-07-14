@@ -595,6 +595,37 @@ let lastDeathBy = null; // frozen at death for the gameover screen
 let deathKillerLine = null; // killer-flavored narration under 死于:XXX
 let loveVerdict = null; // {lines} LOVE judgment for the settlement card
 let savepointNote = null; // {text, t} savepoint aphorism typed out at run start
+// ---- 新手引导(2026-07-14 用户点名"小白也能懂"): 首局分步教学 ----------------
+// 每步只教一件事,一行大白话,做对了自动进下一步;可跳过,完成后永不再弹
+let tutorialStep = -1; // -1=关闭
+let tutorialStepT = 0; // 当前步已显示时长
+let tutorialMoved = 0; // 第一步累计移动量(按实际位移测,与输入管线解耦)
+let tutorialPX = null;
+let tutorialPY = null;
+let tutorialChoseCard = false;
+const TUTORIAL_MIN_T = 1.2; // 每步至少露脸1.2s,防瞬跳
+function tutorialSteps() {
+  return [
+    { text: IS_TOUCH ? "拖动屏幕任意位置——移动" : "方向键或 WASD——移动", done: () => tutorialMoved > 140 },
+    { text: "武器全自动开火,你只管走位", done: () => player.kills >= 1 },
+    { text: "捡绿色经验点,攒满就升级", done: () => player.level > 1 || player.xp >= 3 },
+    { text: "每15秒弹三选一,选卡变强", done: () => tutorialChoseCard },
+    { text: "金币死了也带走,商店里换永久强化", done: () => runCoins > 0 },
+    { text: "目标:活到 5:00。他会来的。", done: () => tutorialStepT > 5 },
+  ];
+}
+function tutorialBannerRect(w) {
+  const bw = IS_TOUCH ? 470 : 430;
+  return { x: w / 2 - bw / 2, y: IS_TOUCH ? 108 : 96, w: bw, h: IS_TOUCH ? 44 : 34 };
+}
+function tutorialSkipRect(w) {
+  const b = tutorialBannerRect(w);
+  return { x: b.x + b.w - (IS_TOUCH ? 92 : 78), y: b.y, w: IS_TOUCH ? 92 : 78, h: b.h };
+}
+function endTutorial() {
+  tutorialStep = -1;
+  localStorage.setItem("tutorialDone", "1");
+}
 let bark = null; // {text, t} one-liner bubble above the player's head
 let barkFired = {}; // per-run: each bark event speaks at most once
 let chapterQueue = []; // 审判纪元 chapters earned this settlement, story order
@@ -2090,7 +2121,12 @@ function startGame() {
   beginRankedRun(rankedRunRequest(), rankedRunStats);
   funValue = 1 + Math.floor(Math.random() * 100); // fresh FUN roll each run
   // savepoint aphorism: typed out as the black intro lifts (UT save-star vibe)
-  savepointNote = {
+  // 新手引导: 没看完教程且账号还很新时开启(首局死掉允许第二局重看)
+  tutorialStep = localStorage.getItem("tutorialDone") !== "1" && getStats().runs < 2 && !dailyMode && DEBUG_BOSS === null ? 0 : -1;
+  tutorialStepT = 0;
+  tutorialMoved = 0;
+  tutorialChoseCard = false;
+  savepointNote = tutorialStep === 0 ? null : {
     text: pickSavepointQuote({
       charId: player.character,
       difficultyId: getDifficulty().id,
@@ -2405,6 +2441,7 @@ function rollChoices() {
 function applyChoice(i) {
   const opt = choiceOptions[i];
   if (!opt) return;
+  tutorialChoseCard = true; // 新手引导第4步
   opt.apply();
   if (opt.fanfare) {
     questToasts(questEvent("evolve", 1));
@@ -2447,6 +2484,11 @@ function inRect(p, r) {
 }
 
 function handleCanvasTap(pos) {
+  if (tutorialStep >= 0 && state === "playing" && inRect(pos, tutorialSkipRect(WIDTH))) {
+    endTutorial(); // 跳过=看懂了,别再打扰
+    sfxClick();
+    return;
+  }
   if ((state === "playing" || state === "paused" || state === "choice") && inRect(pos, speedButtonRect(WIDTH))) {
     if (dailyMode) {
       // 明确拒绝而不是静默无视——玩家才知道是规则不是bug
@@ -3522,6 +3564,23 @@ function update(dt) {
       spawnBlast,
       bounds: { top: WALL_H + 20, bottom: HEIGHT - 16 }, // playfield, excluding the column wall
     });
+  }
+
+  // 新手引导推进: 完成条件满足且至少露脸1.2s → 下一步
+  if (tutorialStep >= 0) {
+    tutorialStepT += dt;
+    if (tutorialStep === 0) {
+      if (tutorialPX !== null) tutorialMoved += Math.min(20, Math.hypot(player.x - tutorialPX, player.y - tutorialPY));
+      tutorialPX = player.x;
+      tutorialPY = player.y;
+    }
+    const steps = tutorialSteps();
+    if (tutorialStep < steps.length && steps[tutorialStep].done() && tutorialStepT > TUTORIAL_MIN_T) {
+      tutorialStep += 1;
+      tutorialStepT = 0;
+      sfxClick();
+      if (tutorialStep >= steps.length) endTutorial();
+    }
   }
 
   if (!bossFight) {
@@ -5730,6 +5789,33 @@ function draw() {
     drawSpeedButton(ctx, WIDTH, timeScale, dailyMode);
     drawPauseButton(ctx, WIDTH, state === "paused");
   }
+  // 新手引导横幅: 一行大白话+步数+跳过;只在战斗画面画
+  if (tutorialStep >= 0 && state === "playing") {
+    const steps = tutorialSteps();
+    if (tutorialStep < steps.length) {
+      const b = tutorialBannerRect(WIDTH);
+      ctx.save();
+      ctx.fillStyle = "rgba(10, 8, 16, 0.92)";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = "#ffd93d";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#9a93ab";
+      ctx.font = `bold ${IS_TOUCH ? 13 : 12}px monospace`;
+      ctx.fillText(`${tutorialStep + 1}/${steps.length}`, b.x + 12, b.y + b.h / 2 + 4);
+      ctx.fillStyle = "#f2ead8";
+      ctx.font = `bold ${IS_TOUCH ? 16 : 14}px monospace`;
+      ctx.fillText(steps[tutorialStep].text, b.x + 48, b.y + b.h / 2 + 5);
+      const s = tutorialSkipRect(WIDTH);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#6b6578";
+      ctx.font = `${IS_TOUCH ? 13 : 12}px monospace`;
+      ctx.fillText("跳过 ▸", s.x + s.w / 2, s.y + s.h / 2 + 4);
+      ctx.restore();
+      ctx.textAlign = "left";
+    }
+  }
   if (state === "playing") drawJoystick(ctx, getJoystick());
 
   // black-screen intro — drawn under the menus so the pause screen still shows
@@ -6659,6 +6745,7 @@ window.__dbg = () => ({
   coinFactor: currentCoinFactor(),
   tip: activeTip ? activeTip.title : null,
 });
+window.__tut = () => ({ step: tutorialStep, moved: Math.round(tutorialMoved), t: +tutorialStepT.toFixed(2), chose: tutorialChoseCard });
 window.__test = DEBUG_BOSS !== null
   ? {
       grantPendingCoins(amount) {
