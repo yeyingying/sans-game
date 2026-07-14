@@ -2080,14 +2080,11 @@ function updateInstance(player, inst, dt, world) {
     }
     const t0 = findNearestEnemy(player.x, player.y, effRange + 200, enemies);
     if (!t0) return;
-    // 朝当前朝向冲锋;没有明确朝向时朝最近的敌人
-    const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-    let [dx, dy] = DIRS[player.dir] || [0, 1];
-    if (!player.moving) {
-      const d = Math.hypot(t0.x - player.x, t0.y - player.y) || 1;
-      dx = (t0.x - player.x) / d;
-      dy = (t0.y - player.y) / d;
-    }
+    // 始终朝索到的敌人冲锋(2026-07-15 用户反馈:原先移动中按朝向冲,
+    // 变成锁了A却撞向别处——索敌即冲锋方向,炮击射线也沿同方向)
+    const d = Math.hypot(t0.x - player.x, t0.y - player.y) || 1;
+    const dx = (t0.x - player.x) / d;
+    const dy = (t0.y - player.y) / d;
     inst.hrideState = {
       phase: "charge",
       t: 0,
