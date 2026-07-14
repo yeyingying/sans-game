@@ -210,6 +210,7 @@ function run(seconds, onFrame) {
   const bossSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/boss.js", import.meta.url), "utf8"));
   check("FIGHT/MERCY 不再使用贴图按钮", !bossSrc.includes("BTN_FIGHT") && !bossSrc.includes("BTN_MERCY"));
   check("光炮同屏上限护栏存在", bossSrc.includes('h.kind === "blaster").length >= 6'));
+  check("Boss伤害标定剔除商店hpAmp(卡关买血对Boss真实生效)", bossSrc.includes("player.maxHp / (player.hpAmp || 1) / 350"));
   const spriteSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/sprites.js", import.meta.url), "utf8"));
   const uiSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/ui.js", import.meta.url), "utf8"));
   const mainSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8"));

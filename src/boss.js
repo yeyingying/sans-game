@@ -319,7 +319,10 @@ export function createBossFight(x, y, character, WIDTH, HEIGHT, WALL_H, diffId =
       // boss hits scale to the player's bulk (1x fresh build → 3x tank build)
       // floor raised 1 → 1.2 (2026-07-12): low-bulk (=normal/early) builds sat
       // at the old floor and shrugged the boss off; tanky builds already >1.2
-      if (!this.dmgScale) this.dmgScale = Math.min(4, Math.max(1.2, player.maxHp / 350));
+      // 2026-07-15 狂暴Boss卡关裁决:伤害标定改用「裸血」——剔除商店 hpAmp,
+      // 「决心之心」买的血不再喂给Boss等比加伤,卡关刷钱买血对Boss真实生效。
+      // 局内百分比血卡仍计入(局内成长要保持考试诚实,商店才是破墙通道)。
+      if (!this.dmgScale) this.dmgScale = Math.min(4, Math.max(1.2, player.maxHp / (player.hpAmp || 1) / 350));
       this.t += dt;
       if (this.subtitleT > 0) this.subtitleT -= dt;
       if (boss.hitFlash > 0) boss.hitFlash -= dt;
