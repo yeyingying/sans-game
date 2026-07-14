@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { SEASON, dailyKey, expectedScore, isValidCharacter, randomNickname, runProgressError, validateNickname } from "./core.mjs";
-import { adminAuthorized, adminOverview, adminPage, displayWeapons, passwordMatches, passwordMatchesHash, playerCharacters } from "./admin.mjs";
+import { adminAuthorized, adminOverview, adminPage, deletePlayerData, displayWeapons, passwordMatches, passwordMatchesHash, playerCharacters } from "./admin.mjs";
 import { deviceSummary, maskIp, networkTag, parseRegion } from "./geo.mjs";
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:0,silence:false}),202);
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:1,silence:true}),492);
@@ -54,6 +54,14 @@ assert.equal(adminPlayers.find(x=>x.id==="p3").is_test,true);
 assert.equal(adminData.metrics.effectivePlayers,1);
 assert.equal(adminData.metrics.testPlayers,1);
 assert.equal(adminData.metrics.emptyGuests,1);
+assert.throws(()=>deletePlayerData(adminDb,"p3","错误昵称"),/昵称确认不一致/);
+assert.equal(adminDb.prepare("SELECT COUNT(*) n FROM players WHERE id='p3'").get().n,1);
+assert.deepEqual(deletePlayerData(adminDb,"p3","测试号"),{nickname:"测试号",players:1,runs:1,scores:1});
+assert.equal(adminDb.prepare("SELECT COUNT(*) n FROM players WHERE id='p3'").get().n,0);
+assert.equal(adminDb.prepare("SELECT COUNT(*) n FROM runs WHERE player_id='p3'").get().n,0);
+assert.equal(adminDb.prepare("SELECT COUNT(*) n FROM scores WHERE player_id='p3'").get().n,0);
+assert.equal(adminDb.prepare("SELECT COUNT(*) n FROM players").get().n,2);
+assert.match(adminPage(),/data-delete/);
 assert.doesNotThrow(()=>new Function(adminPage().match(/<script>([\s\S]*)<\/script>/)[1]));
 
 // A leaderboard position belongs to a player, not to every run they submit.

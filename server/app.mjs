@@ -2,7 +2,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { SEASON, dailyKey, expectedScore, isValidCharacter, randomNickname, runProgressError, signToken, validateNickname } from "./core.mjs";
-import { adminAuthorized, adminCookie, adminOverview, adminPage, clearAdminCookie, emptyGuestCutoff, emptyGuestWhere, passwordMatchesHash, uniqueNickname } from "./admin.mjs";
+import { adminAuthorized, adminCookie, adminOverview, adminPage, clearAdminCookie, deletePlayerData, emptyGuestCutoff, emptyGuestWhere, passwordMatchesHash, uniqueNickname } from "./admin.mjs";
 import { clientIp, requestNetwork } from "./geo.mjs";
 
 const PORT=Number(process.env.PORT||3000), DB_PATH=process.env.DB_PATH||new URL("./leaderboard.sqlite",import.meta.url).pathname;
@@ -79,6 +79,8 @@ const server=http.createServer(async(req,res)=>{const origin=ORIGINS.has(req.hea
   if(reset&&req.method==="POST"){const player=stmt.player.get(reset[1]);if(!player)throw err("玩家不存在",404);const name=uniqueNickname(db);db.prepare("UPDATE players SET nickname=?,renamed_at=0 WHERE id=?").run(name,player.id);return send(res,200,{ok:true,nickname:name},origin)}
   const testPlayer=u.pathname.match(/^\/v1\/admin\/players\/([^/]+)\/test$/);
   if(testPlayer&&req.method==="POST"){const isTest=Number((await read(req)).isTest)?1:0;const changed=db.prepare("UPDATE players SET is_test=? WHERE id=?").run(isTest,testPlayer[1]).changes;if(!changed)throw err("玩家不存在",404);return send(res,200,{ok:true,isTest:!!isTest},origin)}
+  const deletePlayer=u.pathname.match(/^\/v1\/admin\/players\/([^/]+)\/delete$/);
+  if(deletePlayer&&req.method==="POST"){const b=await read(req),deleted=deletePlayerData(db,deletePlayer[1],b.confirmation);return send(res,200,{ok:true,...deleted},origin)}
   const visibility=u.pathname.match(/^\/v1\/admin\/scores\/(\d+)\/visibility$/);
   if(visibility&&req.method==="POST"){const hidden=Number((await read(req)).hidden)?1:0;const changed=db.prepare("UPDATE scores SET hidden=? WHERE id=?").run(hidden,Number(visibility[1])).changes;if(!changed)throw err("成绩不存在",404);return send(res,200,{ok:true,hidden:!!hidden},origin)}
   return send(res,404,{error:"not found"},origin);
