@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { SEASON, dailyKey, expectedScore, isValidCharacter, randomNickname, runProgressError, validateNickname } from "./core.mjs";
+import { SEASON, dailyKey, expectedScore, isValidCharacter, legacyEndlessStageScore, randomNickname, runProgressError, scoreEntryRunId, settlementScoreEntries, validateNickname } from "./core.mjs";
 import { adminAuthorized, adminOverview, adminPage, deletePlayerData, displayWeapons, passwordMatches, passwordMatchesHash, playerCharacters } from "./admin.mjs";
 import { deviceSummary, maskIp, networkTag, parseRegion } from "./geo.mjs";
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:0,silence:false}),202);
 assert.equal(expectedScore({kills:10,elapsed:61.9,difficulty:1,silence:true}),492);
+assert.equal(scoreEntryRunId("run-1","normal"),"run-1:normal");
+assert.deepEqual(settlementScoreEntries({runId:"run-1",mode:"endless",totalScore:1275,stageScore:1000,rounds:2}),[
+ {runId:"run-1:normal",mode:"normal",score:1000,rounds:0},
+ {runId:"run-1:endless",mode:"endless",score:275,rounds:2}
+]);
+assert.deepEqual(settlementScoreEntries({runId:"run-2",mode:"normal",totalScore:1000,stageScore:1000,rounds:0}),[
+ {runId:"run-2:normal",mode:"normal",score:1000,rounds:0}
+]);
+assert.equal(legacyEndlessStageScore({report:{bossDefeated:true,kills:100,elapsed:310},endlessScore:275,difficulty:0,silence:false}),1000);
+assert.equal(legacyEndlessStageScore({report:{bossDefeated:false,kills:100,elapsed:310},endlessScore:275,difficulty:0,silence:false}),null);
 assert.equal(randomNickname(()=>0),"决心摆烂怪");
 assert.equal(validateNickname("  骨感摸鱼  "),"骨感摸鱼");
 assert.equal(dailyKey(Date.UTC(2026,6,11,15,59,59)),"2026-07-11");

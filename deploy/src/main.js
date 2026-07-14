@@ -136,7 +136,7 @@ import {
 } from "./sfx.js";
 import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
-import { initLeaderboard, loadLeaderboard, beginRankedRun, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=s2-20260716-3";
+import { initLeaderboard, loadLeaderboard, beginRankedRun, recordRankedStageClear, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=s2-20260716-4";
 
 import { utPrompt, utNotice } from "./dialog.js";
 
@@ -4052,6 +4052,7 @@ function update(dt) {
         bossFight = null; // hand the field back to the spawner
         bossClearChoice = 0;
         state = "bossclear"; // world pauses behind the choice
+        if (!dailyMode) recordRankedStageClear({ elapsed: stageClearTime, kills: stageClearKills });
         saveSafeProgressCheckpoint(runCoins);
         sfxFanfare();
       } else if (pu.kind === "chest") {

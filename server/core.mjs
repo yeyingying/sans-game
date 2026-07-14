@@ -31,6 +31,23 @@ export function expectedScore({ kills, elapsed, difficulty, silence }) {
   if (!mult) throw Object.assign(new Error("无效难度"), { status: 400 });
   return Math.floor((kills * 5 + Math.floor(elapsed) * 2.5) * mult * (silence ? 1.35 : 1));
 }
+export const scoreEntryRunId=(runId,mode)=>`${runId}:${mode}`;
+export function settlementScoreEntries({runId,mode,totalScore,stageScore,rounds=0}){
+  if(mode==="endless")return [
+    {runId:scoreEntryRunId(runId,"normal"),mode:"normal",score:stageScore,rounds:0},
+    {runId:scoreEntryRunId(runId,"endless"),mode:"endless",score:Math.max(0,totalScore-stageScore),rounds}
+  ];
+  const boardMode=mode==="daily"?"daily":"normal";
+  return [{runId:scoreEntryRunId(runId,boardMode),mode:boardMode,score:stageScore,rounds:0}];
+}
+export function legacyEndlessStageScore({report,endlessScore,difficulty,silence}){
+  let stats;
+  try{stats=typeof report==="string"?JSON.parse(report):report}catch{return null}
+  const kills=Number(stats?.kills),elapsed=Number(stats?.elapsed),endless=Number(endlessScore);
+  if(!stats?.bossDefeated||![kills,elapsed,endless].every(Number.isFinite))return null;
+  const stage=expectedScore({kills,elapsed,difficulty,silence})-endless;
+  return Number.isInteger(stage)&&stage>=0?stage:null;
+}
 // Broad plausibility guard, not a balance cap. Legitimate area weapons can
 // remove large spawn packs in one frame and the Boss grants 50 kills, so the
 // old 12 kills/s limit rejected real clears. Checkpoint monotonicity and score

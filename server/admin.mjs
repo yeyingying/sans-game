@@ -83,7 +83,11 @@ export function adminOverview(db,now=Date.now()){
     scores:db.prepare("SELECT COUNT(*) n FROM scores s JOIN players p ON p.id=s.player_id WHERE s.hidden=0 AND p.is_test=0").get().n
   };
   const players=db.prepare(`SELECT p.id,p.nickname,p.created_at,p.last_seen_at,p.last_ip_masked,p.last_network_tag,p.last_device,p.last_region,p.last_isp,p.is_test,CASE WHEN COALESCE(p.recovery_hash,'')<>'' THEN 1 ELSE 0 END bound,CASE WHEN (${EFFECTIVE_PLAYER_SQL}) THEN 1 ELSE 0 END effective,COUNT(DISTINCT r.id) run_count,COUNT(DISTINCT s.id) score_count,MAX(s.score) best_score,GROUP_CONCAT(DISTINCT r.character) character_list,(SELECT rr.character FROM runs rr WHERE rr.player_id=p.id ORDER BY rr.started_at DESC,rr.id DESC LIMIT 1) last_character FROM players p LEFT JOIN runs r ON r.player_id=p.id LEFT JOIN scores s ON s.player_id=p.id AND s.hidden=0 GROUP BY p.id ORDER BY p.last_seen_at DESC,p.created_at DESC LIMIT 200`).all().map(x=>({...x,is_test:!!x.is_test,bound:!!x.bound,effective:!!x.effective,cleanupEligible:!x.is_test&&!x.bound&&!x.run_count&&x.created_at<cleanupCutoff,characters:playerCharacters(x.character_list,x.last_character)}));
-  const scoreByRun=new Map(db.prepare("SELECT id,run_id,mode,score,rounds,hidden FROM scores").all().map(x=>[x.run_id,{...x}]));
+  const scoreByRun=new Map();
+  for(const x of db.prepare("SELECT id,run_id,mode,score,rounds,hidden FROM scores").all()){
+    const sourceRun=String(x.run_id).replace(/:(normal|endless|daily)$/,'');
+    if(!scoreByRun.has(sourceRun)||x.mode==="endless")scoreByRun.set(sourceRun,{...x});
+  }
   const runs=db.prepare(`SELECT r.*,p.nickname,p.is_test FROM runs r JOIN players p ON p.id=r.player_id ORDER BY r.started_at DESC LIMIT 300`).all().map(row=>{
     const r={...row},report=parseReport(r.report),score=scoreByRun.get(r.id)||null;
     return {id:r.id,nickname:r.nickname,isTest:!!r.is_test,startedAt:r.started_at,lastAt:r.last_at,character:r.character,difficulty:r.difficulty,settled:!!r.settled,checkpoints:r.checkpoints,elapsed:Number(report.elapsed??r.last_elapsed??0),kills:Number(report.kills??r.last_kills??0),rounds:Number(report.rounds??r.last_rounds??0),outcome:report.outcome||"",deathBy:report.deathBy||"",progress:progressFor(r,report,score),weapons:displayWeapons(report.weapons),mode:report.mode||score?.mode||"normal",score,ipMasked:r.ip_masked||"未知",networkTag:r.network_tag||"",device:r.device||"未知设备",region:r.region||"未知地区",isp:r.isp||"未知网络"};

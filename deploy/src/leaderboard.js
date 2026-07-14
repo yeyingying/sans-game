@@ -25,6 +25,7 @@ export const leaderboardOnline =
 let me = null, run = null, timer = null, retryTimer = null, result = "", rows = [], mode = "normal", character = "", boardDate = "";
 let loading = false, error = "", difficulty = "", myRank = null;
 let identityPromise = null, registrationPromise = null, registrationData = null, registrationStats = null, runGeneration = 0;
+let stageClearPromise = null, stageClearData = null, stageClearRetryTimer = null;
 let checkpointFailures = 0;
 let rankedStatus = {
   phase: leaderboardOnline ? "idle" : "offline",
@@ -185,6 +186,10 @@ export function cancelRankedRun() {
   registrationPromise = null;
   registrationData = null;
   registrationStats = null;
+  clearTimeout(stageClearRetryTimer);
+  stageClearRetryTimer = null;
+  stageClearPromise = null;
+  stageClearData = null;
   runGeneration += 1;
   if (rankedStatus.phase !== "disabled") {
     rankedStatus = {
@@ -222,7 +227,47 @@ export async function checkpointRankedRun(getStats) {
   }
 }
 
+// The Boss clear belongs on the normal board even when the same run continues
+// into endless. This does not settle or consume the run; final settlement can
+// still add the endless result, while the server keeps both writes idempotent.
+export async function recordRankedStageClear(data) {
+  if (!run) return null;
+  stageClearData = data;
+  if (stageClearPromise) return stageClearPromise;
+  const activeRun = run;
+  const attempt = (async () => {
+    try {
+      const x = await call(`/runs/${activeRun.runId}/stage-clear`, {
+        method: "POST",
+        body: JSON.stringify({ ...stageClearData, token: activeRun.token }),
+      });
+      if (run !== activeRun || !stageClearData) return null;
+      clearTimeout(stageClearRetryTimer);
+      stageClearRetryTimer = null;
+      stageClearData = null;
+      rankedStatus = { phase: "active", message: `已进入通关榜 · 全球第 ${x.rank} 名`, rank: x.rank, score: x.score };
+      return x;
+    } catch (e) {
+      if (run === activeRun && stageClearData) {
+        rankedStatus = { phase: "warning", message: `通关榜登记重试中：${e.message}`, rank: null, score: null };
+        clearTimeout(stageClearRetryTimer);
+        stageClearRetryTimer = setTimeout(() => recordRankedStageClear(stageClearData), 5000);
+      }
+      return null;
+    }
+  })();
+  stageClearPromise = attempt;
+  try {
+    return await attempt;
+  } finally {
+    if (stageClearPromise === attempt) stageClearPromise = null;
+  }
+}
+
 export async function finishRankedRun(data) {
+  clearTimeout(stageClearRetryTimer);
+  stageClearRetryTimer = null;
+  stageClearData = null; // final settle always writes the normal fallback
   clearTimeout(retryTimer);
   retryTimer = null;
   registrationData = null;

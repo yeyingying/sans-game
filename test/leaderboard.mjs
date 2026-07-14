@@ -30,6 +30,7 @@ globalThis.fetch = async (url, options = {}) => {
   }
   if (path === "/v1/runs") return reply(true, { runId: "run-1", token: "token-1" }, 201);
   if (path === "/v1/leaderboard") return reply(true, { rows: [{ nickname: "审判测试骨", character: "horror", difficulty: 0, score: 12345, rounds: 0 }], me: null });
+  if (path === "/v1/runs/run-1/stage-clear") return reply(true, { rank: 11, score: 8000 });
   if (path === "/v1/runs/run-1/settle") return reply(true, { rank: 7, score: 12345 });
   throw new Error(`unexpected request ${path}`);
 };
@@ -58,6 +59,11 @@ const started = await ranked.beginRankedRun(
 check("run start reuses recovered identity", started && meAttempts === 2);
 check("run becomes globally active", ranked.rankedRunStatus().phase === "active");
 check("server run is requested exactly once", calls.filter((x) => x.path === "/v1/runs").length === 1);
+
+const stageClear = await ranked.recordRankedStageClear({ elapsed: 305, kills: 1500 });
+const stageStatus = ranked.rankedRunStatus();
+check("Boss clear is recorded before endless settlement", stageClear?.rank === 11 && calls.filter((x) => x.path.endsWith("/stage-clear")).length === 1);
+check("stage clear keeps the ranked run active", stageStatus.phase === "active" && stageStatus.rank === 11 && stageStatus.message.includes("通关榜"));
 
 const settled = await ranked.finishRankedRun({
   mode: "normal",
