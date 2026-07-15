@@ -79,26 +79,34 @@ const balanceDb=new DatabaseSync(":memory:");
 balanceDb.exec(`CREATE TABLE players(id TEXT PRIMARY KEY,is_test INTEGER);
 CREATE TABLE runs(id TEXT PRIMARY KEY,player_id TEXT,character TEXT,difficulty INTEGER,started_at INTEGER,last_elapsed REAL,last_rounds INTEGER,report TEXT,device TEXT);
 CREATE TABLE scores(player_id TEXT,run_id TEXT,mode TEXT);
-INSERT INTO players VALUES('a',0),('b',0),('test',1);
+INSERT INTO players VALUES('a',0),('b',0),('c',0),('test',1);
 INSERT INTO runs VALUES
  ('a1','a','sans',0,10,100,0,'{"version":"v1","elapsed":100,"outcome":"death","bossReached":false}','iPhone · iOS · Safari'),
  ('a2','a','sans',0,20,390,0,'{"version":"v1","elapsed":390,"outcome":"victory","bossReached":true,"bossDefeated":true,"bossPhaseReached":2,"bossFightSeconds":82}','iPhone · iOS · Safari'),
  ('b1','b','sans',0,30,340,0,'{"version":"v1","elapsed":340,"outcome":"death","bossReached":true,"bossDefeated":false,"deathSkill":"光炮"}','电脑 · macOS · Safari'),
+ ('c1','c','horror',1,35,620,3,'{"version":"v1","elapsed":620,"outcome":"endlessDeath","bossReached":true,"bossDefeated":true,"enteredEndless":true,"rounds":3}','电脑 · macOS · Safari'),
  ('t1','test','sans',0,40,360,0,'{"version":"v1","elapsed":360,"outcome":"victory","bossReached":true,"bossDefeated":true}','电脑 · macOS · Safari');
-INSERT INTO scores VALUES('a','a2:normal','normal'),('test','t1:normal','normal');`);
+INSERT INTO scores VALUES('a','a2:normal','normal'),('c','c1:normal','normal'),('c','c1:endless','endless'),('test','t1:normal','normal');`);
 const balanceFirst=adminBalance(balanceDb,{now:1000000,days:7,version:"v1"});
 assert.equal(balanceFirst.filters.difficulty,null);
-assert.equal(balanceFirst.metrics.attempts,2);
-assert.equal(balanceFirst.metrics.players,2);
-assert.equal(balanceFirst.metrics.reached,1);
-assert.equal(balanceFirst.metrics.cleared,0);
+assert.equal(balanceFirst.metrics.attempts,3);
+assert.equal(balanceFirst.metrics.players,3);
+assert.equal(balanceFirst.metrics.reached,2);
+assert.equal(balanceFirst.metrics.cleared,1);
+assert.equal(balanceFirst.metrics.bossDeaths,1);
+assert.equal(balanceFirst.metrics.endless,1);
+assert.equal(balanceFirst.metrics.maxRound,3);
 assert.equal(balanceFirst.deaths[0].cause,"光炮");
 const balanceAll=adminBalance(balanceDb,{now:1000000,days:7,version:"v1",sample:"all"});
-assert.equal(balanceAll.metrics.attempts,3);
-assert.equal(balanceAll.metrics.reached,2);
-assert.equal(balanceAll.metrics.cleared,1);
+assert.equal(balanceAll.metrics.attempts,4);
+assert.equal(balanceAll.metrics.reached,3);
+assert.equal(balanceAll.metrics.cleared,2);
 assert.equal(balanceAll.metrics.medianBossSeconds,82);
 assert.deepEqual(balanceAll.options.versions,["v1"]);
+assert.equal(balanceAll.difficultyFunnels[0].bossDeaths,1);
+assert.equal(balanceAll.difficultyFunnels[1].endless,1);
+assert.deepEqual(balanceAll.difficultyFunnels[1].rounds.map(x=>x.count),[1,1,1]);
+assert.match(adminPage(),/完整进度漏斗/);
 
 // A leaderboard position belongs to a player, not to every run they submit.
 // Two runs by player A plus one by B must render two rows, with A's best only.

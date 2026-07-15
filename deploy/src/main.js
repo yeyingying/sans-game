@@ -1454,6 +1454,7 @@ function settleGame(kind) {
     score: bossDefeated ? stageClearScore : currentScore(),
     bossReached: bossDefeated || elapsed >= bossAppearAt(),
     bossDefeated,
+    enteredEndless: bossDefeated && runOutcome !== "victory",
     bossPhaseReached: bossDefeated ? 2 : bossPhaseReached,
     bossFightSeconds: bossFightStartedAt > 0 ? Math.max(0, Math.round((bossDefeated ? stageClearTime : elapsed) - bossFightStartedAt)) : 0,
     bossHpPct: bossDefeated ? 0 : bossHpPctAtEnd,
