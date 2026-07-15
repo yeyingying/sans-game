@@ -65,7 +65,7 @@ import {
   applyLevelUpBonus,
   weaponSummary,
   canEvolve,
-} from "./weapon.js";
+} from "./weapon.js?v=s2-20260717-weapons1";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
 import { ECHOES, CHAR_ECHOES, ALL_ECHOES, ECHO_BUD, ECHO_BLOOM, echoUnlocked, unlockEcho, unlockedEchoCount, unlockedAllEchoCount, randomEchoQuote } from "./echo.js";
 import {
