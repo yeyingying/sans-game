@@ -13,7 +13,7 @@ globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: 
 globalThis.window = globalThis;
 globalThis.performance = { now: () => Date.now() };
 
-const { WEAPON_LISTS, createWeaponInstance, updateWeapons, insanityBusy } = await import(
+const { WEAPON_LISTS, createWeaponInstance, updateWeapons, insanityBusy, getScytheSwing, getRideInfo } = await import(
   new URL(process.cwd() + "/src/weapon.js", "file://")
 );
 
@@ -176,6 +176,41 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
       console.log(`FAIL ${w.id} [${mode}]: ${err.message}`);
     }
   }
+}
+
+// Targeting regressions from phone playtests: Delete Scythe must slash at the
+// acquired enemy, and Blaster Ride must charge toward that same target.
+{
+  const makePlayer = () => ({
+    x: 480, y: 300, hp: 100, maxHp: 100, atk: 30, dmgAmp: 1,
+    fireRate: 1.3, range: 130, moveSpeed: 200, dir: "left", moving: false,
+    walkTime: 0, invuln: 0, guardBonus: 0, shieldTimer: 0, weapons: [], character: "hacker",
+  });
+  const target = fakeEnemy(720, 300, 1000);
+  const world = {
+    enemies: [target], projectiles: [], bounds: { top: 120, bottom: 584 },
+    spawnProjectile: () => {}, spawnBomb: () => {}, spawnSpike: () => {}, spawnBlast: () => {},
+  };
+  const scythePlayer = makePlayer();
+  const scythe = createWeaponInstance("hscythe");
+  scythePlayer.weapons = [scythe];
+  updateWeapons(scythePlayer, 1 / 60, world);
+  const swing = getScytheSwing(scythe);
+  if (!swing || Math.abs(swing.x - target.x) > 1 || target.hp >= target.maxHp) {
+    failures++;
+    console.log("FAIL hscythe targeting: slash did not land on acquired target");
+  } else console.log("ok  hscythe targets the acquired enemy");
+
+  target.hp = target.maxHp;
+  const ridePlayer = makePlayer();
+  const ride = createWeaponInstance("hride");
+  ridePlayer.weapons = [ride];
+  updateWeapons(ridePlayer, 1 / 60, world);
+  const rideInfo = getRideInfo(ride);
+  if (!rideInfo || rideInfo.dirX <= 0 || rideInfo.tx <= rideInfo.ox || ridePlayer.dir !== "right") {
+    failures++;
+    console.log("FAIL hride targeting: charge points away from acquired target");
+  } else console.log("ok  hride charges toward the acquired target");
 }
 console.log(failures ? `${failures} FAILURES` : "ALL PASS");
 process.exit(failures ? 1 : 0);

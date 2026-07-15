@@ -1063,6 +1063,7 @@ const CODEX_NOTES = {
   champion_so_sorry: "他真的道歉了无数次。",
   champion_endogeny: "里面每一只,都是好狗。",
   champion_lemon_bread: "地狱也有柠檬味。",
+  boss_corrupted_sans: "他不是回来。他从未离开。",
 };
 
 const CODEX_NOTES_EN = {
@@ -1094,6 +1095,7 @@ const CODEX_NOTES_EN = {
   champion_so_sorry: "He really did apologize every time.",
   champion_endogeny: "Every dog in there is a good dog.",
   champion_lemon_bread: "Hell has a lemon flavor.",
+  boss_corrupted_sans: "He did not return. He never left.",
 };
 
 export function codexNote(key) {
@@ -1132,6 +1134,7 @@ const CODEX_CHECKS = {
   champion_so_sorry: "* 抱歉怪 — ATK 15 DEF 9 — 道歉的速度,赶不上闯祸的速度。",
   champion_endogeny: "* 犬神融合体 — ATK 20 DEF 14 — 检测到狗×N。N值持续增长。",
   champion_lemon_bread: "* 柠檬面包 — ATK 21 DEF 13 — 欢迎回家。这不是问候,是判决。",
+  boss_corrupted_sans: "* 天意侵蚀Sans — ATK ?? DEF ?? — 这一次,检查你的是他。",
 };
 
 const CODEX_CHECKS_EN = {
@@ -1163,6 +1166,7 @@ const CODEX_CHECKS_EN = {
   champion_so_sorry: "* So Sorry — ATK 15 DEF 9 — Apologizes slower than it wrecks things.",
   champion_endogeny: "* Endogeny — ATK 20 DEF 14 — Dog × N detected. N is still growing.",
   champion_lemon_bread: "* Lemon Bread — ATK 21 DEF 13 — 'Welcome home.' Not a greeting. A verdict.",
+  boss_corrupted_sans: "* Corrupted Sans — ATK ?? DEF ?? — This time, he is checking you.",
 };
 
 export function codexCheck(key) {

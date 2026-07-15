@@ -128,6 +128,18 @@ function run(seconds, onFrame) {
   check("coin factor round4+ = 0", S.roundCoinFactor(4) === 0 && S.roundCoinFactor(9) === 0);
 }
 
+// Player ceilings are enforced in the entity itself, not only in card UI.
+{
+  const E = await import(new URL("../src/entities.js", import.meta.url));
+  const p = new E.Player(100, 200);
+  p.maxHp = 14000;
+  p.hp = 13000;
+  p.fireRate = 75;
+  p.update(0, { x: 0, y: 0 }, { left: 0, right: 960, top: 100, bottom: 600 });
+  check("player max HP hard-caps at 10000", p.maxHp === 10000 && p.hp === 10000);
+  check("player attack speed hard-caps at 50", p.fireRate === 50);
+}
+
 // Canon monster identities and named-elite pacing are pure, deterministic
 // rules. The first special elite arrives after six 15s choice screens.
 {
@@ -135,8 +147,9 @@ function run(seconds, onFrame) {
   const keys = C.CODEX_MONSTERS.map((m) => m.key);
   const names = C.CODEX_MONSTERS.map((m) => m.name);
   check(
-    "codex has 8 base + 10 named elites + 10 round champions",
-    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 10 && C.ROUND_CHAMPIONS.length === 10
+    "codex has 8 base + 10 named elites + 10 round champions + Corrupted Sans",
+    C.BASE_MONSTERS.length === 8 && C.ELITE_MONSTERS.length === 10 && C.ROUND_CHAMPIONS.length === 10 &&
+      C.CODEX_MONSTERS.some((m) => m.key === "boss_corrupted_sans" && m.boss)
   );
   check("codex keys and names are unique", new Set(keys).size === C.CODEX_MONSTERS.length && new Set(names).size === C.CODEX_MONSTERS.length);
   check("狂暴 named elite waits until 1:30", C.eliteTypePool(1, 89) === null && C.eliteTypePool(1, 90).join(",") === "slime");
@@ -154,6 +167,7 @@ function run(seconds, onFrame) {
   // narrative hooks for codex monsters: every champion announces itself, and
   // even a future unknown named elite still gets a (fallback) death line
   const N = await import(new URL("../src/narrative.js", import.meta.url));
+  check("Corrupted Sans has a full codex note and Check line", typeof N.codexNote("boss_corrupted_sans") === "string" && typeof N.codexCheck("boss_corrupted_sans") === "string");
   check("all round champions have entrance quotes", C.ROUND_CHAMPIONS.every((m) => typeof N.championEntrance(m.championId) === "string"));
   check(
     "named killer death lines with future-proof fallback",
@@ -214,6 +228,31 @@ function run(seconds, onFrame) {
   const spriteSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/sprites.js", import.meta.url), "utf8"));
   const uiSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/ui.js", import.meta.url), "utf8"));
   const mainSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8"));
+  const entitySrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/entities.js", import.meta.url), "utf8"));
+  const championSpriteSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/champion_sprites.js", import.meta.url), "utf8"));
+  check(
+    "成长硬上限与回血递减曲线已接入",
+    entitySrc.includes("PLAYER_MAX_HP = 10000") &&
+      entitySrc.includes("PLAYER_FIRE_RATE_CAP = 50") &&
+      mainSrc.includes("Math.pow(0.72, player.regenPct * 100)") &&
+      mainSrc.includes("player.regenPct + 0.01, 0.1"),
+  );
+  check(
+    "宝箱稀有奖励已降率",
+    mainSrc.includes("else if (roll < 30)") && mainSrc.includes("else if (roll < 68)"),
+  );
+  check(
+    "无尽首领强化、无敌、前缀与独立血条齐全",
+    mainSrc.includes("profile.hpFactor * 10") &&
+      mainSrc.includes("b.invulnTimer = 3") &&
+      mainSrc.includes("天意侵蚀·${name}") &&
+      mainSrc.includes("activeRoundBoss.hp / activeRoundBoss.maxHp"),
+  );
+  check(
+    "用户怪物贴图覆盖命名精英并保留安全回退",
+    championSpriteSrc.includes("function externalSprite") &&
+      ["final_froggit.png", "whimsalot.png", "greater_dog.png", "muffet.png", "lemon_bread.png"].every((file) => championSpriteSrc.includes(file)),
+  );
   check(
     "像素图标系统覆盖核心入口",
     ["coin", "lock", "pie", "hotdog", "tip", "quest", "weapon", "flower", "save", "daily", "leaderboard", "edit", "copy", "skull", "relic", "awakening", "heart", "shop", "home", "share", "chest", "refresh", "pact", "difficulty", "star", "menu", "warn", "codex"].every((id) =>

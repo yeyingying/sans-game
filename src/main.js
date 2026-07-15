@@ -35,7 +35,18 @@ import {
   drawSprite,
   tintSprite,
 } from "./sprites.js";
-import { Player, Enemy, Projectile, Bomb, Explosion, Spike, Pickup, FloatingText } from "./entities.js";
+import {
+  Player,
+  Enemy,
+  Projectile,
+  Bomb,
+  Explosion,
+  Spike,
+  Pickup,
+  FloatingText,
+  PLAYER_MAX_HP,
+  PLAYER_FIRE_RATE_CAP,
+} from "./entities.js";
 import { Spawner, roundCoinFactor } from "./spawner.js";
 import {
   WEAPONS,
@@ -65,7 +76,7 @@ import {
   applyLevelUpBonus,
   weaponSummary,
   canEvolve,
-} from "./weapon.js?v=s2-20260717-weapons1";
+} from "./weapon.js?v=s2-20260718-judgement1";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
 import { ECHOES, CHAR_ECHOES, ALL_ECHOES, ECHO_BUD, ECHO_BLOOM, echoUnlocked, unlockEcho, unlockedEchoCount, unlockedAllEchoCount, randomEchoQuote } from "./echo.js";
 import {
@@ -142,7 +153,7 @@ import { utPrompt, utNotice } from "./dialog.js";
 import { t, pick, currentLang, toggleLang } from "./i18n.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
-const GAME_VERSION = "s2-20260717"; // Boss伤害标定剔除hpAmp+商店第二梯队(结晶/壁垒)
+const GAME_VERSION = "s2-20260718"; // 无尽首领强化+成长硬上限+回血卡曲线
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
@@ -520,7 +531,7 @@ let codexSelected = 0;
 function codexListLength() {
   return CODEX_MONSTERS.length + (funValue >= 61 && funValue <= 63 ? 1 : 0);
 }
-let deathShatter = null; // UT-style soul shatter on death {t, color}
+let deathShatter = null; // UT-style white, inverted soul shatter on death {t, color}
 let runOffense = false; // picked any atk/amp card this run (和平主义者 title)
 let lastNewTitles = []; // titles earned at this settlement (gameover toast)
 let lastNewEchoes = []; // echo fragments unlocked this run (gameover line)
@@ -605,7 +616,10 @@ function enemyName(type) {
   return t(ENEMY_NAMES[type] || "怪物", ENEMY_NAMES_EN[type] || ENEMY_NAMES[type] || "a monster");
 }
 function enemyDisplayName(e) {
-  if (e.championProfile) return pick(e.championProfile, "name");
+  if (e.championProfile) {
+    const name = pick(e.championProfile, "name");
+    return e.roundBoss ? t(`天意侵蚀·${name}`, `Corrupted · ${name}`) : name;
+  }
   if (e.eliteProfile) return `${e.eliteTier >= 3 ? t("处决态·", "Executioner ") : ""}${pick(e.eliteProfile, "name")}`;
   return (e.elite ? t("精英·", "Elite ") : "") + enemyName(e.type);
 }
@@ -984,9 +998,10 @@ function diffPills() {
 // codex completion: monsters seen + boss + weapons used + evolutions reached
 function codexCompletion() {
   const st = getStats();
-  let have = CODEX_MONSTERS.filter((m) => (st.killsByType[m.key] || 0) > 0).length;
-  let total = CODEX_MONSTERS.length + 1;
-  if (st.bossKills > 0) have += 1;
+  let have = CODEX_MONSTERS.filter((m) =>
+    m.boss ? st.bossKills > 0 : (st.killsByType[m.key] || 0) > 0
+  ).length;
+  let total = CODEX_MONSTERS.length;
   for (const c of CHARACTERS) {
     for (const w of WEAPON_LISTS[c.id]) {
       total += 1;
@@ -1282,8 +1297,10 @@ function settleGame(kind) {
     kills: player.kills,
     difficultyId: getDifficulty().id,
   });
-  // UT-style death: the soul appears, cracks, shatters (equipped soul color)
-  deathShatter = player.hp <= 0 ? { t: 0, color: equippedCosmetic()?.color || "#ff3d5a" } : null;
+  // UT-style death: the white, inverted monster soul appears and shatters.
+  // Death always exposes the same white, inverted monster soul. Cosmetic
+  // colours remain a living-character choice and no longer tint this beat.
+  deathShatter = player.hp <= 0 ? { t: 0, color: "#ffffff" } : null;
   if (deathShatter) sfxShatter();
   // A normal settlement records the run below, so its crash-recovery checkpoint
   // must be removed first. Pending coins have already been banked only by the
@@ -1668,12 +1685,12 @@ function rollChestRewards() {
     const roll = Math.random() * 100; // NOTE: 别叫 pick — 会遮蔽 i18n 的 pick()
     if (roll < 22) {
       rewards.push({ label: t("羊妈的派", "Toriel's Pie"), detail: t("生命上限+15 · 回满", "Max HP +15 · full heal"), color: "#ff8fc7", icon: ICONS.pie, apply: () => {
-        player.maxHp += 15; // 永久上限,然后全回复 — 一大口家的味道
+        player.maxHp = Math.min(PLAYER_MAX_HP, player.maxHp + 15); // 永久上限,然后全回复 — 一大口家的味道
         player.hp = player.maxHp;
         healFlash = 0.6;
         candyBanner = { text: t("* 黄油太妃派。有家的味道。生命上限 +15!", "* Butterscotch-cinnamon pie. Tastes like home. Max HP +15!"), t: 3 };
       }});
-    } else if (roll < 40) {
+    } else if (roll < 30) {
       rewards.push({ label: t("骨白审判", "Bone Judgement"), detail: t("清除全部普通怪", "Clears all normal monsters"), color: "#f2ead8", icon: ICONS.skull, apply: () => {
         let reaped = 0;
         for (const e of enemies) {
@@ -1685,12 +1702,12 @@ function rollChestRewards() {
         killFlash = 0.3;
         candyBanner = { text: t(`* 骨白审判降下。${reaped} 个身影同时化尘。`, `* The bone judgement falls. ${reaped} figures turn to dust at once.`), t: 3 };
       }});
-    } else if (roll < 55) {
+    } else if (roll < 50) {
       rewards.push({ label: t("热狗 ×3('dogs)", "Hot Dogs ×3 ('dogs)"), detail: t("残血自动回血 · 3次", "Auto-heal at low HP · 3 uses"), color: "#ffb066", icon: ICONS.hotdog, apply: () => {
         hotdogStock = Math.min(9, hotdogStock + 3); // 残血自动吃,用完为止
         candyBanner = { text: t("* 三根热狗揣进口袋。残血时会自动想起它们。", "* Three hot dogs, pocketed. You'll remember them at low HP."), t: 3 };
       }});
-    } else if (roll < 67) {
+    } else if (roll < 62) {
       // 六魂遗物: 机制型独特物件 — rogue-like 的 item 心跳,卡池永远给不了
       const relic = pickRelic(relics);
       if (relic) {
@@ -1720,7 +1737,7 @@ function rollChestRewards() {
           if (endlessRound > 0) roundPendingCoins += v; else runCoins += v;
         }});
       }
-    } else if (roll < 81) {
+    } else if (roll < 68) {
       // 觉醒骨: 宝箱的圣杯 — 三层逻辑永无死槽
       rewards.push({ label: t("觉醒骨", "Awakening Bone"), detail: t("进化或强化一件武器", "Evolves or boosts a weapon"), color: "#ffd93d", icon: ICONS.awakening, apply: () => {
         const ready = player.weapons.find((w) => canEvolve(w));
@@ -2297,13 +2314,14 @@ function buildChoicePool() {
       weight: 12,
       make: () => {
         // scales with current bulk (8%, floor 25) so it stays worth picking
-        const gain = Math.max(25, Math.round(player.maxHp * 0.08));
+        const gain = Math.min(Math.max(25, Math.round(player.maxHp * 0.08)), PLAYER_MAX_HP - player.maxHp);
+        const nextHp = player.maxHp + gain;
         return {
           title: t(`生命上限 +${gain}`, `Max HP +${gain}`),
-          desc: t(`上限提升 8%(保底25) 并回复等量生命\n当前 ${player.maxHp} → ${player.maxHp + gain}`, `Max HP +8% (min 25), heals the same amount\nNow ${player.maxHp} → ${player.maxHp + gain}`),
+          desc: t(`上限提升 8%(保底25) 并回复等量生命\n当前 ${player.maxHp} → ${nextHp}(上限 ${PLAYER_MAX_HP})`, `Max HP +8% (min 25), heals the same amount\nNow ${player.maxHp} → ${nextHp} (cap ${PLAYER_MAX_HP})`),
           color: "#ff8fc7",
           apply: () => {
-            player.maxHp += gain;
+            player.maxHp = Math.min(PLAYER_MAX_HP, player.maxHp + gain);
             player.hp = Math.min(player.maxHp, player.hp + Math.round(gain * healScale()));
           },
         };
@@ -2326,29 +2344,35 @@ function buildChoicePool() {
       weight: 12,
       make: () => ({
         title: t("攻速 +10%", "Attack Speed +10%"),
-        desc: `${t("所有武器攻击更快", "All weapons fire faster")}\n${t("当前", "Now")} ${player.fireRate.toFixed(2)} → ${(player.fireRate * 1.1).toFixed(2)}`,
+        desc: `${t("所有武器攻击更快", "All weapons fire faster")}\n${t("当前", "Now")} ${player.fireRate.toFixed(2)} → ${Math.min(PLAYER_FIRE_RATE_CAP, player.fireRate * 1.1).toFixed(2)} (${t("上限", "cap")} ${PLAYER_FIRE_RATE_CAP})`,
         color: "#5ee6e6",
         apply: () => {
-          player.fireRate *= 1.1;
+          player.fireRate = Math.min(PLAYER_FIRE_RATE_CAP, player.fireRate * 1.1);
         },
       }),
     },
     {
       kind: "regen",
-      weight: 12,
+      // Every stack becomes rarer: 12, 9, 6, 4, 3, 2, 2, 1, 1, 1.
+      // The player can still reach 10%, but it becomes a long-run chase.
+      weight: Math.max(1, Math.round(12 * Math.pow(0.72, player.regenPct * 100))),
       make: () => ({
         title: t("每秒回血 +1%", "Regen +1%/s"),
         // scales with max hp so it never falls behind late game
-        desc: `${t("每秒回复 1% 最大生命", "Restore 1% max HP per second")}\n(${t("当前", "Now")} ${(player.regen + player.maxHp * player.regenPct).toFixed(1)}/s, ${t("上限", "cap")} 5%)`,
+        desc: `${t("每秒回复 1% 最大生命", "Restore 1% max HP per second")}\n(${t("当前", "Now")} ${(player.regen + player.maxHp * player.regenPct).toFixed(1)}/s, ${t("上限", "cap")} 10%)`,
         color: "#7cf28a",
         apply: () => {
-          player.regenPct = Math.min(player.regenPct + 0.01, 0.05);
+          player.regenPct = Math.min(player.regenPct + 0.01, 0.1);
         },
       }),
     },
-  ].filter((c) => c.kind !== "regen" || player.regenPct < 0.05);
+  ].filter((c) =>
+    (c.kind !== "regen" || player.regenPct < 0.1) &&
+    (c.kind !== "hp" || player.maxHp < PLAYER_MAX_HP) &&
+    (c.kind !== "fireRate" || player.fireRate < PLAYER_FIRE_RATE_CAP)
+  );
 
-  // (regen capped at 5% of max hp — the card stops appearing at the cap)
+  // Regen caps at 10% of max HP and becomes rarer after every stack.
   pool.push({
     kind: "thorns",
     weight: 10,
@@ -3582,7 +3606,7 @@ function updateEliteSkill(e, dt) {
       resolveEliteCast(e, e.eliteCast);
       e.eliteCast = null;
       e.eliteSkillTimer = e.championProfile
-        ? Math.max(3.4, 5.8 - (e.championRound || 1) * 0.22) + Math.random() * 0.6
+        ? Math.max(2.0, 3.8 - (e.championRound || 1) * 0.16) + Math.random() * 0.4
         : Math.max(3.2, 6.2 - e.eliteTier * 0.65) + Math.random() * 0.8;
     }
     return;
@@ -3753,17 +3777,20 @@ function update(dt) {
       b.lives = 1;
       b.teleporter = false;
       b.mark = null;
-      b.maxHp = Math.round(b.maxHp * (4 + endlessRound) * profile.hpFactor);
+      // Endless judgement is the post-clear endurance wall: champions carry a
+      // true boss-sized pool instead of melting like another named elite.
+      b.maxHp = Math.round(b.maxHp * (4 + endlessRound) * profile.hpFactor * 10);
       b.hp = b.maxHp;
       b.dmg = Math.round(b.dmg * 1.35 * profile.dmgFactor);
       b.radius = Math.round(b.radius * 1.5);
       b.attackRange = b.radius;
       b.xp = Math.round(b.xp * 6);
-      b.eliteSkillTimer = 1.8;
+      b.invulnTimer = 3;
+      b.eliteSkillTimer = 1.0;
       enemies.push(b);
       roundBanner = {
-        text: t(`⚠ ${profile.name} 接近`, `⚠ ${profile.english} approaching`),
-        sub: t(`${profile.english} · 第 ${endlessRound} 轮审判`, `Judgement round ${endlessRound}`),
+        text: t(`⚠ ${enemyDisplayName(b)} 接近`, `⚠ ${enemyDisplayName(b)} approaching`),
+        sub: `${enemyDisplayName(b)} · ${t(`第 ${endlessRound} 轮审判`, `Judgement round ${endlessRound}`)}`,
         t: 2.2,
       };
       // champion entrance quote rides the UT narration box under the banner
@@ -5322,7 +5349,7 @@ function draw() {
           ctx.strokeStyle = "#f2ead8";
           ctx.lineWidth = 10;
           ctx.beginPath();
-          ctx.arc(player.x, player.y, sw.radius * Math.min(1, sw.t / 0.14), -0.6 + sw.t * 8, 1.2 + sw.t * 8);
+          ctx.arc(sw.x ?? player.x, sw.y ?? player.y, sw.radius * Math.min(1, sw.t / 0.14), -0.6 + sw.t * 8, 1.2 + sw.t * 8);
           ctx.stroke();
           ctx.restore();
         }
@@ -5900,6 +5927,34 @@ function draw() {
   }
 
   drawHud(ctx, WIDTH, player, elapsed, healFlash, !!bossFight, weaponSummary(player));
+  const activeRoundBoss = endlessRound > 0
+    ? enemies.find((enemy) => enemy.roundBoss && enemy.hp > 0)
+    : null;
+  if (activeRoundBoss && (state === "playing" || state === "paused" || state === "choice")) {
+    const bw = Math.min(480, WIDTH - 320);
+    const bx = (WIDTH - bw) / 2;
+    const by = 70;
+    const hpPct = Math.max(0, Math.min(1, activeRoundBoss.hp / activeRoundBoss.maxHp));
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f2ead8";
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(enemyDisplayName(activeRoundBoss), WIDTH / 2, by - 7);
+    ctx.fillStyle = "#1a1520";
+    ctx.fillRect(bx, by, bw, 13);
+    ctx.fillStyle = "#c72f56";
+    ctx.fillRect(bx + 2, by + 2, (bw - 4) * hpPct, 9);
+    ctx.strokeStyle = activeRoundBoss.invulnTimer > 0 ? "#ffffff" : "#f2ead8";
+    ctx.lineWidth = activeRoundBoss.invulnTimer > 0 ? 3 : 2;
+    ctx.strokeRect(bx, by, bw, 13);
+    if (activeRoundBoss.invulnTimer > 0) {
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "10px monospace";
+      ctx.fillText(t("降临中 · 无敌", "ARRIVING · INVULNERABLE"), WIDTH / 2, by + 27);
+    }
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
   // 右上只留金币(像素图标+数字);无尽轮压缩为短状态;契约/每日缩为小图标
   if (state === "playing" || state === "paused" || state === "choice") {
     ctx.save();
@@ -5937,7 +5992,7 @@ function draw() {
     ctx.textAlign = "center";
     ctx.fillStyle = streakTier >= 3 ? "#ff8a5d" : "#ffd166";
     ctx.font = `bold ${Math.round((11 + Math.min(streak, 80) * 0.05) * pop)}px monospace`;
-    ctx.fillText(t(`${streak} 连杀`, `${streak} STREAK`), WIDTH / 2, 78);
+    ctx.fillText(t(`${streak} 连杀`, `${streak} STREAK`), WIDTH / 2, activeRoundBoss ? 108 : 78);
     ctx.restore();
     ctx.textAlign = "left";
   }
@@ -6057,10 +6112,11 @@ function draw() {
     const st = getStats();
     const monsters = CODEX_MONSTERS.map((m) => ({
       ...m,
-      sprite: CHAMPION_SPRITES[m.key] || ENEMY_SPRITES[m.type],
-      kills: st.killsByType[m.key] || 0,
+      sprite: m.boss ? WALK_SETS.sans.down[0] : CHAMPION_SPRITES[m.key] || ENEMY_SPRITES[m.type],
+      kills: m.boss ? st.bossKills : st.killsByType[m.key] || 0,
       elite: m.key.startsWith("elite_") || m.key.startsWith("champion_"),
       champion: m.key.startsWith("champion_"),
+      boss: !!m.boss,
       note: codexNote(m.key),
       check: codexCheck(m.key),
     }));
@@ -6844,7 +6900,11 @@ function draw() {
     if (t < 0.7) {
       // the soul holds... then starts to tremble
       const jx = t > 0.4 ? Math.sin(t * 90) * 2.5 : 0;
-      drawSprite(ctx, heart, cx + jx, cy, 46 + Math.sin(t * 6) * 2);
+      ctx.save();
+      ctx.translate(cx + jx, cy);
+      ctx.rotate(Math.PI);
+      drawSprite(ctx, heart, 0, 0, 46 + Math.sin(t * 6) * 2);
+      ctx.restore();
     } else {
       // crack! pieces scatter with a little gravity
       for (let i = 0; i < 8; i++) {
@@ -6855,7 +6915,9 @@ function draw() {
         ctx.globalAlpha *= 1;
         ctx.save();
         ctx.globalAlpha = Math.min(ctx.globalAlpha, Math.max(0, 1 - (t - 0.7) / 1.1));
-        drawSprite(ctx, heart, px, py, 13);
+        ctx.translate(px, py);
+        ctx.rotate(Math.PI + ang * 0.15);
+        drawSprite(ctx, heart, 0, 0, 13);
         ctx.restore();
       }
     }

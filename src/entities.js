@@ -1,6 +1,11 @@
 import { clamp } from "./utils.js";
 import { eliteProfileFor } from "./codex.js";
 
+// Global player-stat ceilings. Keep these in the entity layer so cards,
+// contracts, shop bonuses and future effects cannot bypass the limits.
+export const PLAYER_MAX_HP = 10000;
+export const PLAYER_FIRE_RATE_CAP = 50;
+
 export class Player {
   constructor(x, y) {
     this.x = x;
@@ -37,6 +42,9 @@ export class Player {
   }
 
   update(dt, moveVec, bounds) {
+    this.maxHp = Math.min(this.maxHp, PLAYER_MAX_HP);
+    this.hp = Math.min(this.hp, this.maxHp);
+    this.fireRate = Math.min(this.fireRate, PLAYER_FIRE_RATE_CAP);
     // hard cap at 400% of base speed so pickups can always catch the player
     const speed = Math.min(this.moveSpeed, 660);
     this.x = clamp(this.x + moveVec.x * speed * dt, bounds.left, bounds.right);
@@ -90,8 +98,9 @@ export class Player {
       this.level += 1;
       this.xpToNext = Math.round(this.xpToNext * 1.22 + 6);
       const hpGain = Math.round(5 * (this.hpAmp || 1)); // 决心之心 scales growth
-      this.maxHp += hpGain;
-      this.hp = Math.min(this.maxHp, this.hp + hpGain);
+      const actualHpGain = Math.min(hpGain, PLAYER_MAX_HP - this.maxHp);
+      this.maxHp += actualHpGain;
+      this.hp = Math.min(this.maxHp, this.hp + actualHpGain);
       this.atk += 1;
       levels += 1;
     }

@@ -419,7 +419,21 @@ export const ROUND_CHAMPIONS = [
   },
 ];
 
-export const CODEX_MONSTERS = [...BASE_MONSTERS, ...ELITE_MONSTERS, ...ROUND_CHAMPIONS];
+export const CORRUPTED_SANS = {
+  key: "boss_corrupted_sans",
+  type: "boss",
+  boss: true,
+  name: "天意侵蚀Sans",
+  english: "Corrupted Sans",
+  region: "审判长廊",
+  title: "拒绝被时间线抹去的最终审判",
+  lore: "当五分钟的杀戮抵达尽头，某种比愤怒更古老的意志借 Sans 的骨架站了起来。",
+  skill: "两阶段审判：骨墙、追踪骨、召唤与光炮阵交替封锁战场。",
+  color: "#ff4f70",
+  unlock: "击败 5:00 出现的天意侵蚀Sans",
+};
+
+export const CODEX_MONSTERS = [...BASE_MONSTERS, ...ELITE_MONSTERS, ...ROUND_CHAMPIONS, CORRUPTED_SANS];
 // EN display name == the canon `english` field already on every profile;
 // derive nameEn once so i18n's pick(obj, "name") works without duplication
 for (const m of CODEX_MONSTERS) m.nameEn = m.english;

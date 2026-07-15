@@ -1998,16 +1998,18 @@ function updateInstance(player, inst, dt, world) {
       inst.cooldown -= dt;
       return;
     }
-    if (!findNearestEnemy(player.x, player.y, tier.blade + 40, enemies)) return;
+    const target = findNearestEnemy(player.x, player.y, effRange + tier.blade + 80, enemies);
+    if (!target) return;
+    const slashRadius = Math.max(42, tier.blade * 0.55);
     const bonus = 0.025 * Math.min(inst.enhance, 10); // 强化上限10次(用户原案)
     for (const e of enemies) {
-      if (!circleHit(player.x, player.y, tier.blade, e.x, e.y, e.radius)) continue;
+      if (!circleHit(target.x, target.y, slashRadius, e.x, e.y, e.radius)) continue;
       const throttled = e.boss || e.championProfile;
       if (throttled && e.hackPct > 0) continue;
       const pct = (e.boss ? tier.p3 : e.championProfile ? tier.p2 : e.elite ? tier.p1 : 1.0) + bonus;
       if (e.takeDamage(Math.max(1, Math.round(e.maxHp * pct))) && throttled) e.hackPct = 2.5;
     }
-    inst.hswing = { t: 0, radius: tier.blade };
+    inst.hswing = { t: 0, radius: slashRadius, x: target.x, y: target.y };
     inst.cooldown = 1 / (player.fireRate * tier.rateMult);
     return;
   }
@@ -2105,6 +2107,7 @@ function updateInstance(player, inst, dt, world) {
     const d = Math.hypot(t0.x - player.x, t0.y - player.y) || 1;
     const dx = (t0.x - player.x) / d;
     const dy = (t0.y - player.y) / d;
+    faceDir(player, dx, dy);
     inst.hrideState = {
       phase: "charge",
       t: 0,

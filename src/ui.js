@@ -1053,14 +1053,14 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     const active = i === selected;
     ctx.fillStyle = active ? "#282037" : "#1d1828";
     ctx.fillRect(x, y, box.w, box.h);
-    ctx.strokeStyle = active ? (seen ? m.color : "#6b6578") : seen ? (m.elite ? m.color : "#5a5468") : "#2a2436";
+    ctx.strokeStyle = active ? (seen ? m.color : "#6b6578") : seen ? (m.elite || m.boss ? m.color : "#5a5468") : "#2a2436";
     ctx.lineWidth = active ? 3 : 2;
     ctx.strokeRect(x, y, box.w, box.h);
     if (seen && m.sprite) {
       ctx.imageSmoothingEnabled = false;
       const s = 34;
       ctx.drawImage(m.sprite, x + box.w / 2 - s / 2, y + 7, s, s);
-      if (m.elite) {
+      if (m.elite || m.boss) {
         ctx.globalAlpha = 0.7;
         ctx.strokeStyle = m.color;
         ctx.beginPath();
@@ -1076,11 +1076,11 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.fillStyle = m.ghost ? "#3a3346" : seen ? "#f2ead8" : "#453f52";
     ctx.font = "bold 12px monospace";
     ctx.fillText(m.ghost ? pick(m, "name") : seen ? pick(m, "name") : t("？？？", "???"), x + box.w / 2, y + 55);
-    ctx.fillStyle = seen ? (m.elite ? m.color : "#9a93ab") : "#3c3548";
+    ctx.fillStyle = seen ? (m.elite || m.boss ? m.color : "#9a93ab") : "#3c3548";
     ctx.font = "10px monospace";
-    const rank = m.champion ? t("首领 · ", "Boss · ") : m.elite ? t("精英 · ", "Elite · ") : "";
+    const rank = m.boss || m.champion ? t("首领 · ", "Boss · ") : m.elite ? t("精英 · ", "Elite · ") : "";
     ctx.fillText(
-      m.ghost ? "……" : seen ? `${rank}${t("击杀", "Kills")} ${m.kills}` : m.champion ? t("无尽首领", "Endless boss") : m.elite ? t("高难度精英", "High-tier elite") : t("尚未遭遇", "Not yet met"),
+      m.ghost ? "……" : seen ? `${rank}${t("击杀", "Kills")} ${m.kills}` : m.boss ? t("最终首领", "Final boss") : m.champion ? t("无尽首领", "Endless boss") : m.elite ? t("高难度精英", "High-tier elite") : t("尚未遭遇", "Not yet met"),
       x + box.w / 2,
       y + 69
     );
@@ -1119,11 +1119,15 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.fillStyle = chosen.color;
     ctx.font = "bold 12px monospace";
     ctx.fillText(`${t("本作能力", "In-game power")}：${chosen.skill}`, detail.x + 130, detail.y + 108);
-    if (chosen.elite) {
+    if (chosen.elite || chosen.boss) {
       ctx.fillStyle = "#ffd166";
       ctx.font = "11px monospace";
       ctx.fillText(
-        chosen.champion ? `${chosen.unlock} · ${t("第 11 轮起循环并继续强化", "loops from round 11, still scaling")}` : `${chosen.unlock} · ${t("屠杀难度进入处决态", "Executioner form on GENOCIDE")}`,
+        chosen.boss
+          ? chosen.unlock
+          : chosen.champion
+            ? `${chosen.unlock} · ${t("第 11 轮起循环并继续强化", "loops from round 11, still scaling")}`
+            : `${chosen.unlock} · ${t("屠杀难度进入处决态", "Executioner form on GENOCIDE")}`,
         detail.x + 130,
         detail.y + 132
       );
@@ -1142,7 +1146,7 @@ export function drawCodexScreen(ctx, width, height, monsters, bossKills, weaponR
     ctx.font = "bold 30px monospace";
     ctx.fillText("？", width / 2, detail.y + 52);
     ctx.font = "13px monospace";
-    ctx.fillText(chosen?.elite ? chosen.unlock : t("在战斗中击败一次后解锁完整档案", "Defeat it once in battle to unlock the full dossier"), width / 2, detail.y + 86);
+    ctx.fillText(chosen?.elite || chosen?.boss ? chosen.unlock : t("在战斗中击败一次后解锁完整档案", "Defeat it once in battle to unlock the full dossier"), width / 2, detail.y + 86);
     ctx.fillStyle = "#6b6578";
     ctx.font = "11px monospace";
     ctx.fillText(t("怪物的名字、来历与能力仍被黑暗遮住", "Its name, story and powers are still hidden in the dark"), width / 2, detail.y + 112);

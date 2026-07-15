@@ -356,21 +356,108 @@ const LEMON_BREAD = pixelSprite(
   { Y: "#fff1a8", W: "#fffdf0", D: "#332d31" }
 );
 
+// User-supplied canon-style sprite replacements. Source files mix black,
+// white and checkerboard backgrounds, so strip only background pixels that
+// are connected to an outer edge; enclosed black/white character detail is
+// preserved. The generated canvas remains the synchronous fallback for tests
+// and for the first frame while the PNG loads.
+function externalSprite(file, fallback, background = "dark") {
+  if (typeof Image !== "function") return fallback;
+  const out = document.createElement("canvas");
+  out.width = fallback.width;
+  out.height = fallback.height;
+  out.getContext("2d").drawImage(fallback, 0, 0);
+  const image = new Image();
+  image.addEventListener("load", () => {
+    const work = document.createElement("canvas");
+    work.width = image.naturalWidth || image.width;
+    work.height = image.naturalHeight || image.height;
+    const workCtx = work.getContext("2d", { willReadFrequently: true });
+    workCtx.drawImage(image, 0, 0);
+    const frame = workCtx.getImageData(0, 0, work.width, work.height);
+    const pixels = frame.data;
+    const seen = new Uint8Array(work.width * work.height);
+    const queue = [];
+    const isBackground = (index) => {
+      const at = index * 4;
+      if (pixels[at + 3] === 0) return true;
+      const red = pixels[at];
+      const green = pixels[at + 1];
+      const blue = pixels[at + 2];
+      if (background === "dark") return red < 86 && green < 86 && blue < 86;
+      return red > 174 && green > 174 && blue > 174 && Math.max(red, green, blue) - Math.min(red, green, blue) < 38;
+    };
+    const enqueue = (x, y) => {
+      const index = y * work.width + x;
+      if (seen[index] || !isBackground(index)) return;
+      seen[index] = 1;
+      queue.push(index);
+    };
+    for (let x = 0; x < work.width; x++) {
+      enqueue(x, 0);
+      enqueue(x, work.height - 1);
+    }
+    for (let y = 0; y < work.height; y++) {
+      enqueue(0, y);
+      enqueue(work.width - 1, y);
+    }
+    for (let cursor = 0; cursor < queue.length; cursor++) {
+      const index = queue[cursor];
+      const x = index % work.width;
+      const y = Math.floor(index / work.width);
+      pixels[index * 4 + 3] = 0;
+      if (x > 0) enqueue(x - 1, y);
+      if (x + 1 < work.width) enqueue(x + 1, y);
+      if (y > 0) enqueue(x, y - 1);
+      if (y + 1 < work.height) enqueue(x, y + 1);
+    }
+    workCtx.putImageData(frame, 0, 0);
+    let left = work.width;
+    let right = -1;
+    let top = work.height;
+    let bottom = -1;
+    for (let y = 0; y < work.height; y++) {
+      for (let x = 0; x < work.width; x++) {
+        if (pixels[(y * work.width + x) * 4 + 3] <= 8) continue;
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+    }
+    if (right < left || bottom < top) return;
+    const pad = 2;
+    left = Math.max(0, left - pad);
+    top = Math.max(0, top - pad);
+    right = Math.min(work.width - 1, right + pad);
+    bottom = Math.min(work.height - 1, bottom + pad);
+    out.width = right - left + 1;
+    out.height = bottom - top + 1;
+    out.getContext("2d").drawImage(work, left, top, out.width, out.height, 0, 0, out.width, out.height);
+  });
+  image.src = new URL(`./assets/monsters/${file}`, import.meta.url).href;
+  return out;
+}
+
 export const CHAMPION_SPRITES = {
-  champion_greater_dog: GREATER_DOG,
-  champion_mad_dummy: MAD_DUMMY,
-  champion_knight_knight: KNIGHT_KNIGHT,
-  champion_muffet: MUFFET,
-  elite_moldessa: MOLDESSA,
-  elite_migospel: MIGOSPEL,
-  champion_royal_guards: ROYAL_GUARDS,
-  champion_mettaton_ex: METTATON_EX,
-  elite_aaron: AARON,
+  elite_final_froggit: externalSprite("final_froggit.png", MOLDESSA, "light"),
+  elite_whimsalot: externalSprite("whimsalot.png", MIGOSPEL),
+  elite_astigmatism: externalSprite("astigmatism.png", GLYDE),
+  elite_parsnik: externalSprite("parsnik.png", LEMON_BREAD),
+  champion_greater_dog: externalSprite("greater_dog.png", GREATER_DOG),
+  champion_mad_dummy: externalSprite("mad_dummy.png", MAD_DUMMY),
+  champion_knight_knight: externalSprite("knight_knight.png", KNIGHT_KNIGHT, "light"),
+  champion_muffet: externalSprite("muffet.png", MUFFET, "light"),
+  elite_moldessa: externalSprite("moldessa.png", MOLDESSA, "light"),
+  elite_migospel: externalSprite("migospel.png", MIGOSPEL),
+  champion_royal_guards: externalSprite("royal_guards.png", ROYAL_GUARDS),
+  champion_mettaton_ex: externalSprite("mettaton_ex.png", METTATON_EX),
+  elite_aaron: externalSprite("aaron.png", AARON),
   elite_pyrope: PYROPE,
-  champion_glyde: GLYDE,
+  champion_glyde: externalSprite("glyde.png", GLYDE),
   champion_so_sorry: SO_SORRY,
-  elite_memoryhead: MEMORYHEAD,
-  elite_reaper_bird: REAPER_BIRD,
-  champion_endogeny: ENDOGENY,
-  champion_lemon_bread: LEMON_BREAD,
+  elite_memoryhead: externalSprite("memoryhead.png", MEMORYHEAD),
+  elite_reaper_bird: externalSprite("reaper_bird.png", REAPER_BIRD, "light"),
+  champion_endogeny: externalSprite("endogeny.png", ENDOGENY),
+  champion_lemon_bread: externalSprite("lemon_bread.png", LEMON_BREAD, "light"),
 };
