@@ -254,6 +254,15 @@ function run(seconds, onFrame) {
       ["final_froggit.png", "whimsalot.png", "greater_dog.png", "muffet.png", "lemon_bread.png"].every((file) => championSpriteSrc.includes(file)),
   );
   check(
+    "怪物美术按普通/精英/首领分层且统一脚底、白闪与光环",
+    mainSrc.includes("function enemyArtLayout") &&
+      mainSrc.includes("? Math.max(72, Math.min(92") &&
+      mainSrc.includes("? Math.max(48, Math.min(62") &&
+      mainSrc.includes("e.radius * 0.72 - h") &&
+      mainSrc.includes("function whiteSilhouetteOf") &&
+      mainSrc.includes("function drawEnemyRankAura"),
+  );
+  check(
     "像素图标系统覆盖核心入口",
     ["coin", "lock", "pie", "hotdog", "tip", "quest", "weapon", "flower", "save", "daily", "leaderboard", "edit", "copy", "skull", "relic", "awakening", "heart", "shop", "home", "share", "chest", "refresh", "pact", "difficulty", "star", "menu", "warn", "codex"].every((id) =>
       spriteSrc.includes(`${id}: uiIcon`),

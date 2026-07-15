@@ -76,7 +76,7 @@ import {
   applyLevelUpBonus,
   weaponSummary,
   canEvolve,
-} from "./weapon.js?v=s2-20260718-judgement1";
+} from "./weapon.js?v=s2-20260718-art1";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
 import { ECHOES, CHAR_ECHOES, ALL_ECHOES, ECHO_BUD, ECHO_BLOOM, echoUnlocked, unlockEcho, unlockedEchoCount, unlockedAllEchoCount, randomEchoQuote } from "./echo.js";
 import {
@@ -722,6 +722,135 @@ function grayscaleOf(spr) {
   }
   grayCache.set(spr, out);
   return out;
+}
+
+// Enemy art normalization keeps a shared visual grammar without flattening the
+// hierarchy: common monsters stay compact, named elites read one tier larger,
+// and endless champions remain unmistakably boss-sized.  External sprites keep
+// their native aspect ratio; only their display band and anchor are normalized.
+const enemyHitMaskCache = new WeakMap();
+const FLOATING_ENEMY_ART = new Set([
+  "bat",
+  "ghost",
+  "blue",
+  "elite_whimsalot",
+  "elite_astigmatism",
+  "elite_migospel",
+  "elite_pyrope",
+  "elite_memoryhead",
+  "elite_reaper_bird",
+  "champion_glyde",
+]);
+
+function whiteSilhouetteOf(spr) {
+  if (!spr) return spr;
+  const hit = enemyHitMaskCache.get(spr);
+  if (hit && hit.w === spr.width && hit.h === spr.height) return hit.canvas;
+  let out = spr;
+  try {
+    const c = document.createElement("canvas");
+    c.width = spr.width;
+    c.height = spr.height;
+    const g = c.getContext("2d");
+    g.drawImage(spr, 0, 0);
+    const img = g.getImageData(0, 0, c.width, c.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] <= 8) continue;
+      d[i] = d[i + 1] = d[i + 2] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    out = c;
+  } catch {
+    /* headless/污染画布: 原图兜底 */
+  }
+  enemyHitMaskCache.set(spr, { w: spr.width, h: spr.height, canvas: out });
+  return out;
+}
+
+function enemyArtLayout(e, spr) {
+  const key = e.championProfile?.key || e.eliteProfile?.key || e.sprite;
+  const champion = !!e.championProfile;
+  const namedElite = !champion && !!e.eliteProfile;
+  const genericElite = !champion && !namedElite && e.elite;
+  // Height bands preserve rank at a glance. Width caps keep unusually wide
+  // source art (e.g. Royal Guards) from covering nearby threats.
+  const targetH = champion
+    ? Math.max(72, Math.min(92, e.radius * 4.1))
+    : namedElite
+      ? Math.max(48, Math.min(62, e.radius * 3.05))
+      : genericElite
+        ? Math.max(40, Math.min(52, e.radius * 2.75))
+        : Math.max(22, Math.min(36, e.radius * 2.45));
+  const maxW = champion ? 128 : namedElite ? 86 : genericElite ? 70 : 46;
+  const scale = Math.min(targetH / Math.max(1, spr.height), maxW / Math.max(1, spr.width));
+  const w = Math.max(1, Math.round(spr.width * scale));
+  const h = Math.max(1, Math.round(spr.height * scale));
+  const floating = FLOATING_ENEMY_ART.has(key);
+  const x = Math.round(e.x - w / 2);
+  const y = floating
+    ? Math.round(e.y - h / 2)
+    : Math.round(e.y + e.radius * 0.72 - h);
+  return {
+    x,
+    y,
+    w,
+    h,
+    footY: floating ? Math.round(e.y + Math.min(e.radius * 0.72, h * 0.42)) : y + h,
+    champion,
+    namedElite,
+    genericElite,
+  };
+}
+
+function drawEnemyArt(ctx, spr, box, alpha = 1) {
+  if (!spr) return;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha *= alpha;
+  ctx.drawImage(spr, box.x, box.y, box.w, box.h);
+  ctx.restore();
+}
+
+function drawEnemyRankAura(ctx, e, box) {
+  if (!e.elite) return;
+  const color = e.eliteProfile?.color || "#ffd166";
+  const pulse = 0.5 + 0.5 * Math.sin(elapsed * (box.champion ? 4.2 : 3.2) + e.id);
+  const halfW = Math.max(e.radius * 0.95, Math.min(box.w * 0.46, box.champion ? 58 : 38));
+  const halfH = box.champion ? 11 : box.namedElite ? 8 : 6;
+  ctx.save();
+  ctx.translate(Math.round(e.x), box.footY + 2);
+  // Generic elites get one restrained gold footprint; named elites use their
+  // identity color; champions add a second boss ring and four cardinal marks.
+  ctx.fillStyle = color;
+  ctx.globalAlpha = box.champion ? 0.12 + pulse * 0.06 : 0.07 + pulse * 0.04;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, halfW, halfH, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = box.champion ? 3 : box.namedElite ? 2 : 1.5;
+  ctx.globalAlpha = box.champion ? 0.85 : box.namedElite ? 0.72 : 0.58;
+  if (box.namedElite && !box.champion) ctx.setLineDash([8, 5]);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, halfW, halfH, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  if (box.champion) {
+    ctx.globalAlpha = 0.38 + pulse * 0.25;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, halfW + 7, halfH + 4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    for (const [dx, dy] of [[-halfW - 8, 0], [halfW + 8, 0], [0, -halfH - 6], [0, halfH + 6]]) {
+      ctx.save();
+      ctx.translate(Math.round(dx), Math.round(dy));
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-2, -2, 4, 4);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
 }
 
 // 结算印章(美术批 backlog 第4项): 结果不靠读字,一眼可辨——
@@ -5004,49 +5133,12 @@ function draw() {
 
   for (const e of enemies) {
     if (e.boss) continue; // the boss draws itself
-    if (e.elite) {
-      ctx.save();
-      const eliteColor = e.eliteProfile?.color || "#ffd166";
-      ctx.strokeStyle = eliteColor;
-      ctx.lineWidth = e.eliteProfile ? 3 : 2;
-      ctx.globalAlpha = e.eliteProfile ? 0.7 + 0.25 * Math.sin(elapsed * 5 + e.id) : 1;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, e.radius + 5, 0, Math.PI * 2);
-      ctx.stroke();
-      if (e.eliteProfile) {
-        ctx.globalAlpha = 0.55;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.radius + 11, elapsed * 1.8, elapsed * 1.8 + Math.PI * 1.35);
-        ctx.stroke();
-        for (let i = 0; i < 3; i++) {
-          const a = -elapsed * 1.5 + (i / 3) * Math.PI * 2;
-          const r = e.radius + 15;
-          ctx.save();
-          ctx.translate(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r);
-          ctx.rotate(a);
-          ctx.fillStyle = eliteColor;
-          ctx.fillRect(-2, -2, 4, 4);
-          ctx.restore();
-        }
-        if (e.eliteTier >= 3) {
-          ctx.globalAlpha = 0.38 + 0.2 * Math.sin(elapsed * 8);
-          ctx.strokeStyle = "#ff3d5a";
-          ctx.beginPath();
-          ctx.arc(e.x, e.y, e.radius + 19, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      }
-      // round champion: an extra pulsing ring marks the kill target
-      if (e.roundBoss) {
-        ctx.globalAlpha = 0.6 + 0.4 * Math.sin(elapsed * 6);
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.radius + 12, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
+    const profileSprite = CHAMPION_SPRITES[e.championProfile?.key || e.eliteProfile?.key];
+    let enemySprite = profileSprite || ENEMY_SPRITES[e.sprite];
+    // 缴械: 身体转黑白(灰阶精灵按原图缓存,不逐帧滤镜,保手机帧率)
+    if (e.cannotAttack) enemySprite = grayscaleOf(enemySprite);
+    const artBox = enemyArtLayout(e, enemySprite);
+    drawEnemyRankAura(ctx, e, artBox);
     // extended attack range ring (blue enemy)
     if (e.attackRange > e.radius) {
       ctx.save();
@@ -5066,15 +5158,7 @@ function draw() {
       ctx.save();
       ctx.globalAlpha = 0.45 + 0.2 * Math.sin(elapsed * 25);
     }
-    // per-sprite render scale: tall/wide extracted sprites need tuning
-    const spriteScale = e.championProfile
-      ? 3.8
-      : { bat: 2.2, tank: 3.2, ghost: 2.9, blue: 2.8, red: 2.7, purple: 2.7, orange: 3.0 }[e.sprite] || 2.6;
-    const profileSprite = CHAMPION_SPRITES[e.championProfile?.key || e.eliteProfile?.key];
-    let enemySprite = profileSprite || ENEMY_SPRITES[e.sprite];
-    // 缴械: 身体转黑白(灰阶精灵按原图缓存,不逐帧滤镜,保手机帧率)
-    if (e.cannotAttack) enemySprite = grayscaleOf(enemySprite);
-    drawSprite(ctx, enemySprite, e.x, e.y, e.radius * spriteScale);
+    drawEnemyArt(ctx, enemySprite, artBox);
     if (flicker) ctx.restore();
     // root-immunity: small grey broken ring (diminishing returns active)
     if (e.rootImmune > 0 && e.rootTimer <= 0) {
@@ -5123,21 +5207,15 @@ function draw() {
       }
     }
     if (e.hitFlash > 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = e.hitFlash * 2;
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      drawEnemyArt(ctx, whiteSilhouetteOf(enemySprite), artBox, Math.min(0.92, e.hitFlash / 0.15));
     }
     if (e.hp < e.maxHp) {
-      const w = e.radius * 2;
+      const w = Math.max(e.radius * 2, Math.min(artBox.w * 0.78, artBox.champion ? 104 : 72));
+      const barY = artBox.y - 7;
       ctx.fillStyle = "#241f2b";
-      ctx.fillRect(e.x - w / 2, e.y - e.radius - 8, w, 3);
+      ctx.fillRect(Math.round(e.x - w / 2), barY, Math.round(w), 3);
       ctx.fillStyle = "#7cf28a";
-      ctx.fillRect(e.x - w / 2, e.y - e.radius - 8, w * Math.max(0, e.hp / e.maxHp), 3);
+      ctx.fillRect(Math.round(e.x - w / 2), barY, Math.round(w * Math.max(0, e.hp / e.maxHp)), 3);
     }
   }
 
