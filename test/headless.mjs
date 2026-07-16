@@ -256,10 +256,18 @@ function run(seconds, onFrame) {
         "Loox.webp", "Mad_Dummy.gif", "Mettaton_EX.webp", "Muffet.webp", "Parsnik.webp",
         "Royal_Guards_01_&_02.webp", "Whimsalot.webp", "aaron.webp", "lemon bread.png",
         "memory head.gif", "migospel.webp", "moldessa.png", "pyrope.webp", "reaper bird.webp",
-        "so sorry.png", "timmie.jpeg",
+        "so sorry.png", "timmie.jpeg", "青光眼.webp",
       ].every((file) => championSpriteSrc.includes(`\"${file}\"`)) &&
+      championSpriteSrc.includes("elite_astigmatism: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_astigmatism") &&
       mainSrc.includes("red: CHAMPION_SPRITES.base_loox") &&
       mainSrc.includes("CHAMPION_SPRITES.visitor_timmie"),
+  );
+  check(
+    "死亡灵魂与结算碎心均尖端朝上且为白色",
+    mainSrc.includes('deathShatter = player.hp <= 0 ? { t: 0, color: "#ffffff" } : null') &&
+      mainSrc.includes('], { S: "#ffffff", s: "#b8b8c4" })') &&
+      !mainSrc.includes("ctx.rotate(Math.PI + ang * 0.15)") &&
+      !/ctx\.translate\(cx \+ jx, cy\);\s*ctx\.rotate\(Math\.PI\)/.test(mainSrc),
   );
   check(
     "怪物美术按普通/精英/首领分层且统一脚底、白闪与光环",

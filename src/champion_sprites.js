@@ -460,6 +460,7 @@ function externalSprite(file, fallback, background = "dark") {
 // assigned by visual guesswork: profile key -> identically named source asset.
 export const USER_SPRITE_SOURCE_NAMES = Object.freeze({
   base_loox: "Loox.webp",
+  elite_astigmatism: "青光眼.webp",
   elite_final_froggit: "FinalFroggit.webp",
   elite_whimsalot: "Whimsalot.webp",
   elite_parsnik: "Parsnik.webp",
@@ -486,7 +487,9 @@ export const CHAMPION_SPRITES = {
   base_loox: externalSprite(USER_SPRITE_SOURCE_NAMES.base_loox, ENEMY_LOOX),
   elite_final_froggit: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_final_froggit, MOLDESSA),
   elite_whimsalot: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_whimsalot, MIGOSPEL),
-  elite_astigmatism: externalSprite("astigmatism.png", GLYDE),
+  // The separate 青光眼.webp file is Loox's older design, now canonically
+  // assigned to Astigmatism. Keep base_loox on the newer Loox.webp art.
+  elite_astigmatism: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_astigmatism, GLYDE),
   elite_parsnik: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_parsnik, LEMON_BREAD),
   champion_greater_dog: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_greater_dog, GREATER_DOG),
   champion_mad_dummy: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_mad_dummy, MAD_DUMMY),

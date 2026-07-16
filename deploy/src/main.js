@@ -854,7 +854,7 @@ function drawEnemyRankAura(ctx, e, box) {
 }
 
 // 结算印章(美术批 backlog 第4项): 结果不靠读字,一眼可辨——
-// 通关=金色星章 / 阵亡=破碎红心 / 无尽终局与撤离=紫红审判刻度
+// 通关=金色星章 / 阵亡=尖端朝上的破碎白心 / 无尽终局与撤离=紫红审判刻度
 function stampFromMap(rows, palette) {
   const c = document.createElement("canvas");
   c.width = Math.max(...rows.map((r) => r.length));
@@ -885,18 +885,18 @@ const STAMPS = {
     ".g.........g.",
   ], { G: "#ffd166", g: "#b77a2a" }),
   death: stampFromMap([
-    ".RRRR...RRRR.",
-    "RRRRRR.RRRRRR",
-    "RRRRRR.RRRRRR",
-    "RRRRR.RRRRRRR",
-    "RRRRRR.RRRRRR",
-    ".RRRRRR.RRRR.",
-    "..rRRR.RRRr..",
-    "...rRR.RRr...",
-    "....rR.Rr....",
-    ".....rRr.....",
-    "......r......",
-  ], { R: "#ff5d73", r: "#a8283c" }),
+    "......s......",
+    ".....sSs.....",
+    "....sS.Ss....",
+    "...sSS.SSs...",
+    "..sSSS.SSSs..",
+    ".SSSSSS.SSSS.",
+    "SSSSSS.SSSSSS",
+    "SSSSS.SSSSSSS",
+    "SSSSSS.SSSSSS",
+    "SSSSSS.SSSSSS",
+    ".SSSS...SSSS.",
+  ], { S: "#ffffff", s: "#b8b8c4" }),
   judgment: stampFromMap([
     "......M......",
     ".....MMM.....",
@@ -6959,7 +6959,8 @@ function draw() {
       ctx.textAlign = "left";
     }
   }
-  // UT-style soul shatter: black cover, the soul cracks, pieces fly, fade out
+  // UT-style soul shatter: black cover, the upward-pointing monster soul
+  // cracks, pieces fly, then fade out.
   if (deathShatter && state === "gameover" && deathShatter.t < 2.0) {
     const t = deathShatter.t;
     const cx = WIDTH / 2;
@@ -6974,7 +6975,6 @@ function draw() {
       const jx = t > 0.4 ? Math.sin(t * 90) * 2.5 : 0;
       ctx.save();
       ctx.translate(cx + jx, cy);
-      ctx.rotate(Math.PI);
       drawSprite(ctx, heart, 0, 0, 46 + Math.sin(t * 6) * 2);
       ctx.restore();
     } else {
@@ -6988,7 +6988,7 @@ function draw() {
         ctx.save();
         ctx.globalAlpha = Math.min(ctx.globalAlpha, Math.max(0, 1 - (t - 0.7) / 1.1));
         ctx.translate(px, py);
-        ctx.rotate(Math.PI + ang * 0.15);
+        ctx.rotate(ang * 0.15);
         drawSprite(ctx, heart, 0, 0, 13);
         ctx.restore();
       }
