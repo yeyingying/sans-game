@@ -220,7 +220,12 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
   const BOSS_ONLY_EXEMPT = {
     ipounce: "设计裁决: 无敌骑乘不可作用于Boss(2026-07-15)",
     hshock: "设计定位: 纯位移/缴械/处决辅助,本体零伤害",
+    shield: "设计定位: 紫魂护盾,开局不可选的纯防御辅助,零伤害",
   };
+  // 全量覆盖(2026-07-16): 从付费16把扩到全部48把——本家武器同样可能
+  // 藏着 !e.boss 过滤的哑火,只是没人报过。每把带自己的 charId(武器
+  // 行为按 id 分发,character 只影响个别贴图/特效,但照实设更接近真机)
+  const ALL_WEAPONS = Object.entries(WEAPON_LISTS).flatMap(([charId, list]) => list.map((w) => ({ w, charId })));
   // 固定种子: 随机方向类武器(龙骨狂轰/骨雨)的命中判定必须可复现
   const origRandom = Math.random;
   const seeded = (() => {
@@ -233,7 +238,7 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
     };
   })();
   Math.random = seeded;
-  for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
+  for (const { w, charId } of ALL_WEAPONS) {
     if (BOSS_ONLY_EXEMPT[w.id]) {
       console.log(`ok  ${w.id} [boss-only] exempt: ${BOSS_ONLY_EXEMPT[w.id]}`);
       continue;
@@ -241,7 +246,7 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
     const player = {
       x: 480, y: 300, hp: 100, maxHp: 100, atk: 30, dmgAmp: 1,
       fireRate: 1.3, range: 130, moveSpeed: 200, dir: "down", moving: false,
-      walkTime: 0, invuln: 0, guardBonus: 0, shieldTimer: 0, weapons: [], character: "hacker",
+      walkTime: 0, invuln: 0, guardBonus: 0, shieldTimer: 0, weapons: [], character: charId,
     };
     const inst = createWeaponInstance(w.id);
     player.weapons.push(inst);
@@ -258,9 +263,18 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
       },
     };
     const enemies = [boss];
+    // 投射物/炸弹的命中在 main.js 的实体循环里结算(测试台外)。boss-only
+    // 场景 findNearestEnemy 只会返回 Boss 或 null,所以"朝敌人发射了投射物"
+    // 就等于"朝 Boss 发射了"——足以证明武器没在 Boss 场景哑火。真哑火
+    // (filter 掉 Boss 后连投射物都不发)会 fired=0 且 boss.hp 不降,仍然 FAIL。
+    let fired = 0;
     const world = {
       enemies, projectiles: [], bounds: { top: 120, bottom: 584 },
-      spawnProjectile: () => {}, spawnBomb: () => {},
+      spawnProjectile: (o) => {
+        if (o && (!isFinite(o.x) || !isFinite(o.y))) throw new Error("bad projectile " + JSON.stringify(o));
+        fired++;
+      },
+      spawnBomb: () => { fired++; },
       // 地刺伤害在 main.js 的 Spike 实体里结算,这里按"落点够得着Boss判定圈
       // 就命中"近似——足以证明武器对Boss有输出路径
       spawnSpike: (o) => {
@@ -278,11 +292,12 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
         updateWeapons(player, 1 / 60, world);
         if (!isFinite(player.x) || !isFinite(player.y)) throw new Error("player pos NaN vs boss-only");
       }
-      if (boss.hp < boss.maxHp) {
-        console.log(`ok  ${w.id} [boss-only] dealt ${Math.round(boss.maxHp - boss.hp)}`);
+      if (boss.hp < boss.maxHp || fired > 0) {
+        const how = boss.hp < boss.maxHp ? `dealt ${Math.round(boss.maxHp - boss.hp)}` : `fired ${fired} at boss`;
+        console.log(`ok  ${w.id} [boss-only] ${how}`);
       } else {
         failures++;
-        console.log(`FAIL ${w.id} [boss-only]: 12s 内对唯一的Boss零伤害(索敌过滤回归?)`);
+        console.log(`FAIL ${w.id} [boss-only]: 12s 内既无直伤也不朝Boss发射(索敌过滤回归?)`);
       }
     } catch (err) {
       failures++;
