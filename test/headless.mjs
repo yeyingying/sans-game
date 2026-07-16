@@ -231,10 +231,22 @@ function run(seconds, onFrame) {
   const entitySrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/entities.js", import.meta.url), "utf8"));
   const championSpriteSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/champion_sprites.js", import.meta.url), "utf8"));
   check(
-    "黑客结局专属BGM已落盘、同步发布并带缓存版本",
-    mainSrc.includes('hacker: "hacker.mp3?v=s2-20260718-audio1"') &&
+    "两位付费角色专属BGM已落盘、同步发布并带缓存版本",
+    mainSrc.includes('insanity: "insanity.mp3?v=s2-20260718-audio1"') &&
+      mainSrc.includes('hacker: "hacker.mp3?v=s2-20260718-audio1"') &&
+      (await import("node:fs")).readFileSync(new URL("../insanity.mp3", import.meta.url))
+        .equals((await import("node:fs")).readFileSync(new URL("../deploy/insanity.mp3", import.meta.url))) &&
       (await import("node:fs")).readFileSync(new URL("../hacker.mp3", import.meta.url))
         .equals((await import("node:fs")).readFileSync(new URL("../deploy/hacker.mp3", import.meta.url))),
+  );
+  check(
+    "精神错乱中文名覆盖角色数据、排行榜与回响提示且英文仍为Insanity",
+    (await import("node:fs")).readFileSync(new URL("../src/weapon.js", import.meta.url), "utf8")
+      .includes('id: "insanity", name: "精神错乱"') &&
+      (await import("node:fs")).readFileSync(new URL("../src/leaderboard.js", import.meta.url), "utf8")
+        .includes('insanity: "精神错乱"') &&
+      (await import("node:fs")).readFileSync(new URL("../src/echo.js", import.meta.url), "utf8")
+        .includes('hint: "「精神错乱」专精 Lv1"'),
   );
   check(
     "成长硬上限与回血递减曲线已接入",

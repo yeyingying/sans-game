@@ -985,8 +985,8 @@ const BGM_TRACKS = {
   ukb: "ukb.mp3",
   horror: "horror.mp3",
   hard: "hard.mp3", // falls back to MEGALOVANIA if the file isn't there
-  // 用户选曲已定(2026-07-14);Insanity 仍等文件,黑客曲已于 2026-07-16 落盘。
-  insanity: "insanity.mp3", // Undertale Insanity - Your Fault (Lunar Remix cover, SansBalling)
+  // 两位付费角色的用户选曲均已于 2026-07-16 落盘。
+  insanity: "insanity.mp3?v=s2-20260718-audio1", // Undertale Insanity - Your Fault
   hacker: "hacker.mp3?v=s2-20260718-audio1", // Undertale Hacker Ending (better, knuckl_duster_archive1)
 };
 // per-character loudness tweak (horror's track is a touch quiet)

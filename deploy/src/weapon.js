@@ -1223,7 +1223,7 @@ export const CHARACTERS = [
   { id: "horror", name: "恐惧传说", color: "#ff5d5d", tags: ["巨骨", "飞斧"], nameEn: "Horror", tagsEn: ["Great bones", "Axes"], desc: "猎手骷髅，巨骨与飞斧的狂宴", descEn: "A hunter skeleton feasting on great bones and flying axes" },
   { id: "hard", name: "困难模式", color: "#5db9ff", tags: ["蓝光", "极限攻势"], nameEn: "Hard Mode", tagsEn: ["Blue light", "All-out"], desc: "蓝光缠身，极限攻势的化身", descEn: "Wreathed in blue light, the embodiment of extreme offense" },
   // 血疯线:决心过量实验体——解锁价与商店总价同级,是账号的长线目标
-  { id: "insanity", name: "Insanity", color: "#d92535", tags: ["禁锢", "处刑"], nameEn: "Insanity", tagsEn: ["Bind", "Execution"], desc: "决心过量实验体，天性增伤与生命+15%", descEn: "A DT-overdosed subject; +15% damage and HP by nature", cost: 10000 },
+  { id: "insanity", name: "精神错乱", color: "#d92535", tags: ["禁锢", "处刑"], nameEn: "Insanity", tagsEn: ["Bind", "Execution"], desc: "决心过量实验体，天性增伤与生命+15%", descEn: "A DT-overdosed subject; +15% damage and HP by nature", cost: 10000 },
   // 黑客结局:本体彩蛋黑屋守门人;付费天性梯度 15/15 → 20/20;需通关地狱
   { id: "hacker", name: "黑客结局", color: "#e8ecf4", tags: ["缴械", "处决"], nameEn: "Hacker Ending", tagsEn: ["Disarm", "Execute"], desc: "黑屋的守门人，天性增伤与生命+20%", descEn: "The dark room's gatekeeper; +20% damage and HP by nature", cost: 15000, gate: "hell" },
 ];

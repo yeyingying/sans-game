@@ -8,7 +8,7 @@ import { t } from "./i18n.js";
 
 const API = "https://api.sansgecao.com/v1";
 // names must mirror weapon.js CHARACTERS — the board and the game must agree
-const CHARACTER_NAMES_ZH = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式", insanity: "Insanity", hacker: "黑客结局" };
+const CHARACTER_NAMES_ZH = { sans: "传说之下", ukb: "因果报应", horror: "恐惧传说", hard: "困难模式", insanity: "精神错乱", hacker: "黑客结局" };
 const CHARACTER_NAMES_EN = { sans: "Classic", ukb: "Karma", horror: "Horror", hard: "Hard Mode", insanity: "Insanity", hacker: "Hacker Ending" };
 const charName = (id) => t(CHARACTER_NAMES_ZH[id], CHARACTER_NAMES_EN[id]);
 const CHARACTER_COLORS = { sans: "#7ea8ff", ukb: "#c59bff", horror: "#ff5d5d", hard: "#5db9ff", insanity: "#d92535", hacker: "#e8ecf4" };
