@@ -231,6 +231,12 @@ function run(seconds, onFrame) {
   const entitySrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/entities.js", import.meta.url), "utf8"));
   const championSpriteSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/champion_sprites.js", import.meta.url), "utf8"));
   check(
+    "黑客结局专属BGM已落盘、同步发布并带缓存版本",
+    mainSrc.includes('hacker: "hacker.mp3?v=s2-20260718-audio1"') &&
+      (await import("node:fs")).readFileSync(new URL("../hacker.mp3", import.meta.url))
+        .equals((await import("node:fs")).readFileSync(new URL("../deploy/hacker.mp3", import.meta.url))),
+  );
+  check(
     "成长硬上限与回血递减曲线已接入",
     entitySrc.includes("PLAYER_MAX_HP = 10000") &&
       entitySrc.includes("PLAYER_FIRE_RATE_CAP = 50") &&
