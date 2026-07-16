@@ -7086,6 +7086,13 @@ window.__test = DEBUG_BOSS !== null
         player.y = heart.y;
         return true;
       },
+      completeCurrentRound() {
+        if (endlessRound <= 0) return false;
+        roundTimer = 0;
+        roundBossSpawned = true;
+        roundBossDown = true;
+        return true;
+      },
     }
   : null;
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });

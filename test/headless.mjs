@@ -847,14 +847,11 @@ if (MODE === "normal") {
   stageScores.push(dbg().stageScore);
   key("ArrowRight");
   key("Enter");
-  hold("ArrowRight");
-  for (let i = 0; i < 30 * 300 && dbg().state !== "roundclear"; i++) {
-    frame();
-    if (dbg().state === "choice") key("1");
-    if (dbg().state === "chest") { key("Enter"); key("Enter"); }
-    if (dbg().state === "gameover") break;
-  }
-  releaseAll();
+  // B already exercises a real champion spawn and kill. D isolates the
+  // completed-round settlement contract; forcing only the debug round flags
+  // removes random-build/CI-speed flakiness without touching production runs.
+  window.__test.completeCurrentRound();
+  frame();
   check("D: completed round reaches retreat choice", dbg().state === "roundclear", JSON.stringify(dbg()));
   window.__test.grantPendingCoins(19);
   const safeBeforeRoundRetreat = dbg().runCoins;
