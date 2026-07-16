@@ -249,9 +249,17 @@ function run(seconds, onFrame) {
       mainSrc.includes("activeRoundBoss.hp / activeRoundBoss.maxHp"),
   );
   check(
-    "用户怪物贴图覆盖命名精英并保留安全回退",
+    "用户怪物贴图严格按文件名映射并保留安全回退",
     championSpriteSrc.includes("function externalSprite") &&
-      ["final_froggit.png", "whimsalot.png", "greater_dog.png", "muffet.png", "lemon_bread.png"].every((file) => championSpriteSrc.includes(file)),
+      [
+        "Endogeny.webp", "FinalFroggit.webp", "Glyde.gif", "Greater_Dog.webp", "Knight_Knight.webp",
+        "Loox.webp", "Mad_Dummy.gif", "Mettaton_EX.webp", "Muffet.webp", "Parsnik.webp",
+        "Royal_Guards_01_&_02.webp", "Whimsalot.webp", "aaron.webp", "lemon bread.png",
+        "memory head.gif", "migospel.webp", "moldessa.png", "pyrope.webp", "reaper bird.webp",
+        "so sorry.png", "timmie.jpeg",
+      ].every((file) => championSpriteSrc.includes(`\"${file}\"`)) &&
+      mainSrc.includes("red: CHAMPION_SPRITES.base_loox") &&
+      mainSrc.includes("CHAMPION_SPRITES.visitor_timmie"),
   );
   check(
     "怪物美术按普通/精英/首领分层且统一脚底、白闪与光环",

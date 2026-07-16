@@ -302,7 +302,7 @@ const ENEMY_SPRITES = {
   bat: tintSprite(ENEMY_WHIMSUN, "#c39ae0", 0.3),
   ghost: tintSprite(ENEMY_VEGETOID, "#9fdc8f", 0.22),
   tank: tintSprite(ENEMY_JERRY, "#e6c84e", 0.3),
-  red: tintSprite(ENEMY_LOOX, "#e05555", 0.3),
+  red: CHAMPION_SPRITES.base_loox || tintSprite(ENEMY_LOOX, "#e05555", 0.3),
   orange: tintSprite(ENEMY_MADJICK, "#f09a4a", 0.3),
   blue: tintSprite(ENEMY_WOSHUA, "#5aa8e0", 0.3),
   purple: tintSprite(ENEMY_ICECAP, "#9a86e8", 0.3),
@@ -5813,17 +5813,8 @@ function draw() {
     ctx.globalAlpha = a;
     ctx.imageSmoothingEnabled = false;
     ctx.translate(tv.x + (Math.random() - 0.5) * 3, tv.y + (Math.random() - 0.5) * 3);
-    ctx.fillStyle = "#f4f4f4";
-    ctx.fillRect(-10, -10, 20, 16); // head
-    ctx.fillRect(-9, -16, 5, 7); // left ear
-    ctx.fillRect(4, -16, 5, 7); // right ear
-    ctx.fillRect(-6, 6, 12, 6); // body
-    ctx.fillStyle = "#3a3346";
-    ctx.fillRect(-10, -10, 6, 8); // the hair patch
-    ctx.fillStyle = "#1a1626";
-    ctx.fillRect(-3, -5, 2, 3); // eyes
-    ctx.fillRect(3, -5, 2, 3);
-    ctx.fillRect(-1, 0, 3, 1); // cat mouth
+    const spr = CHAMPION_SPRITES.visitor_timmie;
+    if (spr) ctx.drawImage(spr, -24, -22, 48, 43);
     ctx.restore();
   }
 

@@ -1,3 +1,5 @@
+import { ENEMY_LOOX } from "./sprites.js";
+
 // Original-inspired redraws for endless champions and named elites. These live in a
 // separate module so the hand-tuned legacy pixel data in sprites.js stays
 // untouched. Each character is built from a tiny palette and hard pixel rows.
@@ -18,6 +20,21 @@ function pixelSprite(rows, palette) {
   }
   return canvas;
 }
+
+const TIMMIE = pixelSprite(
+  [
+    "  WWW    WWW  ",
+    " WWWWWWWWWWWW ",
+    "WWDDWWWWWWWWWW",
+    "WWDDWKWKWKWWWW",
+    "WWWWWWWKWWWWWW",
+    " WWWWWWWWWWWW ",
+    "   WWWWWWWW   ",
+    "    WWWWWW    ",
+    "   WWWWWWWW   ",
+  ],
+  { W: "#f4f4f4", D: "#3a3346", K: "#1a1626" }
+);
 
 const GREATER_DOG = pixelSprite(
   [
@@ -439,25 +456,53 @@ function externalSprite(file, fallback, background = "dark") {
   return out;
 }
 
+// Keep the user's source filenames visible and auditable. A sprite is never
+// assigned by visual guesswork: profile key -> identically named source asset.
+export const USER_SPRITE_SOURCE_NAMES = Object.freeze({
+  base_loox: "Loox.webp",
+  elite_final_froggit: "FinalFroggit.webp",
+  elite_whimsalot: "Whimsalot.webp",
+  elite_parsnik: "Parsnik.webp",
+  champion_greater_dog: "Greater_Dog.webp",
+  champion_mad_dummy: "Mad_Dummy.gif",
+  champion_knight_knight: "Knight_Knight.webp",
+  champion_muffet: "Muffet.webp",
+  elite_moldessa: "moldessa.png",
+  elite_migospel: "migospel.webp",
+  champion_royal_guards: "Royal_Guards_01_&_02.webp",
+  champion_mettaton_ex: "Mettaton_EX.webp",
+  elite_aaron: "aaron.webp",
+  elite_pyrope: "pyrope.webp",
+  champion_glyde: "Glyde.gif",
+  champion_so_sorry: "so sorry.png",
+  elite_memoryhead: "memory head.gif",
+  elite_reaper_bird: "reaper bird.webp",
+  champion_endogeny: "Endogeny.webp",
+  champion_lemon_bread: "lemon bread.png",
+  visitor_timmie: "timmie.jpeg",
+});
+
 export const CHAMPION_SPRITES = {
-  elite_final_froggit: externalSprite("final_froggit.png", MOLDESSA, "light"),
-  elite_whimsalot: externalSprite("whimsalot.png", MIGOSPEL),
+  base_loox: externalSprite(USER_SPRITE_SOURCE_NAMES.base_loox, ENEMY_LOOX),
+  elite_final_froggit: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_final_froggit, MOLDESSA),
+  elite_whimsalot: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_whimsalot, MIGOSPEL),
   elite_astigmatism: externalSprite("astigmatism.png", GLYDE),
-  elite_parsnik: externalSprite("parsnik.png", LEMON_BREAD),
-  champion_greater_dog: externalSprite("greater_dog.png", GREATER_DOG),
-  champion_mad_dummy: externalSprite("mad_dummy.png", MAD_DUMMY),
-  champion_knight_knight: externalSprite("knight_knight.png", KNIGHT_KNIGHT, "light"),
-  champion_muffet: externalSprite("muffet.png", MUFFET, "light"),
-  elite_moldessa: externalSprite("moldessa.png", MOLDESSA, "light"),
-  elite_migospel: externalSprite("migospel.png", MIGOSPEL),
-  champion_royal_guards: externalSprite("royal_guards.png", ROYAL_GUARDS),
-  champion_mettaton_ex: externalSprite("mettaton_ex.png", METTATON_EX),
-  elite_aaron: externalSprite("aaron.png", AARON),
-  elite_pyrope: PYROPE,
-  champion_glyde: externalSprite("glyde.png", GLYDE),
-  champion_so_sorry: SO_SORRY,
-  elite_memoryhead: externalSprite("memoryhead.png", MEMORYHEAD),
-  elite_reaper_bird: externalSprite("reaper_bird.png", REAPER_BIRD, "light"),
-  champion_endogeny: externalSprite("endogeny.png", ENDOGENY),
-  champion_lemon_bread: externalSprite("lemon_bread.png", LEMON_BREAD, "light"),
+  elite_parsnik: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_parsnik, LEMON_BREAD),
+  champion_greater_dog: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_greater_dog, GREATER_DOG),
+  champion_mad_dummy: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_mad_dummy, MAD_DUMMY),
+  champion_knight_knight: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_knight_knight, KNIGHT_KNIGHT),
+  champion_muffet: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_muffet, MUFFET),
+  elite_moldessa: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_moldessa, MOLDESSA),
+  elite_migospel: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_migospel, MIGOSPEL),
+  champion_royal_guards: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_royal_guards, ROYAL_GUARDS),
+  champion_mettaton_ex: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_mettaton_ex, METTATON_EX),
+  elite_aaron: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_aaron, AARON),
+  elite_pyrope: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_pyrope, PYROPE),
+  champion_glyde: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_glyde, GLYDE),
+  champion_so_sorry: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_so_sorry, SO_SORRY),
+  elite_memoryhead: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_memoryhead, MEMORYHEAD),
+  elite_reaper_bird: externalSprite(USER_SPRITE_SOURCE_NAMES.elite_reaper_bird, REAPER_BIRD, "light"),
+  champion_endogeny: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_endogeny, ENDOGENY),
+  champion_lemon_bread: externalSprite(USER_SPRITE_SOURCE_NAMES.champion_lemon_bread, LEMON_BREAD),
+  visitor_timmie: externalSprite(USER_SPRITE_SOURCE_NAMES.visitor_timmie, TIMMIE, "light"),
 };
