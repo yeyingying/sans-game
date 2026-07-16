@@ -248,6 +248,18 @@ function run(seconds, onFrame) {
       (await import("node:fs")).readFileSync(new URL("../src/echo.js", import.meta.url), "utf8")
         .includes('hint: "「精神错乱」专精 Lv1"'),
   );
+  const dialogSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/dialog.js", import.meta.url), "utf8"));
+  check(
+    "菜单DEBUG码可全解锁且调试存档永久禁止上传排行榜",
+    mainSrc.includes('const DEBUG_UNLOCK_HASH = "758d4934531bfa65c1cece06017a3fcdead64023bab50560fae83a69311a6b7a"') &&
+      mainSrc.includes('localStorage.setItem("debugUnlocked", "1")') &&
+      mainSrc.includes('const RANKING_DEBUG_RUN = DEBUG_BOSS !== null || DEBUG_EVOLVE !== null || DEBUG_CHEST !== null || DEBUG_UNLOCKED') &&
+      mainSrc.includes('for (const echo of ALL_ECHOES) unlockEcho(echo.id)') &&
+      mainSrc.includes('debugStats.weaponsUsed[weapon.id] = true') &&
+      mainSrc.includes('if (character.cost) localStorage.setItem("own_" + character.id, "1")') &&
+      dialogSrc.includes('input.type = secret ? "password" : "text"') &&
+      uiSrc.includes('{ label: "DEBUG", color: "#ff5d73", icon: ICONS.warn }'),
+  );
   check(
     "成长硬上限与回血递减曲线已接入",
     entitySrc.includes("PLAYER_MAX_HP = 10000") &&

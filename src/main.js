@@ -149,7 +149,7 @@ import { createBossFight, BOSS_APPEAR_TIME } from "./boss.js";
 import { circleHit } from "./utils.js";
 import { initLeaderboard, loadLeaderboard, beginRankedRun, recordRankedStageClear, finishRankedRun, cancelRankedRun, reportRankedRun, rankedRunStatus, drawLeaderboard, leaderboardTap } from "./leaderboard.js?v=s2-20260716-4";
 
-import { utPrompt, utNotice } from "./dialog.js";
+import { utPrompt, utNotice } from "./dialog.js?v=s2-20260718-debug1";
 import { t, pick, currentLang, toggleLang } from "./i18n.js";
 
 // bump when scoring/balance changes meaningfully — telemetry is sliced by this
@@ -263,7 +263,7 @@ import {
   sfxMinusRect,
   sfxPlusRect,
   drawVolumeControl,
-} from "./ui.js";
+} from "./ui.js?v=s2-20260718-debug1";
 
 const canvas = document.getElementById("game");
 const BASE_WIDTH = 960;
@@ -1708,6 +1708,89 @@ async function importSaveCode() {
   }
 }
 
+// ---- 管理员 DEBUG 解锁 ------------------------------------------------------
+// This is a static client, so the gate can only prevent casual discovery; it
+// is not an authentication boundary. Keep only a SHA-256 digest here so the
+// backend-admin password is never shipped as plaintext in the public bundle.
+const DEBUG_UNLOCK_HASH = "758d4934531bfa65c1cece06017a3fcdead64023bab50560fae83a69311a6b7a";
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function openDebugUnlock() {
+  const code = await utPrompt({
+    title: t("* DEBUG 管理员解锁", "* DEBUG admin unlock"),
+    hint: t(
+      "输入 DEBUG 码以解锁全部图鉴、回响、角色和难度。\n⚠ 本设备之后的成绩将不会上传排行榜。",
+      "Enter the DEBUG code to unlock every codex entry, echo, character and difficulty.\n⚠ Scores from this device will no longer reach the ranking."
+    ),
+    value: "",
+    maxLength: 64,
+    secret: true,
+  });
+  if (!code) return;
+
+  let valid = false;
+  try {
+    valid = (await sha256Hex(code)) === DEBUG_UNLOCK_HASH;
+  } catch {
+    valid = false;
+  }
+  if (!valid) {
+    sfxHurt();
+    await utNotice({
+      title: t("* DEBUG 码错误", "* Wrong DEBUG code"),
+      hint: t("什么也没有改变。", "Nothing changed."),
+    });
+    return;
+  }
+
+  let debugStats = {};
+  try {
+    debugStats = JSON.parse(localStorage.getItem("metaStats") || "{}") || {};
+  } catch {
+    debugStats = {};
+  }
+  debugStats.totalKills = Math.max(Number(debugStats.totalKills) || 0, CHARACTERS.length * 4000);
+  debugStats.runs = Math.max(Number(debugStats.runs) || 0, 1);
+  debugStats.bossKills = Math.max(Number(debugStats.bossKills) || 0, 4);
+  debugStats.diffCleared = 3;
+  debugStats.genocideUnlocked = true;
+  debugStats.charKills ||= {};
+  debugStats.killsByType ||= {};
+  debugStats.weaponsUsed ||= {};
+  debugStats.evolved ||= {};
+
+  for (const character of CHARACTERS) {
+    debugStats.charKills[character.id] = Math.max(Number(debugStats.charKills[character.id]) || 0, 4000);
+    if (character.cost) localStorage.setItem("own_" + character.id, "1");
+    for (const weapon of WEAPON_LISTS[character.id] || []) {
+      debugStats.weaponsUsed[weapon.id] = true;
+      if (weapon.evolve) debugStats.evolved[weapon.id] = true;
+    }
+  }
+  for (const monster of CODEX_MONSTERS) {
+    if (!monster.boss) debugStats.killsByType[monster.key] = Math.max(Number(debugStats.killsByType[monster.key]) || 0, 1);
+  }
+  for (const echo of ALL_ECHOES) unlockEcho(echo.id);
+
+  localStorage.setItem("metaStats", JSON.stringify(debugStats));
+  localStorage.setItem("debugUnlocked", "1");
+  localStorage.setItem("tutorialDone", "1");
+  sfxFanfare();
+  await utNotice({
+    title: t("* DEBUG 已解锁", "* DEBUG unlocked"),
+    hint: t(
+      "全部图鉴、回响、角色和难度已开放。\n正在刷新；调试成绩不会进入排行榜。",
+      "Every codex entry, echo, character and difficulty is open.\nReloading; DEBUG scores never enter the ranking."
+    ),
+  });
+  location.reload();
+}
+
 function goTitle() {
   exitDailyMode();
   reset(currentWeaponList()[0].id);
@@ -2104,7 +2187,8 @@ const DEBUG_EVOLVE = new URLSearchParams(location.search).get("evolve");
 // debug: ?chest opens the slot ceremony immediately (?chest=3 / ?chest=5
 // forces the jackpot sizes) — for tuning the show without farming elites
 const DEBUG_CHEST = new URLSearchParams(location.search).get("chest");
-const RANKING_DEBUG_RUN = DEBUG_BOSS !== null || DEBUG_EVOLVE !== null || DEBUG_CHEST !== null;
+const DEBUG_UNLOCKED = localStorage.getItem("debugUnlocked") === "1";
+const RANKING_DEBUG_RUN = DEBUG_BOSS !== null || DEBUG_EVOLVE !== null || DEBUG_CHEST !== null || DEBUG_UNLOCKED;
 // The public debug helpers must not leave a convincing local record card.
 // Headless/offline harnesses keep their local ledger so deterministic legacy
 // regressions can still assert normal-vs-endless score separation.
@@ -2798,10 +2882,11 @@ function handleCanvasTap(pos) {
   if (state === "title") {
     if (titleMenuOpen) {
       // null slots are the 成长/收藏 group headers — drawn, never clickable
-      const targets = ["shop", "quests", "weaponbook", null, "codex", "echoes", "savecode", null];
+      const targets = ["shop", "quests", "weaponbook", null, "codex", "echoes", "savecode", "debug", null];
       for (let i = 0; i < targets.length; i++) {
         if (targets[i] && inRect(pos, titleMenuItemRect(i, WIDTH, HEIGHT))) {
-          state = targets[i];
+          if (targets[i] === "debug") openDebugUnlock();
+          else state = targets[i];
           titleMenuOpen = false;
           sfxClick();
           return;

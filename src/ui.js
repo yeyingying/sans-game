@@ -261,8 +261,8 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.fillRect(0, 0, width, height);
 
   ctx.textAlign = "center";
-  if (!(menuOpen && IS_TOUCH)) {
-    // 触屏抽屉更高,展开时标题让位避免文字互压
+  if (!menuOpen) {
+    // 九格抽屉展开时标题让位,桌面与触屏都避免顶部管理项压字。
     ctx.fillStyle = "#7ea8ff";
     ctx.font = "bold 44px monospace";
     ctx.fillText(t("我做了一个Sans割草游戏.", "I made a Sans survivors game."), width / 2, height / 2 - 130);
@@ -332,7 +332,8 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
       { label: `${t("图鉴", "Codex")} ${codexPct}%`, color: "#7ea8ff", icon: ICONS.codex },
       { label: `${t("回响", "Echoes")} ${echoCount}`, color: "#6bd0ff", icon: ICONS.flower },
       { label: t("存档码", "Save Code"), color: "#8fd6ff", icon: ICONS.save },
-      { label: t("收 藏", "COLLECTION"), header: true },
+      { label: "DEBUG", color: "#ff5d73", icon: ICONS.warn },
+      { label: t("收 藏 / 管 理", "COLLECTION / ADMIN"), header: true },
     ];
     items.forEach((it, i) => {
       const r = titleMenuItemRect(i, width, height);
@@ -661,7 +662,8 @@ export function menuButtonRect(width, height) {
   return { x: 16, y: height - T(52, 66), w: T(110, 130), h: T(34, 50) };
 }
 
-// drawer items stack upward from the menu button: 0=商店 … 3=悬赏
+// drawer items stack upward from the menu button; the ninth slot still fits
+// inside the 600px canvas on both desktop and the taller touch layout.
 export function titleMenuItemRect(i, width, height) {
   const step = T(46, 56);
   return { x: 16, y: height - T(98, 124) - step * i, w: T(236, 252), h: T(40, 50) };

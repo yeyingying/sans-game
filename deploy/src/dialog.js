@@ -28,10 +28,11 @@ function mkBtn(label, primary) {
 }
 
 // 输入框对话框 -> Promise<string|null>;opts.copy 加「复制」按钮
-export function utPrompt({ title, hint, value = "", maxLength = 8, copy = false }) {
+export function utPrompt({ title, hint, value = "", maxLength = 8, copy = false, secret = false }) {
   return new Promise((resolve) => {
     const { wrap, box } = baseBox(title, hint);
     const input = document.createElement("input");
+    input.type = secret ? "password" : "text";
     input.maxLength = maxLength;
     input.value = value;
     // 16px+ or iOS zooms the whole page on focus
