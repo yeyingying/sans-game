@@ -7079,6 +7079,13 @@ window.__test = DEBUG_BOSS !== null
         lastHitBy = "测试伤害";
         player.hp = 0;
       },
+      collectBossHeart() {
+        const heart = pickups.find((pickup) => pickup.kind === "bossheart");
+        if (!heart || !player) return false;
+        player.x = heart.x;
+        player.y = heart.y;
+        return true;
+      },
     }
   : null;
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });

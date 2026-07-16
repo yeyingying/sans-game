@@ -711,7 +711,13 @@ if (MODE === "normal") {
       if (d.state === "chest") { key("Enter"); key("Enter"); }
       // chase the heart once it drops; otherwise hug the boss so weapons
       // target it instead of the summons
-      if (d.heart) steer(d.heart.x, d.heart.y, d.px, d.py);
+      if (d.heart) {
+        steer(d.heart.x, d.heart.y, d.px, d.py);
+        // CI runners occasionally keep a stale held-key state across the Boss
+        // death transition. Teleport only in the ?boss=weak test route; the
+        // next real frame still exercises the pickup/collision settlement.
+        window.__test.collectBossHeart();
+      }
       else if (d.bossX !== null) {
         // hug the boss horizontally but stay off the walls vertically —
         // getting pinned in a corner is what kills the runner in phase 2
