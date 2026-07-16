@@ -2050,17 +2050,20 @@ function updateInstance(player, inst, dt, world) {
       const prog = Math.min(r.t / dur, 1);
       player.x = r.fx + (r.tx - r.fx) * prog;
       player.y = Math.min(Math.max(r.fy + (r.ty - r.fy) * prog, world.bounds.top), world.bounds.bottom);
-      // 冲锋撞开+撞击伤害(回程仅进化)
+      // 冲锋撞开+撞击伤害(回程仅进化)。Boss撞不飞但吃撞击伤害——
+      // 否则冲过Boss后炮击射线朝前方,Boss在身后两头落空(boss-only冒烟抓到的)
       if (r.phase === "charge" || (inst.evolved && tier.doublePass)) {
         for (const e of enemies) {
-          if (e.boss || r.hitSet.has(e.id)) continue;
+          if (r.hitSet.has(e.id)) continue;
           if (circleHit(player.x, player.y, tier.size * 0.8, e.x, e.y, e.radius)) {
             if (e.takeDamage(weaponDmg(player, tier.chargeDmg))) {
               r.hitSet.add(e.id);
-              const d = Math.hypot(e.x - player.x, e.y - player.y) || 1;
-              e.x += ((e.x - player.x) / d) * 60;
-              e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * 60, world.bounds.top), world.bounds.bottom);
-              if (inst.enhance > 0) e.applyDisarm?.(5 + 2 * (inst.enhance - 1));
+              if (!e.boss) {
+                const d = Math.hypot(e.x - player.x, e.y - player.y) || 1;
+                e.x += ((e.x - player.x) / d) * 60;
+                e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * 60, world.bounds.top), world.bounds.bottom);
+                if (inst.enhance > 0) e.applyDisarm?.(5 + 2 * (inst.enhance - 1));
+              }
             }
           }
         }

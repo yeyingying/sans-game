@@ -6447,7 +6447,9 @@ function draw() {
       HEIGHT,
       {
         date: todayKey(),
-        charName: CHARACTERS[seed % CHARACTERS.length].name,
+        // 必须与 startDailyChallenge 同一套免费池取模——曾按全名单(含付费角色)
+        // 取模,大厅宣布的角色和实际进场的对不上
+        charName: pick(CHARACTERS.filter((c) => !c.cost)[seed % CHARACTERS.filter((c) => !c.cost).length], "name"),
         best: parseInt(localStorage.getItem("daily_" + todayKey()) || "0", 10) || 0,
       },
       bossClearChoice

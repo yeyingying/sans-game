@@ -670,9 +670,14 @@ if (MODE === "normal") {
   key("ArrowRight");
   run(30); // play a slice of the daily run…
   keyUp("ArrowRight");
-  key("z"); // …then settle deterministically: pause -> quit
-  tap(480, 423); // quit button (works no matter how strong the build is)
-  check("daily settled", dbg().state === "gameover" && dbg().daily === false);
+  // 机器人可能活不过这30秒(每日角色按日轮换,强度随机)——死了本身就是
+  // 一种合法结算;还活着才需要 pause->quit 手动收尾
+  if (dbg().state !== "gameover") {
+    run(0.5); // 让可能刚打开的选卡/宝箱界面被 run() 的自动按键清掉
+    key("z"); // …then settle deterministically: pause -> quit
+    tap(480, 423); // quit button (works no matter how strong the build is)
+  }
+  check("daily settled", dbg().state === "gameover" && dbg().daily === false, `state=${dbg().state} daily=${dbg().daily} hp=${dbg().hp}`);
   check("daily best stored", Object.keys(storage).some((k) => k.startsWith("daily_")));
 } else if (MODE === "clear") {
   // ?boss=weak route: actually beat the boss, then exercise the boss-clear

@@ -212,5 +212,84 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
     console.log("FAIL hride targeting: charge points away from acquired target");
   } else console.log("ok  hride charges toward the acquired target");
 }
+// Boss-only 场景(2026-07-15 回归教训): hfling/hgrab/htrojan/ipull 曾因
+// filter(!e.boss) 在Boss清场后整场哑火,16×4冒烟两天没抓到——因为从没测过
+// "场上只有Boss"。现在:每把武器单独面对唯一的Boss,12s 内必须打出伤害。
+// 设计豁免要显式列名并写明理由,新武器加了 !boss 过滤又没兜底就过不了这关。
+{
+  const BOSS_ONLY_EXEMPT = {
+    ipounce: "设计裁决: 无敌骑乘不可作用于Boss(2026-07-15)",
+    hshock: "设计定位: 纯位移/缴械/处决辅助,本体零伤害",
+  };
+  // 固定种子: 随机方向类武器(龙骨狂轰/骨雨)的命中判定必须可复现
+  const origRandom = Math.random;
+  const seeded = (() => {
+    let a = 0x9e3779b9;
+    return () => {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  })();
+  Math.random = seeded;
+  for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
+    if (BOSS_ONLY_EXEMPT[w.id]) {
+      console.log(`ok  ${w.id} [boss-only] exempt: ${BOSS_ONLY_EXEMPT[w.id]}`);
+      continue;
+    }
+    const player = {
+      x: 480, y: 300, hp: 100, maxHp: 100, atk: 30, dmgAmp: 1,
+      fireRate: 1.3, range: 130, moveSpeed: 200, dir: "down", moving: false,
+      walkTime: 0, invuln: 0, guardBonus: 0, shieldTimer: 0, weapons: [], character: "hacker",
+    };
+    const inst = createWeaponInstance(w.id);
+    player.weapons.push(inst);
+    if (w.id === "hmacro") player.weapons.push(createWeaponInstance("hslash")); // 宏离开其他技能无输出
+    const boss = {
+      id: "boss", x: 480, y: 210, hp: 1e9, maxHp: 1e9, radius: 48,
+      boss: true, elite: false, championProfile: null,
+      rootTimer: 0, rootImmune: 0, orbitTimer: 0, laserTick: 0, slowTimer: 0, hitFlash: 0, hackPct: 0,
+      applyRoot() { return false; },
+      takeDamage(d) {
+        if (!(d >= 0)) throw new Error("NaN damage vs boss: " + d);
+        this.hp -= d;
+        return true;
+      },
+    };
+    const enemies = [boss];
+    const world = {
+      enemies, projectiles: [], bounds: { top: 120, bottom: 584 },
+      spawnProjectile: () => {}, spawnBomb: () => {},
+      // 地刺伤害在 main.js 的 Spike 实体里结算,这里按"落点够得着Boss判定圈
+      // 就命中"近似——足以证明武器对Boss有输出路径
+      spawnSpike: (o) => {
+        if (!isFinite(o.x) || !isFinite(o.y) || !(o.dmg >= 0)) throw new Error("bad spike " + JSON.stringify(o));
+        const reach = (o.wave || 0) + (o.blast?.radius || 0) + 26;
+        if (Math.hypot(o.x - boss.x, o.y - boss.y) < reach + boss.radius) boss.takeDamage(o.dmg);
+      },
+      spawnBlast: (o) => {
+        if (!isFinite(o.x) || !isFinite(o.y) || !(o.dmg >= 0) || !(o.blast > 0)) throw new Error("bad blast " + JSON.stringify(o));
+        if (Math.hypot(boss.x - o.x, boss.y - o.y) < o.blast + boss.radius) boss.takeDamage(o.dmg);
+      },
+    };
+    try {
+      for (let f = 0; f < 720; f++) {
+        updateWeapons(player, 1 / 60, world);
+        if (!isFinite(player.x) || !isFinite(player.y)) throw new Error("player pos NaN vs boss-only");
+      }
+      if (boss.hp < boss.maxHp) {
+        console.log(`ok  ${w.id} [boss-only] dealt ${Math.round(boss.maxHp - boss.hp)}`);
+      } else {
+        failures++;
+        console.log(`FAIL ${w.id} [boss-only]: 12s 内对唯一的Boss零伤害(索敌过滤回归?)`);
+      }
+    } catch (err) {
+      failures++;
+      console.log(`FAIL ${w.id} [boss-only]: ${err.message}`);
+    }
+  }
+  Math.random = origRandom;
+}
 console.log(failures ? `${failures} FAILURES` : "ALL PASS");
 process.exit(failures ? 1 : 0);
