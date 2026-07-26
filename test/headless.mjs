@@ -606,7 +606,7 @@ frame();
 tap(84, 560); // back
 check("shop closes", dbg().state === "title");
 tap(71, 565); // ☰ 菜单
-tap(570, 452); // ★ 排行榜 (标题页三主键之一)
+tap(480, 452); // ★ 排行榜 (2026-07-16 起居中——每日并入模式选择后唯一副键)
 check("leaderboard opens", dbg().state === "leaderboard");
 frame(); // renders the offline notice branch (Pages mirror: no requests)
 tap(84, 560); // back (shared backButtonRect)
@@ -708,7 +708,9 @@ if (MODE === "normal") {
   // 🏠 direct home from the settlement card
   tap(861, 560); // home button (bottom-right)
   check("home button returns to title", dbg().state === "title");
-  tap(390, 452); // ✦ 每日挑战 (标题页三主键之一)
+  tap(480, 392); // [选 择 模 式] 主键(2026-07-16 塔防批)
+  check("mode select opens", dbg().state === "modeselect", dbg().state);
+  tap(480, 283); // 第二项: 每日挑战
   check("daily intro shows first", dbg().state === "dailyintro", dbg().state);
   frame(); // render the intro screen once (catches reference errors)
   tap(610, 371); // 开始挑战
@@ -725,6 +727,34 @@ if (MODE === "normal") {
   }
   check("daily settled", dbg().state === "gameover" && dbg().daily === false, `state=${dbg().state} daily=${dbg().daily} hp=${dbg().hp}`);
   check("daily best stored", Object.keys(storage).some((k) => k.startsWith("daily_")));
+
+  // ---- 塔防冒烟(2026-07-16): 编队→放塔→怪打门→结算,全链不崩 --------------
+  tap(861, 560); // gameover -> home
+  check("back to title for TD", dbg().state === "title", dbg().state);
+  tap(480, 392); // [选 择 模 式]
+  check("mode select opens (TD)", dbg().state === "modeselect", dbg().state);
+  tap(480, 379); // 第三项: 塔防模式
+  check("td pick opens", dbg().state === "tdpick", dbg().state);
+  tap(144, 248); // 传说之下(默认高亮) 的 1 号武器 -> 入队
+  tap(480, 531); // 开 始 守 门
+  const td0 = dbg().td;
+  check("td run starts with 100hp gate + 1000xp", dbg().state === "playing" && td0 && td0.gateHp === 100 && td0.xp === 1000, JSON.stringify(td0));
+  run(2); // 开场黑幕
+  tap(300, 564); // 编队卡0 -> 进入放置态
+  check("td slot armed", dbg().td && dbg().td.armed === 0, JSON.stringify(dbg().td));
+  const fc = dbg().td.freeCell;
+  check("td map exposes a free cell", !!fc);
+  tap(fc.x, fc.y); // 放塔
+  check("td tower placed, xp spent", dbg().td.towers === 1 && dbg().td.xp === 0, JSON.stringify(dbg().td));
+  run(50); // 怪物沿走廊压向入口,塔开火
+  const tdMid = dbg().td;
+  check("td pressure or income arrived", tdMid.gateHp < tdMid.gateMax || tdMid.xp > 0, JSON.stringify(tdMid));
+  check("td survives 50s without crash", dbg().state === "playing" || dbg().state === "choice" || dbg().state === "gameover", dbg().state);
+  if (dbg().state !== "gameover") {
+    key("z");
+    tap(480, 423); // 暂停 -> 退出
+  }
+  check("td settles clean", dbg().state === "gameover", dbg().state);
 } else if (MODE === "clear") {
   // ?boss=weak route: actually beat the boss, then exercise the boss-clear
   // choice, the 90s judgement rounds and every settlement outcome.

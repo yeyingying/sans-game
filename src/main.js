@@ -193,6 +193,32 @@ import {
   coachLine,
 } from "./narrative.js";
 import {
+  TD_CELL,
+  tdBuildMap,
+  tdCellAt,
+  tdCellCenter,
+  tdNewRun,
+  tdMakeTowerPP,
+  tdWeaponAllowed,
+  tdTargetFor,
+  tdAtGate,
+  tdHitEntrance,
+  tdEntranceTick,
+  tdXpFor,
+  tdPlaceCost,
+  drawTdField,
+  drawTdEntranceHud,
+  drawTdBar,
+  drawModeSelect,
+  drawTdPick,
+  modeOptionRect,
+  tdPickCharRect,
+  tdPickWeaponRect,
+  tdRosterSlotRect,
+  tdStartRect,
+  tdBarSlotRect,
+} from "./td.js";
+import {
   drawHud,
   drawCenterText,
   drawCharSelect,
@@ -546,6 +572,12 @@ let activeContract = null; // the pact this run runs under
 // declared up here (not in the daily section) because reset() reads it at
 // module load — daily runs are the standardized fair-play mode
 let dailyMode = false;
+// ---- 塔防模式状态(2026-07-16 新模式;逻辑集中在 src/td.js) ------------------
+let tdMode = false; // 本局是塔防
+let td = null; // tdNewRun() 的局状态(地图/入口/塔/经验/编队)
+let tdPickSel = 0; // 选人页当前高亮角色索引
+let tdPickRoster = []; // 选人页已选 [{char, weapon, charId, weaponId, cost, placed}]
+let tdHoverCell = null; // 放置态悬停格(触屏=最后一次点击预览)
 let bossDeathSnapped = false; // stage score freezes the frame the boss dies
 let lastNewQuests = []; // bounties finished this run (gameover lines)
 let lastMasteryUp = null; // "角色 专精 LvN (+coins)" line
@@ -957,6 +989,7 @@ function killerKindOf(e) {
 }
 
 function fireBark(event) {
+  if (tdMode) return; // 塔防: 本体不在场,头顶气泡无处可挂
   if (barkFired[event]) return;
   barkFired[event] = true;
   const line = barkFor(player.character, event);
@@ -991,7 +1024,7 @@ const BGM_TRACKS = {
 };
 // per-character loudness tweak (horror's track is a touch quiet)
 const CHAR_VOL = { horror: 1.4 };
-const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop", "codex", "quests", "echoes", "echoread", "weaponbook", "savecode", "dailyintro", "leaderboard"]);
+const MENU_STATES = new Set(["title", "charselect", "select", "credits", "shop", "codex", "quests", "echoes", "echoread", "weaponbook", "savecode", "dailyintro", "leaderboard", "modeselect", "tdpick"]);
 let bgmVolume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem("bgmVolume") ?? "0.5") || 0.5));
 
 // menu theme plays on the title / select screens with a gentle fade
@@ -1245,6 +1278,9 @@ function currentWeaponList() {
 }
 
 function reset(weaponId) {
+  tdMode = false; // 世界重建=塔防状态一并清空(startTdRun 在 reset 后重新立起)
+  td = null;
+  tdHoverCell = null;
   player = new Player(WIDTH / 2, HEIGHT / 2);
   player.character = currentCharacter().id;
   // 每日挑战 = 标准竞技:局外强化不进场,全服同一起跑线
@@ -1405,7 +1441,13 @@ function settleGame(kind) {
     rounds: roundsCleared,
   });
   // coach only pre-boss deaths — endless deaths already beat the exam
-  if (runOutcome === "death") {
+  if (runOutcome === "death" && tdMode) {
+    // 塔防死因只有一种:门破了——经典的走位建议在这里全是废话
+    coachAdvice = t(
+      "* 裂缝外攻略组:先把塔放在走廊拐角(覆盖两段路),入口卡别攒着,修门要趁早。",
+      "* Strat corner: put towers on corridor corners (two lanes each); spend gate cards early."
+    );
+  } else if (runOutcome === "death") {
     coachAdvice = coachLine({
       kind: lastHitKind,
       survived: Math.floor(elapsed),
@@ -1445,7 +1487,8 @@ function settleGame(kind) {
   lastScore = bossDefeated ? stageClearScore : currentScore();
   // 匿名 run 汇总: win or loss, one whitelisted blob per registered run —
   // this is the production data the balance loop runs on (P1, 2026-07-12)
-  reportRankedRun({
+  // 塔防局: 未注册 run(startTdRun 不走 beginRankedRun),不上报不上榜
+  if (!tdMode) reportRankedRun({
     version: GAME_VERSION,
     mode: dailyMode ? "daily" : bossDefeated && runOutcome !== "victory" ? "endless" : "normal",
     outcome: runOutcome,
@@ -1473,13 +1516,20 @@ function settleGame(kind) {
     wallet: getCoins(),
     up: ["atk", "hp", "speed", "magnet", "greed", "reroll", "gear"].map((id) => upgradeLevel(id)).join("."),
   });
-  if (bossDefeated) finishRankedRun({ mode: dailyMode ? "daily" : runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: dailyMode || runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
-  else cancelRankedRun(); // died/quit before the boss: the run never boards
-  lastBest = bestScoreOf(player.character);
-  // Debug helpers may be useful for art/testing, but must never create a
-  // convincing local "最高" that looks like a missing legitimate rank.
-  newRecord = !PRODUCTION_DEBUG_RUN && lastScore > lastBest;
-  if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
+  if (!tdMode && bossDefeated) finishRankedRun({ mode: dailyMode ? "daily" : runOutcome === "victory" ? "normal" : "endless", elapsed, kills: player.kills, rounds: dailyMode || runOutcome === "victory" ? 0 : roundsCleared, stageElapsed: stageClearTime, stageKills: stageClearKills });
+  else cancelRankedRun(); // died/quit before the boss (或塔防局): the run never boards
+  if (tdMode) {
+    // 塔防最好成绩独立记账——量纲与经典分不可混,更不能上排行榜
+    lastBest = parseInt(localStorage.getItem("best_td") || "0", 10) || 0;
+    newRecord = lastScore > lastBest;
+    if (newRecord) localStorage.setItem("best_td", String(lastScore));
+  } else {
+    lastBest = bestScoreOf(player.character);
+    // Debug helpers may be useful for art/testing, but must never create a
+    // convincing local "最高" that looks like a missing legitimate rank.
+    newRecord = !PRODUCTION_DEBUG_RUN && lastScore > lastBest;
+    if (newRecord) localStorage.setItem("best_" + player.character, String(lastScore));
+  }
   // endless gets its own ledger and its own best
   endlessResult = null;
   if (bossDefeated && runOutcome !== "victory") {
@@ -2345,6 +2395,44 @@ function exitDailyMode() {
   setDifficulty(prevDifficultyId);
 }
 
+// ---- 塔防开局(2026-07-16): 复用 reset 的世界搭建,玩家本体退场 ---------------
+function startTdRun() {
+  exitDailyMode();
+  const lead = tdPickRoster[0];
+  selectedChar = Math.max(0, CHARACTERS.findIndex((c) => c.id === lead.charId)); // BGM/皮肤跟队长
+  reset(lead.weaponId); // reset 会清 tdMode——因此开关必须在 reset 之后立
+  tdMode = true;
+  // 玩家本体不上场: 无武器、隐形、永不受击——所有输出来自放置的 sans 塔,
+  // 但数值字段保留(塔的 getter 代理+攻击/攻速卡+商店加成都写在 player 上)
+  player.weapons = [];
+  player.x = WIDTH / 2;
+  player.y = HEIGHT / 2;
+  player.invuln = 9e9;
+  player.revives = 0;
+  reviveArmed = 0;
+  activeContract = null;
+  tutorialStep = -1;
+  td = tdNewRun(tdBuildMap(WIDTH, HEIGHT, WALL_H), tdPickRoster.map((m) => ({ ...m, placed: false })));
+  tdHoverCell = null;
+  funValue = 0; // 访客彩蛋绕着玩家转,塔防局关闭
+  savepointNote = null;
+  queueTipOnce("tdintro", t("塔防模式:守住左边的入口", "Tower defense: hold the gate"), [
+    t("点下方编队卡→点绿色地面放置 sans;击杀怪物攒经验,越放越贵", "Tap a squad card, then a green tile; kills earn XP, placing gets pricier"),
+    t("入口只有100血,被破坏后再放进一只怪就输了", "The gate has 100 HP; once destroyed, one more leak loses the run"),
+  ]);
+  state = "playing";
+  bgmPlay();
+}
+
+// 塔防失败: 破门后漏怪——借用死亡结算管线(player.hp=0 → death 结局)
+function tdLose(e) {
+  player.invuln = 0;
+  player.hp = 0;
+  lastHitBy = t(`${enemyDisplayName(e)}攻入了入口`, `${enemyDisplayName(e)} breached the gate`);
+  lastHitKind = killerKindOf(e);
+  settleGame();
+}
+
 function startGame() {
   reset(currentWeaponList()[selectedWeapon].id);
   if (DEBUG_BOSS !== null) {
@@ -2504,7 +2592,156 @@ function startGame() {
 
 // ---- 15s buff choices -----------------------------------------------------
 
+// ---- 塔防选卡池(2026-07-16 用户规格): 攻击类给塔,生存类给入口,
+// 专属/技能强化标题前缀角色名 -------------------------------------------------
+function buildTdChoicePool() {
+  const pool = [
+    {
+      kind: "atk",
+      weight: 16,
+      make: () => {
+        const gain = Math.max(4, Math.round(player.atk * 0.12));
+        return {
+          title: t(`全塔攻击 +${gain}`, `All towers ATK +${gain}`),
+          desc: t(`所有 sans 塔共享攻击成长\n当前 ${player.atk} → ${player.atk + gain}`, `Every tower shares ATK growth\nNow ${player.atk} → ${player.atk + gain}`),
+          color: "#ff6b6b",
+          apply: () => { player.atk += gain; },
+        };
+      },
+    },
+    {
+      kind: "fireRate",
+      weight: 14,
+      make: () => ({
+        title: t("全塔攻速 +0.12", "All towers Rate +0.12"),
+        desc: t(`出手更快\n当前 ${player.fireRate.toFixed(2)} → ${Math.min(50, player.fireRate + 0.12).toFixed(2)}`, `Faster attacks\nNow ${player.fireRate.toFixed(2)} → ${Math.min(50, player.fireRate + 0.12).toFixed(2)}`),
+        color: "#7cf28a",
+        apply: () => { player.fireRate = Math.min(50, player.fireRate + 0.12); },
+      }),
+    },
+    {
+      kind: "amp",
+      weight: 12,
+      make: () => ({
+        title: t("全塔增伤 +12%", "All towers DMG +12%"),
+        desc: t(`最终伤害乘区\n当前 +${Math.round((player.dmgAmp - 1) * 100)}% → +${Math.round((player.dmgAmp - 1) * 100) + 12}%`, `Final damage multiplier\nNow +${Math.round((player.dmgAmp - 1) * 100)}% → +${Math.round((player.dmgAmp - 1) * 100) + 12}%`),
+        color: "#ff8a5d",
+        apply: () => { player.dmgAmp += 0.12; },
+      }),
+    },
+  ];
+  const gate = td.entrance;
+  if (!gate.destroyed) {
+    // 入口卡: 血量/回血/减伤/闪避全部改喂入口(用户规格);门破后修不了
+    pool.push({
+      kind: "gateHp",
+      weight: 14,
+      make: () => ({
+        title: t("入口加固 +30", "Gate Max HP +30"),
+        desc: t(`上限提高并立刻回复30\n当前 ${Math.ceil(gate.hp)}/${gate.maxHp} → ${Math.min(gate.maxHp + 30, Math.ceil(gate.hp) + 30)}/${gate.maxHp + 30}`, `Raise the cap and heal 30\nNow ${Math.ceil(gate.hp)}/${gate.maxHp}`),
+        color: "#ff8fc7",
+        apply: () => { gate.maxHp += 30; gate.hp = Math.min(gate.maxHp, gate.hp + 30); },
+      }),
+    });
+    pool.push({
+      kind: "gateHeal",
+      weight: 12,
+      make: () => ({
+        title: t("入口修复 +40", "Gate Repair +40"),
+        desc: t(`立刻回复入口40点耐久\n当前 ${Math.ceil(gate.hp)}/${gate.maxHp}`, `Heal the gate for 40\nNow ${Math.ceil(gate.hp)}/${gate.maxHp}`),
+        color: "#7cf28a",
+        apply: () => { gate.hp = Math.min(gate.maxHp, gate.hp + 40); },
+      }),
+    });
+    if (gate.regen < 3) {
+      pool.push({
+        kind: "gateRegen",
+        weight: 10,
+        make: () => ({
+          title: t("入口自愈 +0.8/秒", "Gate Regen +0.8/s"),
+          desc: t(`入口持续回血(上限3/秒)\n当前 ${gate.regen.toFixed(1)}/秒`, `The gate heals itself (cap 3/s)\nNow ${gate.regen.toFixed(1)}/s`),
+          color: "#5ee6e6",
+          apply: () => { gate.regen = Math.min(3, gate.regen + 0.8); },
+        }),
+      });
+    }
+    if (gate.dmgReduction < 0.6) {
+      pool.push({
+        kind: "gateTough",
+        weight: 10,
+        make: () => ({
+          title: t("入口减伤 +8%", "Gate Damage Cut +8%"),
+          desc: t(`入口受到的伤害降低(上限60%)\n当前 ${Math.round(gate.dmgReduction * 100)}%`, `The gate takes less damage (cap 60%)\nNow ${Math.round(gate.dmgReduction * 100)}%`),
+          color: "#8fd6ff",
+          apply: () => { gate.dmgReduction = Math.min(0.6, gate.dmgReduction + 0.08); },
+        }),
+      });
+    }
+    if (gate.dodge < 0.35) {
+      pool.push({
+        kind: "gateDodge",
+        weight: 8,
+        make: () => ({
+          title: t("入口闪避 +5%", "Gate Dodge +5%"),
+          desc: t(`怪物的攻击有概率落空(上限35%)\n当前 ${Math.round(gate.dodge * 100)}%`, `Attacks can whiff (cap 35%)\nNow ${Math.round(gate.dodge * 100)}%`),
+          color: "#c59bff",
+          apply: () => { gate.dodge = Math.min(0.35, gate.dodge + 0.05); },
+        }),
+      });
+    }
+  }
+  // 已放塔的技能卡: 专属/品阶/进化,标题前面写角色名(用户规格)
+  for (const tw of td.towers) {
+    const inst = tw.pp.weapons[0];
+    const w = WEAPONS[inst.id];
+    const charName = pick(CHARACTERS.find((c) => c.id === tw.charId) || CHARACTERS[0], "name");
+    if (w.enhance) {
+      pool.push({
+        kind: "enhance",
+        weight: 16,
+        make: () => {
+          const stacks = inst.enhance;
+          const evoHint = w.evolve && !inst.evolved && stacks < 3 ? t(" · 满阶+3层可进化", " · Lv5 + 3 stacks to evolve") : "";
+          return {
+            title: `${charName}·${t("专属强化", "Signature")}`,
+            desc: `${pick(w.enhance, "desc")}\n(${stacks > 0 ? `${t("当前", "Now")} ${stacks} → ${stacks + 1} ${t("层", "stacks")}` : t("首层", "First stack")}${evoHint})`,
+            color: w.color,
+            apply: () => { inst.enhance += 1; },
+          };
+        },
+      });
+    }
+    if (inst.tier < 4) {
+      pool.push({
+        kind: "tierUp",
+        weight: 20,
+        make: () => ({
+          title: `${charName}·${t("品阶提升", "Tier Up")}`,
+          desc: `${pick(w, "name")}\nLv${inst.tier + 1} → Lv${inst.tier + 2}`,
+          color: w.color,
+          apply: () => { inst.tier = Math.min(inst.tier + 1, 4); },
+        }),
+      });
+    }
+    if (canEvolve(inst)) {
+      pool.push({
+        kind: "evolve",
+        weight: 60,
+        make: () => ({
+          title: `${charName}·${t("武器进化", "EVOLVE")}`,
+          desc: currentLang() === "en" ? `${pick(w, "name")} awakens as ${pick(w.evolve, "name")}!\n${pick(w.evolve, "desc")}` : `${w.name} 觉醒为 ${w.evolve.name}！\n${w.evolve.desc}`,
+          color: "#ffd166",
+          fanfare: true,
+          apply: () => { inst.evolved = true; },
+        }),
+      });
+    }
+  }
+  return pool;
+}
+
 function buildChoicePool() {
+  if (tdMode && td) return buildTdChoicePool();
   const pool = [
     {
       kind: "atk",
@@ -2879,6 +3116,46 @@ function handleCanvasTap(pos) {
     }
     return;
   }
+  // ---- 塔防局内点击: 编队卡 arm/取消 → 点绿格放置 ---------------------------
+  if (state === "playing" && tdMode && td) {
+    for (let i = 0; i < td.roster.length; i++) {
+      if (inRect(pos, tdBarSlotRect(i, WIDTH, HEIGHT))) {
+        const m = td.roster[i];
+        if (m.placed) { sfxHurt(); return; }
+        td.armedSlot = td.armedSlot === i ? -1 : i; // 再点=取消
+        tdHoverCell = null;
+        sfxClick();
+        return;
+      }
+    }
+    if (td.armedSlot >= 0) {
+      const cell = tdCellAt(td.map, pos.x, pos.y);
+      const occupied = cell && td.towers.some((tw) => tw.cell.c === cell.c && tw.cell.r === cell.r);
+      if (cell && cell.kind === 0 && !occupied) {
+        const m = td.roster[td.armedSlot];
+        const cost = tdPlaceCost(m.cost, td.placedCount);
+        if (td.xp >= cost) {
+          td.xp -= cost;
+          const at = tdCellCenter(td.map, cell.c, cell.r);
+          const inst = createWeaponInstance(m.weaponId);
+          td.towers.push({ slot: td.armedSlot, charId: m.charId, weaponId: m.weaponId, cell: { c: cell.c, r: cell.r }, pp: tdMakeTowerPP(at.x, at.y, m.charId, inst, player) });
+          m.placed = true;
+          td.placedCount += 1;
+          td.armedSlot = -1;
+          floatingTexts.push(new FloatingText(at.x, at.y - 34, `-${cost} ${t("经验", "XP")}`, "#ffd166"));
+          sfxEquip();
+        } else {
+          floatingTexts.push(new FloatingText(pos.x, pos.y - 20, t("经验不足", "Not enough XP"), "#c95d5d"));
+          sfxHurt();
+        }
+        return;
+      }
+      // 点了不可放置的位置: 取消放置态
+      td.armedSlot = -1;
+      tdHoverCell = null;
+      return;
+    }
+  }
   if (state === "title") {
     if (titleMenuOpen) {
       // null slots are the 成长/收藏 group headers — drawn, never clickable
@@ -2915,17 +3192,71 @@ function handleCanvasTap(pos) {
       loadLeaderboard();
       titleMenuOpen = false;
       sfxClick();
-    } else if (inRect(pos, dailyButtonRect(WIDTH, HEIGHT))) {
-      state = "dailyintro"; // explain the mode first — never start cold
-      bossClearChoice = 1;
-      titleMenuOpen = false;
-      sfxClick();
     } else if (inRect(pos, startButtonRect(WIDTH, HEIGHT))) {
-      toCharSelect();
+      state = "modeselect"; // 三模式集中在此(2026-07-16 塔防上线,主键改"选择模式")
       titleMenuOpen = false;
       sfxClick();
     } else {
       titleMenuOpen = false; // tap empty space: fold the drawer
+    }
+    return;
+  }
+  if (state === "modeselect") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "title";
+      sfxClick();
+      return;
+    }
+    if (inRect(pos, modeOptionRect(0, WIDTH, HEIGHT))) {
+      toCharSelect(); // 经典
+      sfxClick();
+    } else if (inRect(pos, modeOptionRect(1, WIDTH, HEIGHT))) {
+      state = "dailyintro"; // 每日: 保留说明大厅,不冷启动
+      bossClearChoice = 1;
+      sfxClick();
+    } else if (inRect(pos, modeOptionRect(2, WIDTH, HEIGHT))) {
+      tdPickSel = 0;
+      tdPickRoster = [];
+      state = "tdpick";
+      sfxClick();
+    }
+    return;
+  }
+  if (state === "tdpick") {
+    if (inRect(pos, backButtonRect(WIDTH, HEIGHT))) {
+      state = "modeselect";
+      sfxClick();
+      return;
+    }
+    const locks = charLocksNow();
+    for (let i = 0; i < CHARACTERS.length; i++) {
+      if (inRect(pos, tdPickCharRect(i, WIDTH))) {
+        if (!locks[CHARACTERS[i].id]) tdPickSel = i; // 锁定角色不可选(去经典模式买断)
+        sfxClick();
+        return;
+      }
+    }
+    const c = CHARACTERS[tdPickSel];
+    const usable = WEAPON_LISTS[c.id].filter(tdWeaponAllowed);
+    for (let i = 0; i < usable.length; i++) {
+      if (inRect(pos, tdPickWeaponRect(i, WIDTH))) {
+        if (tdPickRoster.length < 3 && !tdPickRoster.some((m) => m.charId === c.id)) {
+          tdPickRoster.push({ char: c, weapon: usable[i], charId: c.id, weaponId: usable[i].id, cost: c.cost || 1000, placed: false });
+          sfxEquip();
+        } else sfxHurt(); // 满3或该sans已在队列
+        return;
+      }
+    }
+    for (let i = 0; i < 3; i++) {
+      if (inRect(pos, tdRosterSlotRect(i, WIDTH, HEIGHT)) && tdPickRoster[i]) {
+        tdPickRoster.splice(i, 1);
+        sfxClick();
+        return;
+      }
+    }
+    if (inRect(pos, tdStartRect(WIDTH, HEIGHT)) && tdPickRoster.length > 0) {
+      startTdRun();
+      sfxClick();
     }
     return;
   }
@@ -3325,7 +3656,15 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (state === "title") {
-    if (k === " " || k === "enter") state = "charselect";
+    if (k === " " || k === "enter") state = "charselect"; // 键盘快捷: 空格直入经典(老玩家肌肉记忆)
+    return;
+  }
+  if (state === "modeselect") {
+    if (k === "escape") state = "title";
+    return;
+  }
+  if (state === "tdpick") {
+    if (k === "escape") state = "modeselect";
     return;
   }
   if (state === "leaderboard") {
@@ -3885,13 +4224,14 @@ function update(dt) {
   }
 
   // boss warning siren beeps every 10s while the red pulse runs
-  if (bossWarnActive() && elapsed >= nextWarnBeep) {
+  if (!tdMode && bossWarnActive() && elapsed >= nextWarnBeep) {
     nextWarnBeep += 10;
     sfxAlarm();
   }
 
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
-  if (!bossFight && !bossDefeated && elapsed >= bossAppearAt()) {
+  // (塔防的走路版Boss在Phase 2——先不出场,无限刷怪守门)
+  if (!tdMode && !bossFight && !bossDefeated && elapsed >= bossAppearAt()) {
     bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H, getDifficulty().id);
     bossFightStartedAt = elapsed;
     bossPhaseReached = 1;
@@ -3934,7 +4274,7 @@ function update(dt) {
   camX = player.x - WIDTH / 2;
 
   if (!bossCutscene) {
-    updateWeapons(player, dt, {
+    const weaponWorld = {
       enemies,
       projectiles,
       spawnProjectile,
@@ -3942,7 +4282,13 @@ function update(dt) {
       spawnSpike,
       spawnBlast,
       bounds: { top: WALL_H + 20, bottom: HEIGHT - 16 }, // playfield, excluding the column wall
-    });
+    };
+    updateWeapons(player, dt, weaponWorld); // 塔防局 player.weapons=[] 自然空转
+    if (tdMode && td) {
+      for (const tw of td.towers) updateWeapons(tw.pp, dt, weaponWorld); // 每座塔跑同一套武器系统
+      tdEntranceTick(td.entrance, dt);
+      if (td.entrance.destroyed) td.entrance.warnT += dt;
+    }
   }
 
   // 新手引导推进: 完成条件满足且至少露脸1.2s → 下一步
@@ -3965,6 +4311,12 @@ function update(dt) {
   if (!bossFight) {
     for (const e of spawner.update(dt, camX)) {
       if (enemies.length >= 220) break; // hard cap: keep phones alive in endless
+      if (tdMode && td) {
+        // 塔防: 出怪节奏原样复用,出生点重定位到走廊右端(带纵向抖动防叠罗汉)
+        e.x = td.map.spawn.x + Math.random() * 60;
+        e.y = td.map.spawn.y + (Math.random() - 0.5) * TD_CELL * 0.6;
+        e.tdWp = 0;
+      }
       enemies.push(e);
     }
   }
@@ -4204,20 +4556,62 @@ function update(dt) {
 
   // enemies left far behind wrap around to just ahead of the view so
   // running sideways forever doesn't shake off the horde
-  for (const e of enemies) {
-    if (e.boss) continue;
-    const dx = e.x - player.x;
-    if (Math.abs(dx) > WIDTH / 2 + 140) {
-      e.x = player.x - Math.sign(dx) * (WIDTH / 2 + 60);
-      e.y = WALL_H + Math.random() * (HEIGHT - WALL_H);
+  if (!tdMode) {
+    for (const e of enemies) {
+      if (e.boss) continue;
+      const dx = e.x - player.x;
+      if (Math.abs(dx) > WIDTH / 2 + 140) {
+        e.x = player.x - Math.sign(dx) * (WIDTH / 2 + 60);
+        e.y = WALL_H + Math.random() * (HEIGHT - WALL_H);
+      }
     }
   }
 
   const shieldUp = player.shieldTimer > 0;
   for (const e of enemies) {
     if (e.boss) continue; // the boss is driven by its own controller
-    e.update(dt, player);
-    updateEliteSkill(e, dt);
+    if (tdMode && td) {
+      // 塔防: 目标=当前路径点(icecap 的标记目标=前方路径格,由 tdTargetFor 提供)
+      const wp = tdTargetFor(e, td.map);
+      if (e.tdJumpPending !== undefined && e.mark) {
+        // icecap 完成标记的瞬间锁定跳转索引,落地时 tdTargetFor 消费
+        e.tdJumpTo = e.tdJumpPending;
+        delete e.tdJumpPending;
+      }
+      if (tdAtGate(e, td.map)) {
+        if (td.entrance.destroyed) {
+          // 门已破: 再进来一只就算输(用户规格——破坏那一下只出警告)
+          tdLose(e);
+          return;
+        }
+        // 到门口: 不再位移,按接触节奏攻击入口
+        e.update(dt, { x: e.x, y: e.y });
+        if (e.contactTimer <= 0 && !e.cannotAttack && e.rootTimer <= 0) {
+          e.contactTimer = e.contactInterval || 1;
+          const dealt = tdHitEntrance(td.entrance, e.dmg);
+          if (dealt > 0) {
+            floatingTexts.push(new FloatingText(td.entrance.x + 8, td.entrance.y - 30, `-${dealt}`, "#ff5d73"));
+            sfxHurt();
+          } else {
+            floatingTexts.push(new FloatingText(td.entrance.x + 8, td.entrance.y - 30, "MISS!", "#7cf28a"));
+          }
+          if (td.entrance.destroyed) {
+            // 破门冲击波: 门口的怪全部炸开(最后的喘息),之后新到达者判负
+            explosions.push(new Explosion(td.entrance.x, td.entrance.y, TD_CELL * 2.2, "#ff3d5a"));
+            for (const o of enemies) {
+              if (!o.boss && tdAtGate(o, td.map)) o.hp = 0;
+            }
+            sfxAlarm();
+            tipQueue.push({ title: t("⚠ 入口已被破坏!", "⚠ GATE DESTROYED!"), lines: [t("无法再回血——下一只怪物冲进来就输了", "No more healing — the next leak loses the run")], t: 6 });
+          }
+        }
+      } else {
+        e.update(dt, wp);
+      }
+    } else {
+      e.update(dt, player);
+    }
+    if (!tdMode) updateEliteSkill(e, dt);
     // batched damage number: one floater per 0.3s window, tiny ticks stay silent
     if (e.dmgFlushT > 0) {
       e.dmgFlushT -= dt;
@@ -4428,7 +4822,14 @@ function update(dt) {
     player.kills += 1;
     const codexKey = codexKeyForEnemy(e);
     runKillsByType[codexKey] = (runKillsByType[codexKey] || 0) + 1;
-    if (!e.noXp) spawnDrops(e);
+    if (tdMode && td) {
+      // 塔防经济: 经验/金币直接入账(没有本体去捡)——蛙吉特5/杰瑞15,
+      // 精英×10/冠军×30(见 tdXpFor);金币按简化期望直储
+      const gain = tdXpFor(e, getDifficulty().xpMult);
+      td.xp += gain;
+      if (floatingTexts.length < 40) floatingTexts.push(new FloatingText(e.x, e.y - e.radius - 10, `+${gain}`, "#7cf28a"));
+      runCoins += e.championProfile ? 8 : e.elite ? 3 : Math.random() < 0.13 ? 1 + Math.floor(Math.random() * 2) : 0;
+    } else if (!e.noXp) spawnDrops(e);
     if (e.roundBoss) {
       roundBossDown = true;
       floatingTexts.push(new FloatingText(e.x, e.y - 30, t(`${enemyDisplayName(e)}被击败！`, `${enemyDisplayName(e)} defeated!`), "#ffd166"));
@@ -4727,6 +5128,23 @@ function draw() {
 
   ctx.save();
   ctx.translate(-camX, 0); // world space from here
+
+  // 塔防场地垫底: 网格/走廊/障碍/红门,以及放置态的绿格提示(camX=0)
+  if (tdMode && td && (state === "playing" || state === "paused" || state === "choice" || state === "chest" || state === "gameover")) {
+    drawTdField(ctx, td.map, td.entrance, td.armedSlot >= 0, tdHoverCell, td.towers);
+    // 塔本体: 各角色朝左站桩+角色色辉光
+    for (const tw of td.towers) {
+      ctx.save();
+      const glow = CHAR_GLOWS[tw.charId];
+      if (glow) {
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 14;
+      }
+      const set = WALK_SETS[tw.charId] || WALK_SETS.sans;
+      drawSprite(ctx, (set.left || set.down)[0], tw.pp.x, tw.pp.y, 34);
+      ctx.restore();
+    }
+  }
 
   for (const pu of pickups) {
     if (pu.kind === "bossheart") {
@@ -5698,7 +6116,7 @@ function draw() {
   // hit invuln blinks; active (slam-enhance) invuln glows white instead
   const activeInv = player.activeInvuln > 0;
   const flickerHidden = player.invuln > 0 && !activeInv && Math.floor(player.invuln * 16) % 2 === 0;
-  if (!flickerHidden) {
+  if (!flickerHidden && !tdMode) { // 塔防: 本体退场,输出全在塔上
     const set = WALK_SETS[player.character] || WALK_SETS.sans;
     const frames = set[player.dir] || set.down;
     // 4-frame cycle like the sheet: stand, step, stand, other step
@@ -6081,7 +6499,19 @@ function draw() {
     ctx.textAlign = "left";
   }
 
-  drawHud(ctx, WIDTH, player, elapsed, healFlash, !!bossFight, weaponSummary(player));
+  if (tdMode && td) {
+    // 塔防HUD: 入口血条顶替玩家血条(左上),经验与编队栏在底部
+    drawTdEntranceHud(ctx, td.entrance);
+    if (state === "playing" || state === "paused" || state === "choice") drawTdBar(ctx, WIDTH, HEIGHT, td);
+    // 计时器沿用(顶部中央)
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f2ead8";
+    ctx.font = "16px monospace";
+    ctx.fillText(`${Math.floor(elapsed / 60)}:${String(Math.floor(elapsed % 60)).padStart(2, "0")}`, WIDTH / 2, 32);
+    ctx.textAlign = "left";
+  } else {
+    drawHud(ctx, WIDTH, player, elapsed, healFlash, !!bossFight, weaponSummary(player));
+  }
   const activeRoundBoss = endlessRound > 0
     ? enemies.find((enemy) => enemy.roundBoss && enemy.hp > 0)
     : null;
@@ -6304,6 +6734,16 @@ function draw() {
     drawCodexScreen(ctx, WIDTH, HEIGHT, monsters, st.bossKills, weaponRows, codexCompletion(), codexSelected);
   } else if (state === "leaderboard") {
     drawLeaderboard(ctx, WIDTH, HEIGHT);
+  } else if (state === "modeselect") {
+    drawModeSelect(ctx, WIDTH, HEIGHT);
+    drawBackButton(ctx, WIDTH, HEIGHT);
+  } else if (state === "tdpick") {
+    {
+      const locks = charLocksNow();
+      const c = CHARACTERS[tdPickSel];
+      drawTdPick(ctx, WIDTH, HEIGHT, CHARACTERS, tdPickSel, WEAPON_LISTS[c.id].filter(tdWeaponAllowed), tdPickRoster, locks);
+      drawBackButton(ctx, WIDTH, HEIGHT);
+    }
   } else if (state === "charselect") {
     {
       const pageChars = charPageList();
@@ -7105,6 +7545,25 @@ function draw() {
 // debug probe (dev only)
 window.__dbg = () => ({
   state,
+  td: tdMode && td
+    ? {
+        gateHp: Math.ceil(td.entrance.hp),
+        gateMax: td.entrance.maxHp,
+        destroyed: td.entrance.destroyed,
+        xp: Math.floor(td.xp),
+        towers: td.towers.length,
+        armed: td.armedSlot,
+        roster: td.roster.length,
+        // 随机地图下给测试一个确定的可放格中心
+        freeCell: (() => {
+          for (let r = 0; r < td.map.rows; r++)
+            for (let c = 0; c < td.map.cols; c++)
+              if (td.map.grid[r][c] === 0 && !td.towers.some((tw) => tw.cell.c === c && tw.cell.r === r))
+                return tdCellCenter(td.map, c, r);
+          return null;
+        })(),
+      }
+    : null,
   elapsed: Math.round(elapsed * 10) / 10,
   introBlack: Math.round(introBlack * 100) / 100,
   boss: bossFight ? bossFight.state + "/" + bossFight.step : null,

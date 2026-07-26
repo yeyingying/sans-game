@@ -290,7 +290,8 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 22px monospace";
-  ctx.fillText(t("开 始", "S T A R T"), width / 2, btn.y + btn.h / 2 + 8);
+  // 2026-07-16 塔防上线: 主键改"选择模式",经典/每日/塔防三模式集中收纳
+  ctx.fillText(t("选 择 模 式", "SELECT MODE"), width / 2, btn.y + btn.h / 2 + 8);
 
   // credits button, tucked into the bottom-right corner
   const cb = creditsButtonRect(width, height);
@@ -356,18 +357,7 @@ export function drawTitleScreen(ctx, width, height, portraits, coins = 0, codexP
     });
   }
 
-  // daily challenge stays outside the drawer — time-limited hooks are
-  // never hidden behind a fold
-  const db = dailyButtonRect(width, height);
-  ctx.fillStyle = "#1f1626";
-  ctx.fillRect(db.x, db.y, db.w, db.h);
-  ctx.strokeStyle = "#c59bff";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(db.x, db.y, db.w, db.h);
-  ctx.fillStyle = "#c59bff";
-  ctx.font = "bold 15px monospace";
-  drawIconLabel(ctx, ICONS.daily, t("每日挑战", "Daily Run"), db.x + db.w / 2, db.y + db.h / 2 + 5, 16, 6);
-
+  // 每日挑战并入"选择模式"(2026-07-16)——标题页副键只剩排行榜
   const rb = leaderboardButtonRect(width, height);
   ctx.fillStyle = "#261b16";
   ctx.fillRect(rb.x, rb.y, rb.w, rb.h);
@@ -845,14 +835,14 @@ export function codexButtonRect(width, height) {
   return { x: 216, y: height - 52, w: 110, h: 34 };
 }
 
-// 三主键(2026-07-12 UX批次): 开始/每日/排行榜是仅有的三个主行动,
-// 并排立在屏幕中央;其余一切收进 ☰ 分组抽屉
+// 主键布局(2026-07-16 塔防批): [选择模式] 大键 + [排行榜] 独立副键居中;
+// 每日挑战并入模式选择,dailyButtonRect 保留导出防旧引用但不再绘制
 export function dailyButtonRect(width, height) {
   return { x: width / 2 - T(165, 172), y: height / 2 + T(132, 136), w: T(150, 162), h: T(40, 52) };
 }
 
 export function leaderboardButtonRect(width, height) {
-  return { x: width / 2 + T(15, 10), y: height / 2 + T(132, 136), w: T(150, 162), h: T(40, 52) };
+  return { x: width / 2 - T(75, 81), y: height / 2 + T(132, 136), w: T(150, 162), h: T(40, 52) };
 }
 
 // ---- boss-clear choice screen ------------------------------------------------
