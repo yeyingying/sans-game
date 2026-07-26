@@ -739,6 +739,11 @@ if (MODE === "normal") {
   tap(480, 531); // 开 始 守 门
   const td0 = dbg().td;
   check("td run starts with 100hp gate + 1000xp", dbg().state === "playing" && td0 && td0.gateHp === 100 && td0.xp === 1000, JSON.stringify(td0));
+  check(
+    "td starts at 1x with leader BGM and no menu overlap",
+    dbg().timeScale === 1 && /MEGALOVANIA\.mp3/.test(dbg().battleTrack) && dbg().menuTrackPaused,
+    JSON.stringify({ speed: dbg().timeScale, track: dbg().battleTrack, menuPaused: dbg().menuTrackPaused })
+  );
   run(2); // 开场黑幕
   tap(300, 564); // 编队卡0 -> 进入放置态
   check("td slot armed", dbg().td && dbg().td.armed === 0, JSON.stringify(dbg().td));

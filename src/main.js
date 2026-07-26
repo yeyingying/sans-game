@@ -1043,6 +1043,19 @@ bgm.addEventListener("error", () => {
 function bgmPlay() {
   bgm.play().catch(() => {}); // autoplay may be blocked until a user gesture
 }
+function startBattleBgm() {
+  // Both classic and TD runs leave the menu through different state paths.
+  // Keep the audio handoff in one place so a new mode cannot accidentally
+  // inherit the previous run's track or overlap the title theme.
+  menuBgm.pause();
+  menuBgm.muted = true; // iOS ignores volume writes — mute is the real switch
+  menuBgm.currentTime = 0;
+  menuBgm.volume = 0;
+  bgm.muted = audioMuted;
+  bgm.src = BGM_TRACKS[currentCharacter().id] || "MEGALOVANIA.mp3";
+  bgm.volume = 0;
+  bgmPlay();
+}
 function gameVolTarget() {
   return Math.min(bgmVolume * (CHAR_VOL[player?.character] || 1), 1);
 }
@@ -2398,10 +2411,13 @@ function exitDailyMode() {
 // ---- 塔防开局(2026-07-16): 复用 reset 的世界搭建,玩家本体退场 ---------------
 function startTdRun() {
   exitDailyMode();
+  cancelRankedRun(); // TD is local-only in Phase 1; discard any stale classic handle
   const lead = tdPickRoster[0];
   selectedChar = Math.max(0, CHARACTERS.findIndex((c) => c.id === lead.charId)); // BGM/皮肤跟队长
   reset(lead.weaponId); // reset 会清 tdMode——因此开关必须在 reset 之后立
   tdMode = true;
+  timeScale = 1; // never inherit 2×/3× from the previous classic run
+  introBlack = 1.5;
   // 玩家本体不上场: 无武器、隐形、永不受击——所有输出来自放置的 sans 塔,
   // 但数值字段保留(塔的 getter 代理+攻击/攻速卡+商店加成都写在 player 上)
   player.weapons = [];
@@ -2421,7 +2437,7 @@ function startTdRun() {
     t("入口只有100血,被破坏后再放进一只怪就输了", "The gate has 100 HP; once destroyed, one more leak loses the run"),
   ]);
   state = "playing";
-  bgmPlay();
+  startBattleBgm();
 }
 
 // 塔防失败: 破门后漏怪——借用死亡结算管线(player.hp=0 → death 结局)
@@ -2552,21 +2568,12 @@ function startGame() {
     introBlack = 0;
     openChest(parseInt(DEBUG_CHEST, 10) || 0); // ?chest / ?chest=3 / ?chest=5
   }
-  // hard-stop the menu theme so it never overlaps the battle track
-  menuBgm.pause();
-  menuBgm.muted = true; // iOS ignores volume writes — mute is the real switch
-  menuBgm.currentTime = 0;
-  menuBgm.volume = 0;
-  bgm.muted = audioMuted; // 全局静音开着就别在开局解除
-  const track = BGM_TRACKS[currentCharacter().id] || "MEGALOVANIA.mp3";
-  bgm.src = track; // reload also resets playback to the start
-  bgm.volume = 0; // fades up during the intro
-  bgmPlay();
+  startBattleBgm();
   cancelRankedRun(); // drop any stale unsettled ranked handle before a new run
   // Ranked time starts with the run, not with the first upgrade card. The
   // client retries identity/run registration in the background if mobile
   // networking is briefly unavailable.
-  beginRankedRun(rankedRunRequest(), rankedRunStats);
+  if (!tdMode) beginRankedRun(rankedRunRequest(), rankedRunStats);
   funValue = 1 + Math.floor(Math.random() * 100); // fresh FUN roll each run
   // savepoint aphorism: typed out as the black intro lifts (UT save-star vibe)
   // 新手引导: 没看完教程且账号还很新时开启(首局死掉允许第二局重看)
@@ -3058,7 +3065,7 @@ function applyChoice(i) {
   choiceOptions = [];
   state = "playing";
   // Also acts as an immediate retry point after a transient start failure.
-  beginRankedRun(rankedRunRequest(), rankedRunStats);
+  if (!tdMode) beginRankedRun(rankedRunRequest(), rankedRunStats);
 }
 
 // ---- input ---------------------------------------------------------------
@@ -7565,6 +7572,9 @@ window.__dbg = () => ({
       }
     : null,
   elapsed: Math.round(elapsed * 10) / 10,
+  timeScale,
+  battleTrack: bgm.src || "",
+  menuTrackPaused: menuBgm.paused,
   introBlack: Math.round(introBlack * 100) / 100,
   boss: bossFight ? bossFight.state + "/" + bossFight.step : null,
   bossHp: bossFight ? bossFight.boss.hp : null,
