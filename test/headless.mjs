@@ -751,15 +751,56 @@ if (MODE === "normal") {
   check("td map exposes a free cell", !!fc);
   tap(fc.x, fc.y); // 放塔
   check("td tower placed, xp spent", dbg().td.towers === 1 && dbg().td.xp === 0, JSON.stringify(dbg().td));
-  run(50); // 怪物沿走廊压向入口,塔开火
-  const tdMid = dbg().td;
-  check("td pressure or income arrived", tdMid.gateHp < tdMid.gateMax || tdMid.xp > 0, JSON.stringify(tdMid));
-  check("td survives 50s without crash", dbg().state === "playing" || dbg().state === "choice" || dbg().state === "gameover", dbg().state);
-  if (dbg().state !== "gameover") {
-    key("z");
-    tap(480, 423); // 暂停 -> 退出
+  // healGate 钩子保门跑30秒——单塔守100血门本身是输得掉的,而 Phase 2 冒烟
+  // 需要确定性活到 Boss/无尽段;真实压力(门被打/塔有收入)沿途顺带观察。
+  // 不能拖到50秒再rush: 塔杀不完的怪会在门口堆到"单帧伤害>整门血",
+  // 每帧回满也救不回来
+  let sawPressure = false;
+  const guard = (d) => {
+    if (d && d.td && (d.td.gateHp < d.td.gateMax || d.td.xp > 0)) sawPressure = true;
+    window.__tdtest.healGate();
+    return false;
+  };
+  run(30, guard);
+  check("td survives 30s without crash", dbg().state === "playing" || dbg().state === "choice", dbg().state);
+  // ---- 塔防 Phase 2: 走路版天意 → bossclear 选择 → 无尽轮 → 撤离结算 ------
+  {
+    run(1, guard); // 清掉可能悬着的选卡帧
+    check("tdtest rush accepted", window.__tdtest.rushBoss() === true, dbg().state);
+    run(3, guard); // 0.5s 后 Boss 进场
+    let d = dbg();
+    check("td boss spawned with calibrated hp", d.td.bossSpawned && d.td.bossHp >= 9000, JSON.stringify(d.td));
+    check("td boss is a walker, not the duel script", d.boss === null, String(d.boss));
+    check("tdtest crush accepted", window.__tdtest.crushBoss() === true);
+    frame();
+    guard(dbg());
+    d = dbg();
+    check("td boss down -> bossclear choice", d.state === "bossclear" && d.bossDefeated && d.stageScore > 0, JSON.stringify({ state: d.state, stage: d.stageScore }));
+    key("ArrowRight"); // 继续接受审判
+    key("Enter");
+    d = dbg();
+    check("td endless round 1 starts", d.state === "playing" && d.round === 1 && d.endless === true, JSON.stringify({ state: d.state, round: d.round }));
+    run(2, guard);
+    window.__tdtest.completeRound();
+    frame();
+    guard(dbg());
+    check("td roundclear reached", dbg().state === "roundclear", dbg().state);
+    tap(350, 371); // 撤离结算
+    d = dbg();
+    check("td retreat settles", d.state === "gameover" && d.outcome === "retreat", d.outcome);
+    check("td best stored locally", parseInt(storage.best_td || "0", 10) > 0, storage.best_td);
+    check(
+      "td boss kill stays out of classic progression (bossKills/diffCleared)",
+      (JSON.parse(storage.metaStats || "{}").bossKills || 0) === 0 && (JSON.parse(storage.metaStats || "{}").diffCleared ?? -1) <= 0,
+      storage.metaStats
+    );
+    check(
+      "td endless ledger isolated from char ledgers",
+      storage.best_endless_round_td === "1" && storage.best_endless_round_sans === undefined,
+      JSON.stringify({ td: storage.best_endless_round_td, sans: storage.best_endless_round_sans })
+    );
+    check("td pressure or income arrived", sawPressure, JSON.stringify(dbg().td));
   }
-  check("td settles clean", dbg().state === "gameover", dbg().state);
 } else if (MODE === "clear") {
   // ?boss=weak route: actually beat the boss, then exercise the boss-clear
   // choice, the 90s judgement rounds and every settlement outcome.

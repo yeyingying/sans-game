@@ -213,6 +213,7 @@ export class Enemy {
     // rooted enemies lose their invulnerability
     if (this.invulnTimer > 0 && this.rootTimer <= 0) return false;
     if (this.elite && Enemy.eliteAmp > 1) dmg = Math.round(dmg * Enemy.eliteAmp); // 弹壳遗物
+    Enemy.dmgDealt = (Enemy.dmgDealt || 0) + dmg; // 累计输出(塔防Boss血量按全塔DPS标定)
     this.hp -= dmg;
     this.hitFlash = 0.15;
     this.dmgAccum += dmg;

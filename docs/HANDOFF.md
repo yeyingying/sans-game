@@ -1,7 +1,7 @@
 # Sans 割草项目交接文档
 
 最后核对日期：2026-07-26
-功能基线：`ae4d394`（塔防模式 Phase 1，含后续稳定性修复）
+功能基线：塔防模式 Phase 2（TD 版天意侵蚀Sans + 塔防无尽轮，见 `git log` 最新提交；Phase 1 基线为 `ae4d394`）
 仓库：`https://github.com/yeyingying/sans-game.git`  
 主分支：`main`
 
@@ -55,13 +55,16 @@
 - 玩家生命硬上限 10000，攻速硬上限 50；回血卡最高可到每秒 10%，出现概率逐步递减。
 - 标题页通过“选择模式”进入经典、每日或塔防；空格键仍可直接进入经典模式。
 
-### 塔防 Phase 1
+### 塔防 Phase 1 + Phase 2
 
 - 最多选择 3 名 Sans，每名携带 1 把适合站桩的武器，沿随机走廊守住左侧入口。
 - 怪物、武器、选卡、经验和结算复用现有系统；入口初始 100 HP，破门后无法回血，再漏一只怪即失败。
-- Phase 1 不申请排行榜 run、不上传匿名 run 报告，成绩只保存在当前浏览器的 `best_td`。
-- `mode: "td"` 尚未加入服务端遥测白名单；是否采集塔防平衡数据需单独裁决。
-- TD 版天意侵蚀 Sans 与破门后的无尽流程属于 Phase 2，当前尚未实现。
+- 塔防不申请排行榜 run、不上传匿名 run 报告，成绩只保存在当前浏览器的 `best_td`（无尽独立键 `best_endless_td` / `best_endless_round_td`）。
+- Phase 2（2026-07-26 上线）：TD 版天意侵蚀Sans 是走路径的特殊怪（不用 `boss.js` 决斗剧本）——5:00 从走廊右端进场，血量按全塔最近 30 秒实测 DPS 标定（`Enemy.dmgDealt` 累计 + `td.dmgLog` 滚动窗口，`tdBossHp()` 夹在 9000~150 万），速度 42、每 2.5 秒打门 10 点；美术为 sans 走图侵蚀红染（`TD_BOSS_FRAMES`），顶部复用无尽首领的独立血条。
+- Boss 死亡＝竞技止血冻结阶段分 → `bossclear` 选择：离开＝通关结算；继续＝90 秒无尽审判轮。无尽首领（champion）在塔防中从走廊右端入轨压门，打门伤害节制为 `gateDmg`（12+2×轮）；轮内金币进「待结算」池，风险规则与经典一致；round 4+ 危险领域在塔防关闭。
+- 隔离契约：TD 击败 Boss 不计入 `bossKills`、不推进难度解锁 `diffCleared`、不发 Boss 系称号（和平主义者/渡鸦/尘归尘）、不解锁 Boss 系回响（after/wd/dust）、不触发审判纪元章节、不写崩溃检查点；走廊绘制含流向箭头脉冲动画。
+- 测试钩子 `window.__tdtest`（rushBoss/crushBoss/completeRound/healGate）常驻——塔防成绩仅存本地，不构成竞技作弊面；headless normal 模式覆盖 编队→放塔→Boss→bossclear→无尽→撤离 全链。
+- `mode: "td"` 尚未加入服务端遥测白名单；是否采集塔防平衡数据需单独裁决（裁决前塔防不发任何上报）。
 
 ### Boss 与无尽
 

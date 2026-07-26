@@ -143,7 +143,25 @@ export function tdNewRun(map, roster) {
     roster, // [{charId, weaponId, cost, placed}]
     lost: false,
     lostT: 0,
+    // Phase 2: TD 版天意侵蚀Sans(走路径Boss)
+    bossSpawned: false,
+    bossDown: false,
+    dmgLog: [], // 每秒一条 Enemy.dmgDealt 累计快照,Boss血量按窗口DPS标定
+    dmgLogT: 0,
   };
+}
+
+// 全塔滚动DPS: dmgLog 存最近约30秒的累计输出快照,差分即窗口均值。
+// Boss 血量沿用经典的自适应思路(实测输出×目标时长),TD 目标≈42秒——
+// 走廊行军约30秒,留一小段门口输出窗;上下限防炸(没放塔/极限构筑)。
+export function tdMeasuredDps(td) {
+  const log = td.dmgLog;
+  if (log.length < 2) return 0;
+  return Math.max(0, (log[log.length - 1] - log[0]) / (log.length - 1));
+}
+
+export function tdBossHp(dps) {
+  return Math.round(Math.min(1500000, Math.max(9000, dps * 42)));
 }
 
 // 塔的伪玩家: 数值字段 getter 代理到主 player——攻击/攻速/增伤选卡与
@@ -230,15 +248,13 @@ export function drawTdField(ctx, map, entrance, armed, hoverCell, towers) {
       const y = map.oy + r * TD_CELL;
       const kind = map.grid[r][c];
       if (kind === 1) {
-        // 走廊: 比地面亮一档的踩实土路 + 中央暗红引导点——怪走哪条路
-        // 必须零学习成本读出来(放置绿格只在选卡时亮,平时全靠这里)
+        // 走廊: 比地面亮一档的踩实土路——怪走哪条路必须零学习成本读出来
+        // (放置绿格只在选卡时亮,平时全靠这里;流向箭头在格子循环后统一画)
         ctx.fillStyle = "#241b26";
         ctx.fillRect(x, y, TD_CELL, TD_CELL);
         ctx.strokeStyle = "#3a2a34";
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 1, y + 1, TD_CELL - 2, TD_CELL - 2);
-        ctx.fillStyle = "#5a2430";
-        ctx.fillRect(x + TD_CELL / 2 - 3, y + TD_CELL / 2 - 3, 6, 6);
       } else if (kind === 2) {
         ctx.fillStyle = "#171322";
         ctx.fillRect(x, y, TD_CELL, TD_CELL);
@@ -255,6 +271,35 @@ export function drawTdField(ctx, map, entrance, armed, hoverCell, towers) {
       }
     }
   }
+  // 走廊流向箭头(Phase 2): 每格一枚指向下一路径点的暗红箭头,亮度沿
+  // 行进方向脉冲流动——不看文字也知道怪从右缘涌向左门
+  ctx.save();
+  ctx.strokeStyle = "#8f3448";
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  const flowPhase = performance.now() / 380;
+  for (let k = 0; k < map.cells.length - 1; k++) {
+    const a = map.waypoints[k];
+    const b = map.waypoints[k + 1];
+    const dx = Math.sign(b.x - a.x);
+    const dy = Math.sign(b.y - a.y);
+    // 波峰沿 k 增大方向移动;基础透明度保证静止时也读得出方向
+    const crest = Math.sin(flowPhase - k * 0.55);
+    ctx.globalAlpha = 0.22 + 0.5 * Math.max(0, crest) * Math.max(0, crest);
+    const s = 6;
+    ctx.beginPath();
+    if (dx !== 0) {
+      ctx.moveTo(a.x - dx * s, a.y - s);
+      ctx.lineTo(a.x + dx * s, a.y);
+      ctx.lineTo(a.x - dx * s, a.y + s);
+    } else {
+      ctx.moveTo(a.x - s, a.y - dy * s);
+      ctx.lineTo(a.x, a.y + dy * s);
+      ctx.lineTo(a.x + s, a.y - dy * s);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
   // 放置态: 可放格泛绿,悬停格高亮
   if (armed) {
     ctx.save();

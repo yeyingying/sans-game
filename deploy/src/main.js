@@ -157,6 +157,7 @@ const GAME_VERSION = "s2-20260718"; // 无尽首领强化+成长硬上限+回血
 import {
   BASE_MONSTERS,
   CODEX_MONSTERS,
+  CORRUPTED_SANS,
   codexKeyForEnemy,
   championForRound,
   eliteProfilePool,
@@ -206,6 +207,8 @@ import {
   tdEntranceTick,
   tdXpFor,
   tdPlaceCost,
+  tdMeasuredDps,
+  tdBossHp,
   drawTdField,
   drawTdEntranceHud,
   drawTdBar,
@@ -575,6 +578,9 @@ let dailyMode = false;
 // ---- 塔防模式状态(2026-07-16 新模式;逻辑集中在 src/td.js) ------------------
 let tdMode = false; // 本局是塔防
 let td = null; // tdNewRun() 的局状态(地图/入口/塔/经验/编队)
+// TD 版天意侵蚀Sans(Phase 2): 走路径的特殊怪,不用 boss.js 决斗剧本。
+// 美术=sans 走图整体侵蚀红染(左向,行军方向),四帧循环
+const TD_BOSS_FRAMES = WALK_SETS.sans.left.map((f) => tintSprite(f, "#ff4f70", 0.55));
 let tdPickSel = 0; // 选人页当前高亮角色索引
 let tdPickRoster = []; // 选人页已选 [{char, weapon, charId, weaponId, cost, placed}]
 let tdHoverCell = null; // 放置态悬停格(触屏=最后一次点击预览)
@@ -1405,7 +1411,9 @@ function bestEndlessRoundOf(charId) {
 }
 
 function saveSafeProgressCheckpoint(safeCoins) {
-  if (!bossDefeated) return;
+  // 塔防不写检查点: 它的 bossKilled/diffCleared 地板会把 TD 通关灌进
+  // 经典难度解锁线(TD Boss 数值另一套,不能当经典成绩)
+  if (!bossDefeated || tdMode) return;
   if (!runCheckpointId) {
     runCheckpointId = `${Date.now().toString(36)}-${player.character}-${stageClearScore}`;
   }
@@ -1546,13 +1554,15 @@ function settleGame(kind) {
   // endless gets its own ledger and its own best
   endlessResult = null;
   if (bossDefeated && runOutcome !== "victory") {
+    // 塔防无尽记独立底账("td"),不混进任何角色的经典无尽最好成绩
+    const ledgerId = tdMode ? "td" : player.character;
     const eScore = Math.max(0, currentScore() - stageClearScore);
-    const eBestPrev = bestEndlessOf(player.character);
+    const eBestPrev = bestEndlessOf(ledgerId);
     const eNew = !PRODUCTION_DEBUG_RUN && eScore > eBestPrev;
-    if (eNew) localStorage.setItem("best_endless_" + player.character, String(eScore));
-    const roundBestPrev = bestEndlessRoundOf(player.character);
+    if (eNew) localStorage.setItem("best_endless_" + ledgerId, String(eScore));
+    const roundBestPrev = bestEndlessRoundOf(ledgerId);
     const roundNew = !PRODUCTION_DEBUG_RUN && roundsCleared > roundBestPrev;
-    if (roundNew) localStorage.setItem("best_endless_round_" + player.character, String(roundsCleared));
+    if (roundNew) localStorage.setItem("best_endless_round_" + ledgerId, String(roundsCleared));
     endlessResult = {
       rounds: roundsCleared,
       time: Math.max(0, Math.floor(elapsed - stageClearTime)),
@@ -1587,7 +1597,9 @@ function settleGame(kind) {
   const diffClearedBefore = preStats.diffCleared ?? -1;
   recordRun({
     kills: player.kills,
-    bossKilled: bossDefeated,
+    // 塔防的天意是按全塔DPS标定的另一套数值——不计入经典 Boss 击杀数,
+    // 也不推进难度解锁(diffCleared);击杀图鉴照常累计
+    bossKilled: bossDefeated && !tdMode,
     charId: player.character,
     difficulty: getDifficulty().id,
     killsByType: runKillsByType,
@@ -1597,22 +1609,23 @@ function settleGame(kind) {
   runKillsByType = {};
   // honour titles (checked after the run is recorded so the codex is fresh)
   lastNewTitles = [];
+  // Boss 通关系荣誉只认经典决斗版天意(TD 版数值另一套,不当同一场考试)
   for (const [id, ok] of [
-    ["pacifist", bossDefeated && !runOffense],
+    ["pacifist", bossDefeated && !runOffense && !tdMode],
     ["judge", roundsCleared >= 5 && getDifficulty().id >= 1], // 狂暴+才算数
-    ["raven", bossDefeated && getDifficulty().id === 2],
+    ["raven", bossDefeated && getDifficulty().id === 2 && !tdMode],
     ["determined", codexCompletion() >= 100],
-    ["genocide", bossDefeated && getDifficulty().id === 3],
+    ["genocide", bossDefeated && getDifficulty().id === 3 && !tdMode],
   ]) {
     if (ok && unlockTitle(id)) lastNewTitles.push(pick(TITLES.find((x) => x.id === id), "name"));
   }
   // 回响 story fragments — the hall remembers this run's milestones
   if (runOutcome === "death" || runOutcome === "endlessDeath") unlockEchoToast("stay");
-  if (bossDefeated) unlockEchoToast("after");
+  if (bossDefeated && !tdMode) unlockEchoToast("after");
   if (roundsCleared >= 5) unlockEchoToast("deeper");
   if (getStats().runs >= 20) unlockEchoToast("back");
-  if (bossDefeated && getDifficulty().id === 2) unlockEchoToast("wd");
-  if (bossDefeated && getDifficulty().id === 3) unlockEchoToast("dust");
+  if (bossDefeated && getDifficulty().id === 2 && !tdMode) unlockEchoToast("wd");
+  if (bossDefeated && getDifficulty().id === 3 && !tdMode) unlockEchoToast("dust");
   if (Object.keys(getStats().evolved || {}).length >= 32) unlockEchoToast("gift");
   if (codexCompletion() >= 100) unlockEchoToast("end");
   // 真实验室暗线: amalgamate kills and deep judgement rounds open the lab thread
@@ -1637,8 +1650,8 @@ function settleGame(kind) {
       nearMiss = t(`差一点!距离新纪录只有 ${lastBest - lastScore + 1} 分`, `SO close! ${lastBest - lastScore + 1} points off a new record`);
     }
   }
-  // bounties settled at run end
-  if (bossDefeated) questToasts(questEvent("boss", 1));
+  // bounties settled at run end(击败Boss悬赏=经典决斗版专属)
+  if (bossDefeated && !tdMode) questToasts(questEvent("boss", 1));
   questToasts(questEvent("survive", Math.floor(elapsed)));
   // 角色专精: lifetime kills crossed a level? coins + line
   const killsAfter = getStats().charKills[player.character] || 0;
@@ -1687,7 +1700,7 @@ function settleGame(kind) {
   }
   // 审判纪元: first-time milestones open a story chapter before the results
   chapterQueue = unseenChapters({
-    victory: runOutcome === "victory",
+    victory: runOutcome === "victory" && !tdMode, // 审判纪元章节=经典主线专属
     difficultyId: getDifficulty().id,
     codexPct: codexCompletion(),
   });
@@ -4231,13 +4244,44 @@ function update(dt) {
   }
 
   // boss warning siren beeps every 10s while the red pulse runs
-  if (!tdMode && bossWarnActive() && elapsed >= nextWarnBeep) {
+  // (塔防 Phase 2 起同样有 5:00 Boss,预警音一并生效)
+  if (bossWarnActive() && elapsed >= nextWarnBeep) {
     nextWarnBeep += 10;
     sfxAlarm();
   }
 
+  // 塔防 Phase 2: TD 版天意侵蚀Sans——5:00 从走廊右端进场,沿路径慢速压门。
+  // 不用 boss.js(那是决斗剧本);血量按全塔最近30秒实测DPS标定(自适应
+  // 思路对齐经典Boss),打门攻速大幅削减,给修门/集火留反应窗。
+  if (tdMode && td && !td.bossSpawned && !bossDefeated && elapsed >= bossAppearAt()) {
+    td.bossSpawned = true;
+    const b = new Enemy("tank", td.map.spawn.x, td.map.spawn.y, spawner.scale(true, false));
+    b.tdBoss = true;
+    b.championProfile = CORRUPTED_SANS; // 名字/图鉴身份=天意侵蚀Sans
+    b.eliteProfile = null;
+    b.maxLives = 1;
+    b.lives = 1;
+    b.teleporter = false;
+    b.mark = null;
+    b.maxHp = tdBossHp(tdMeasuredDps(td));
+    b.hp = b.maxHp;
+    b.speed = 42; // 慢速行军: 走廊全程约30秒
+    b.dmg = 10; // 打门=每2.5秒10点: 破100血的门要25秒+,攻速大削(用户规格)
+    b.contactInterval = 2.5;
+    b.radius = Math.round(b.radius * 1.5);
+    b.attackRange = b.radius;
+    b.invulnTimer = 3; // 降临无敌窗,与无尽首领一致
+    b.tdWp = 0;
+    enemies.push(b);
+    bossFightStartedAt = elapsed;
+    bossPhaseReached = 1;
+    fireBark("boss");
+    candyBanner = { text: bossAnthemLine(), t: 3.2 };
+    roundBanner = { text: t("⚠ 天意侵蚀Sans 压向入口", "⚠ Corrupted Sans marches on the gate"), sub: t("拦不住它,门就没了", "Stop him before the gate falls"), t: 2.6 };
+    sfxAlarm();
+  }
+
   // 天意侵蚀Sans appears at 5:00: clear the field and stop spawning
-  // (塔防的走路版Boss在Phase 2——先不出场,无限刷怪守门)
   if (!tdMode && !bossFight && !bossDefeated && elapsed >= bossAppearAt()) {
     bossFight = createBossFight(player.x + WIDTH * 0.4, player.y, player.character, WIDTH, HEIGHT, WALL_H, getDifficulty().id);
     bossFightStartedAt = elapsed;
@@ -4295,6 +4339,13 @@ function update(dt) {
       for (const tw of td.towers) updateWeapons(tw.pp, dt, weaponWorld); // 每座塔跑同一套武器系统
       tdEntranceTick(td.entrance, dt);
       if (td.entrance.destroyed) td.entrance.warnT += dt;
+      // 全塔DPS滚动采样(每秒一条累计快照,窗口≈30秒)——Boss血量标定数据源
+      td.dmgLogT += dt;
+      if (td.dmgLogT >= 1) {
+        td.dmgLogT -= 1;
+        td.dmgLog.push(Enemy.dmgDealt || 0);
+        if (td.dmgLog.length > 31) td.dmgLog.shift();
+      }
     }
   }
 
@@ -4361,6 +4412,15 @@ function update(dt) {
       b.xp = Math.round(b.xp * 6);
       b.invulnTimer = 3;
       b.eliteSkillTimer = 1.0;
+      if (tdMode && td) {
+        // 塔防无尽: 首领同样从走廊右端入轨压门,打门伤害节制成
+        // 可读的倒计时(身板 dmg 直怼门会一两下秒破)
+        b.x = td.map.spawn.x;
+        b.y = td.map.spawn.y;
+        b.tdWp = 0;
+        b.gateDmg = 12 + 2 * endlessRound;
+        b.contactInterval = Math.max(b.contactInterval || 1, 1.6);
+      }
       enemies.push(b);
       roundBanner = {
         text: t(`⚠ ${enemyDisplayName(b)} 接近`, `⚠ ${enemyDisplayName(b)} approaching`),
@@ -4383,7 +4443,8 @@ function update(dt) {
       saveSafeProgressCheckpoint(runCoins + roundPendingCoins);
     }
     // round 4+: periodic danger zones (existing telegraph + blast visuals)
-    if (endlessRound >= 4) {
+    // 塔防没有本体可炸,领域压力交给 spawner 的轮次数值与首领——关闭
+    if (endlessRound >= 4 && !tdMode) {
       hazardTimer -= dt;
       if (hazardTimer <= 0) {
         hazardTimer = Math.max(2.2, 4.2 - 0.2 * (endlessRound - 4));
@@ -4595,7 +4656,9 @@ function update(dt) {
         e.update(dt, { x: e.x, y: e.y });
         if (e.contactTimer <= 0 && !e.cannotAttack && e.rootTimer <= 0) {
           e.contactTimer = e.contactInterval || 1;
-          const dealt = tdHitEntrance(td.entrance, e.dmg);
+          // Boss/无尽首领打门用节制过的 gateDmg——身板数值直怼门是秒破,
+          // 守门玩法需要"看得见的倒计时"而不是一击判死
+          const dealt = tdHitEntrance(td.entrance, e.gateDmg ?? e.dmg);
           if (dealt > 0) {
             floatingTexts.push(new FloatingText(td.entrance.x + 8, td.entrance.y - 30, `-${dealt}`, "#ff5d73"));
             sfxHurt();
@@ -4835,8 +4898,26 @@ function update(dt) {
       const gain = tdXpFor(e, getDifficulty().xpMult);
       td.xp += gain;
       if (floatingTexts.length < 40) floatingTexts.push(new FloatingText(e.x, e.y - e.radius - 10, `+${gain}`, "#7cf28a"));
-      runCoins += e.championProfile ? 8 : e.elite ? 3 : Math.random() < 0.13 ? 1 + Math.floor(Math.random() * 2) : 0;
+      // 无尽轮里金币进"本轮待结算"池(与经典同一风险规则);R4+断供
+      const cf = currentCoinFactor();
+      const coinGain = cf <= 0 ? 0 : e.championProfile ? 8 : e.elite ? 3 : Math.random() < 0.13 * cf ? 1 + Math.floor(Math.random() * 2) : 0;
+      if (endlessRound > 0) roundPendingCoins += coinGain;
+      else runCoins += coinGain;
     } else if (!e.noXp) spawnDrops(e);
+    if (e.tdBoss && td) {
+      // TD 版天意倒下: 与经典同一竞技止血——阶段分当帧冻结,然后进
+      // bossclear 选择(离开=通关结算 / 继续=90秒无尽审判轮)
+      td.bossDown = true;
+      player.kills += 50; // Boss 折算50杀,赏金也对齐经典
+      runCoins += Math.round(50 * coinGainMult() * getDifficulty().coinMult);
+      stageClearScore = currentScore();
+      stageClearTime = elapsed;
+      stageClearKills = player.kills;
+      bossDefeated = true;
+      bossClearChoice = 0;
+      state = "bossclear";
+      sfxFanfare();
+    }
     if (e.roundBoss) {
       roundBossDown = true;
       floatingTexts.push(new FloatingText(e.x, e.y - 30, t(`${enemyDisplayName(e)}被击败！`, `${enemyDisplayName(e)} defeated!`), "#ffd166"));
@@ -5644,7 +5725,9 @@ function draw() {
 
   for (const e of enemies) {
     if (e.boss) continue; // the boss draws itself
-    const profileSprite = CHAMPION_SPRITES[e.championProfile?.key || e.eliteProfile?.key];
+    const profileSprite = e.tdBoss
+      ? TD_BOSS_FRAMES[Math.floor(performance.now() / 160) % TD_BOSS_FRAMES.length] // 走路版天意: 红染sans行军帧
+      : CHAMPION_SPRITES[e.championProfile?.key || e.eliteProfile?.key];
     let enemySprite = profileSprite || ENEMY_SPRITES[e.sprite];
     // 缴械: 身体转黑白(灰阶精灵按原图缓存,不逐帧滤镜,保手机帧率)
     if (e.cannotAttack) enemySprite = grayscaleOf(enemySprite);
@@ -6521,7 +6604,9 @@ function draw() {
   }
   const activeRoundBoss = endlessRound > 0
     ? enemies.find((enemy) => enemy.roundBoss && enemy.hp > 0)
-    : null;
+    : tdMode && td
+      ? enemies.find((enemy) => enemy.tdBoss && enemy.hp > 0) // TD天意: 同一条独立血条
+      : null;
   if (activeRoundBoss && (state === "playing" || state === "paused" || state === "choice")) {
     const bw = Math.min(480, WIDTH - 320);
     const bx = (WIDTH - bw) / 2;
@@ -7561,6 +7646,12 @@ window.__dbg = () => ({
         towers: td.towers.length,
         armed: td.armedSlot,
         roster: td.roster.length,
+        bossSpawned: td.bossSpawned,
+        bossDown: td.bossDown,
+        bossHp: (() => {
+          const b = enemies.find((e) => e.tdBoss);
+          return b ? Math.ceil(b.hp) : null;
+        })(),
         // 随机地图下给测试一个确定的可放格中心
         freeCell: (() => {
           for (let r = 0; r < td.map.rows; r++)
@@ -7649,6 +7740,36 @@ window.__test = DEBUG_BOSS !== null
       },
     }
   : null;
+// 塔防测试钩子(Phase 2): TD 成绩只存本地 best_td,永不上排行榜——快进/
+// 秒杀不构成竞技作弊面,因此不像 __test 那样锁在 ?boss 调试参数后面
+window.__tdtest = {
+  rushBoss() {
+    if (!tdMode || !td || state !== "playing" || td.bossSpawned) return false;
+    elapsed = Math.max(elapsed, bossAppearAt() - 0.5);
+    nextWarnBeep = Math.max(nextWarnBeep, elapsed); // 别把积压的警报音一口气放完
+    nextChoiceAt = Math.max(nextChoiceAt, elapsed + choiceInterval); // 也别积压选卡
+    return true;
+  },
+  crushBoss() {
+    const b = enemies.find((e) => e.tdBoss && e.hp > 0);
+    if (!b) return false;
+    b.invulnTimer = 0;
+    b.hp = 0;
+    return true;
+  },
+  completeRound() {
+    if (!tdMode || endlessRound <= 0) return false;
+    roundTimer = 0;
+    roundBossSpawned = true;
+    roundBossDown = true;
+    return true;
+  },
+  healGate() {
+    if (!tdMode || !td || td.entrance.destroyed) return false;
+    td.entrance.hp = td.entrance.maxHp;
+    return true;
+  },
+};
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });
 
 let lastTime = performance.now();
