@@ -25,6 +25,8 @@ const {
   tdConfigureBoss,
   tdDirectCoinDrop,
   tdKillCredit,
+  tdLeaderDamagePct,
+  tdPlaceCost,
   tdRouteSpeed,
   tdRouteTravelSeconds,
   tdTargetFor,
@@ -136,6 +138,23 @@ check(
   tdTestHooksAllowed("", false) === true &&
     tdTestHooksAllowed("localhost", false) === true &&
     tdTestHooksAllowed("127.0.0.1", false) === true
+);
+check(
+  "first TD tower is free for every owned character",
+  tdPlaceCost(1000, 0) === 0 &&
+    tdPlaceCost(10000, 0) === 0 &&
+    tdPlaceCost(15000, 0) === 0
+);
+check(
+  "later TD towers use one shared 1000→10000 economy",
+  tdPlaceCost(1000, 1) === 1000 &&
+    tdPlaceCost(10000, 1) === 1000 &&
+    tdPlaceCost(15000, 2) === 10000
+);
+check(
+  "TD leader bonus comes only from the first squad member",
+  tdLeaderDamagePct([{ teamDmgPct: 20 }, { teamDmgPct: 15 }]) === 20 &&
+    tdLeaderDamagePct([{ teamDmgPct: 0 }, { teamDmgPct: 20 }]) === 0
 );
 
 boss.invulnTimer = 0;

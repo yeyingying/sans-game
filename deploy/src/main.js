@@ -224,7 +224,7 @@ import {
   tdRosterSlotRect,
   tdStartRect,
   tdBarSlotRect,
-} from "./td.js?v=s2-20260726-balance2";
+} from "./td.js?v=s2-20260726-rules1";
 import {
   drawHud,
   drawCenterText,
@@ -679,6 +679,15 @@ function queueTipOnce(flag, title, lines) {
   if (localStorage.getItem("tip_" + flag)) return;
   localStorage.setItem("tip_" + flag, "1");
   tipQueue.push({ title, lines, t: 9 });
+}
+
+function confirmTdIntro() {
+  if (!tdMode || !td?.introPending) return false;
+  td.introPending = false;
+  if (activeTip?.confirm) activeTip = null;
+  announceGame(t("塔防开始。守住左边入口。", "Tower defense started. Hold the left gate."));
+  sfxClick();
+  return true;
 }
 
 // death recap: what landed the killing blow ("死于:XXX" on the gameover screen)
@@ -2489,10 +2498,22 @@ function startTdRun() {
   tdHoverCell = null;
   funValue = 0; // 访客彩蛋绕着玩家转,塔防局关闭
   savepointNote = null;
-  queueTipOnce("tdintro", t("塔防模式:守住左边的入口", "Tower defense: hold the gate"), [
-    t("点下方编队卡→点绿色地面放置 sans;击杀怪物攒经验,越放越贵", "Tap a squad card, then a green tile; kills earn XP, placing gets pricier"),
-    t("入口只有100血,被破坏后再放进一只怪就输了", "The gate has 100 HP; once destroyed, one more leak loses the run"),
-  ]);
+  // 新 key 让已经看过旧版“边打边读”提示的玩家，也能看到一次新版确认框。
+  if (!localStorage.getItem("tip_tdintro_confirm")) {
+    localStorage.setItem("tip_tdintro_confirm", "1");
+    td.introPending = true;
+    introBlack = 0;
+    activeTip = {
+      title: t("塔防模式:守住左边的入口", "Tower defense: hold the gate"),
+      lines: [
+        t("点下方编队卡→点绿色地面放置 sans;击杀怪物攒经验,越放越贵", "Tap a squad card, then a green tile; kills earn XP, placing gets pricier"),
+        t("第一座塔免费;第一位成员是队长,其团队加成会标在编队栏", "Your first tower is free; the first member is leader and their team bonus is shown"),
+        t("入口只有100血,被破坏后再放进一只怪就输了", "The gate has 100 HP; once destroyed, one more leak loses the run"),
+      ],
+      t: Infinity,
+      confirm: true,
+    };
+  }
   state = "playing";
   startBattleBgm();
 }
@@ -2527,7 +2548,15 @@ function addTdRosterWeapon(index) {
     announceGame(t("这个 Sans 已在队伍中，或队伍已满。", "That Sans is already in the squad, or the squad is full."));
     return false;
   }
-  tdPickRoster.push({ char: c, weapon, charId: c.id, weaponId: weapon.id, cost: c.cost || 1000, placed: false });
+  tdPickRoster.push({
+    char: c,
+    weapon,
+    charId: c.id,
+    weaponId: weapon.id,
+    cost: c.cost || 1000,
+    teamDmgPct: Math.round((CHAR_NATURE[c.id]?.dmg || 0) * 100),
+    placed: false,
+  });
   sfxEquip();
   announceGame(t(`${pick(c, "name")}携带${pick(weapon, "name")}加入队伍，当前${tdPickRoster.length}人。`, `${pick(c, "name")} joins with ${pick(weapon, "name")}. Squad ${tdPickRoster.length} of 3.`));
   return true;
@@ -3237,6 +3266,10 @@ function inRect(p, r) {
 }
 
 function handleCanvasTap(pos) {
+  if (tdMode && td?.introPending) {
+    confirmTdIntro();
+    return;
+  }
   if (tutorialStep >= 0 && state === "playing" && inRect(pos, tutorialSkipRect(WIDTH))) {
     endTutorial(); // 跳过=看懂了,别再打扰
     sfxClick();
@@ -3784,6 +3817,13 @@ function cycleSpeed() {
 window.addEventListener("keydown", (e) => {
   initSfx(); // AudioContext may only start inside a user gesture
   const k = e.key.toLowerCase();
+  if (tdMode && td?.introPending) {
+    if (k === "enter" || k === " ") {
+      e.preventDefault();
+      confirmTdIntro();
+    }
+    return;
+  }
   if (k === "z") {
     if (state === "playing") {
       state = "paused";
@@ -4436,6 +4476,9 @@ function onLevelUp(levels) {
 // ---- update ---------------------------------------------------------------
 
 function update(dt) {
+  // 首次塔防教学是确认框,不是边打边读的浮层。确认前不走任何局内计时,
+  // 因而不会刷怪、移动、打门或提前触发选卡。
+  if (tdMode && td?.introPending) return;
   elapsed += dt;
   const hpBefore = player.hp;
 
@@ -6703,9 +6746,9 @@ function draw() {
 
   // one-time onboarding tip card (top center, under the HUD)
   if (activeTip && (state === "playing" || state === "choice")) {
-    const a = Math.min(1, activeTip.t / 0.8);
+    const a = activeTip.confirm ? 1 : Math.min(1, activeTip.t / 0.8);
     const w = 640;
-    const h = 34 + activeTip.lines.length * 18;
+    const h = 34 + activeTip.lines.length * 18 + (activeTip.confirm ? 28 : 0);
     const x = WIDTH / 2 - w / 2;
     const y = 96;
     ctx.save();
@@ -6724,6 +6767,11 @@ function draw() {
     activeTip.lines.forEach((line, i) => {
       ctx.fillText(line, WIDTH / 2, y + 40 + i * 18);
     });
+    if (activeTip.confirm) {
+      ctx.fillStyle = "#7cf28a";
+      ctx.font = "bold 13px monospace";
+      ctx.fillText(t("点击画面 或 按 Enter 开始", "Tap or press Enter to start"), WIDTH / 2, y + h - 12);
+    }
     ctx.restore();
     ctx.textAlign = "left";
   }
@@ -7901,6 +7949,8 @@ window.__dbg = () => ({
         towers: td.towers.length,
         armed: td.armedSlot,
         roster: td.roster.length,
+        introPending: td.introPending,
+        leaderBonus: td.roster[0]?.teamDmgPct || 0,
         bossSpawned: td.bossSpawned,
         bossDown: td.bossDown,
         bossHp: (() => {

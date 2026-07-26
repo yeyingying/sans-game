@@ -163,8 +163,14 @@ export function tdXpFor(enemy, xpMult = 1) {
 }
 
 export function tdPlaceCost(charCost, placedCount) {
-  // 免费四人 1000 起,精神错乱 10000,黑客 15000;每放一个全体 ×10
-  return (charCost || 1000) * Math.pow(10, placedCount);
+  // 角色买断价只决定是否拥有角色,不能在塔防里重复收费。
+  // 第一座塔免费保证任何已解锁角色都能开局;后续全队统一按 1000→10000 计价。
+  void charCost; // 保留参数兼容旧调用,但明确不参与塔防经济
+  return placedCount <= 0 ? 0 : 1000 * Math.pow(10, placedCount - 1);
+}
+
+export function tdLeaderDamagePct(roster) {
+  return Math.max(0, Math.round(Number(roster?.[0]?.teamDmgPct) || 0));
 }
 
 // ---- TD 局状态工厂 ----------------------------------------------------------
@@ -185,6 +191,7 @@ export function tdNewRun(map, roster) {
     bossDown: false,
     dmgLog: [], // 每秒一条 Enemy.dmgDealt 累计快照,Boss血量按窗口DPS标定
     dmgLogT: 0,
+    introPending: false, // 首次教学确认前冻结计时、刷怪和路径移动
   };
 }
 
@@ -585,7 +592,7 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.fillText(pick(c, "name"), r.x + r.w / 2, r.y + (phone ? 31 : 34));
     ctx.fillStyle = "#7d7690";
     ctx.font = `${phone ? 16 : 11}px monospace`;
-    ctx.fillText(locked ? t("未解锁", "Locked") : `${t("放置", "Cost")} ${c.cost || 1000}`, r.x + r.w / 2, r.y + (phone ? 62 : 58));
+    ctx.fillText(locked ? t("未解锁", "Locked") : t("全队首塔免费", "Team's first tower free"), r.x + r.w / 2, r.y + (phone ? 62 : 58));
     if (keyboardFocus?.zone === "char" && keyboardFocus.index === i) drawKeyboardFocus(ctx, r);
   });
 
@@ -608,8 +615,16 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
   // 已选队列
   ctx.fillStyle = "#9a93ab";
   ctx.font = `bold ${phone ? 17 : 13}px monospace`;
+  const leaderPct = tdLeaderDamagePct(roster);
+  const leaderRule = roster.length
+    ? leaderPct > 0
+      ? t(`队长让全塔伤害 +${leaderPct}%`, `Leader gives all towers +${leaderPct}% damage`)
+      : t("队长无团队加成", "Leader has no team bonus")
+    : t("第一位成员是队长", "First member becomes leader");
   ctx.fillText(
-    phone ? t(`队 伍 ${roster.length}/3 · 点卡移除`, `SQUAD ${roster.length}/3 · tap to remove`) : t("出 战 队 列(点击移除)", "SQUAD (tap to remove)"),
+    phone
+      ? t(`队伍 ${roster.length}/3 · ${leaderRule}`, `SQUAD ${roster.length}/3 · ${leaderRule}`)
+      : t(`出战队列 · ${leaderRule}`, `SQUAD · ${leaderRule}`),
     width / 2,
     phone ? 360 : height - 182
   );
@@ -624,7 +639,8 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     if (m) {
       ctx.fillStyle = "#f2ead8";
       ctx.font = `bold ${phone ? 18 : 13}px monospace`;
-      ctx.fillText(pick(m.char, "name"), r.x + r.w / 2, r.y + (phone ? 28 : 22));
+      const memberName = i === 0 ? t(`队长·${pick(m.char, "name")}`, `Leader · ${pick(m.char, "name")}`) : pick(m.char, "name");
+      ctx.fillText(memberName, r.x + r.w / 2, r.y + (phone ? 28 : 22));
       ctx.fillStyle = "#9a93ab";
       ctx.font = `${phone ? 15 : 11}px monospace`;
       ctx.fillText(pick(m.weapon, "name"), r.x + r.w / 2, r.y + (phone ? 55 : 42));
@@ -686,9 +702,23 @@ export function drawTdBar(ctx, width, height, td) {
       ctx.fillText(t("已上场", "Deployed"), r.x + r.w / 2, r.y + 40);
     } else {
       ctx.fillStyle = afford ? "#ffd166" : "#c95d5d";
-      ctx.fillText(`${t("经验", "XP")} ${cost}`, r.x + r.w / 2, r.y + 40);
+      ctx.fillText(cost === 0 ? t("免费上场", "Deploy free") : `${t("经验", "XP")} ${cost}`, r.x + r.w / 2, r.y + 40);
     }
   });
+  const leader = td.roster[0];
+  if (leader) {
+    const leaderPct = tdLeaderDamagePct(td.roster);
+    ctx.fillStyle = leaderPct > 0 ? "#ffd166" : "#9a93ab";
+    ctx.font = "bold 12px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      leaderPct > 0
+        ? t(`队长 ${pick(leader.char, "name")} · 全塔伤害 +${leaderPct}%`, `Leader ${pick(leader.char, "name")} · all towers +${leaderPct}% damage`)
+        : t(`队长 ${pick(leader.char, "name")} · 无团队加成`, `Leader ${pick(leader.char, "name")} · no team bonus`),
+      width / 2,
+      height - 74
+    );
+  }
   // 经验余额(右下角,编队栏上方)
   ctx.fillStyle = "#7cf28a";
   ctx.font = "bold 14px monospace";

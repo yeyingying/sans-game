@@ -790,18 +790,22 @@ if (MODE === "normal") {
   key("Enter"); // 开 始 守 门
   const td0 = dbg().td;
   check("td run starts with 100hp gate + 1000xp", dbg().state === "playing" && td0 && td0.gateHp === 100 && td0.xp === 1000, JSON.stringify(td0));
+  check("first TD tutorial waits for confirmation", td0?.introPending === true && dbg().elapsed === 0, JSON.stringify({ td: td0, elapsed: dbg().elapsed }));
+  run(2);
+  check("TD tutorial freezes enemies and game clock", dbg().td?.introPending === true && dbg().elapsed === 0, JSON.stringify({ td: dbg().td, elapsed: dbg().elapsed }));
+  key("Enter");
+  check("TD tutorial confirmation starts the run", dbg().td?.introPending === false, JSON.stringify(dbg().td));
   check(
     "td starts at 1x with leader BGM and no menu overlap",
     dbg().timeScale === 1 && /MEGALOVANIA\.mp3/.test(dbg().battleTrack) && dbg().menuTrackPaused,
     JSON.stringify({ speed: dbg().timeScale, track: dbg().battleTrack, menuPaused: dbg().menuTrackPaused })
   );
-  run(2); // 开场黑幕
   tap(300, 564); // 编队卡0 -> 进入放置态
   check("td slot armed", dbg().td && dbg().td.armed === 0, JSON.stringify(dbg().td));
   const fc = dbg().td.freeCell;
   check("td map exposes a free cell", !!fc);
   tap(fc.x, fc.y); // 放塔
-  check("td tower placed, xp spent", dbg().td.towers === 1 && dbg().td.xp === 0, JSON.stringify(dbg().td));
+  check("td first tower placed for free", dbg().td.towers === 1 && dbg().td.xp === 1000, JSON.stringify(dbg().td));
   // healGate 钩子保门跑30秒——单塔守100血门本身是输得掉的,而 Phase 2 冒烟
   // 需要确定性活到 Boss/无尽段;真实压力(门被打/塔有收入)沿途顺带观察。
   // 不能拖到50秒再rush: 塔杀不完的怪会在门口堆到"单帧伤害>整门血",
