@@ -209,6 +209,9 @@ import {
   tdPlaceCost,
   tdMeasuredDps,
   tdConfigureBoss,
+  tdTestHooksAllowed,
+  tdKillCredit,
+  tdDirectCoinDrop,
   drawTdField,
   drawTdEntranceHud,
   drawTdBar,
@@ -221,7 +224,7 @@ import {
   tdRosterSlotRect,
   tdStartRect,
   tdBarSlotRect,
-} from "./td.js?v=s2-20260726-balance1";
+} from "./td.js?v=s2-20260726-balance2";
 import {
   drawHud,
   drawCenterText,
@@ -1627,16 +1630,22 @@ function settleGame(kind) {
     .map((k) => CODEX_MONSTERS.find((m) => m.key === k)?.name)
     .filter(Boolean);
   const diffClearedBefore = preStats.diffCleared ?? -1;
+  const settledWeapons = tdMode
+    ? (td?.towers || []).flatMap((tower) => tower.pp?.weapons || [])
+    : player.weapons;
   recordRun({
     kills: player.kills,
     // 塔防的天意是按全塔DPS标定的另一套数值——不计入经典 Boss 击杀数,
     // 也不推进难度解锁(diffCleared);击杀图鉴照常累计
     bossKilled: bossDefeated && !tdMode,
-    charId: player.character,
+    // TD is a three-character team. Crediting every kill to the leader falsely
+    // unlocks that character's mastery and echoes, so team runs stay out of
+    // per-character mastery while still contributing lifetime/codex totals.
+    charId: tdMode ? null : player.character,
     difficulty: getDifficulty().id,
     killsByType: runKillsByType,
-    weaponsUsed: player.weapons.map((i) => i.id),
-    evolvedIds: player.weapons.filter((i) => i.evolved).map((i) => i.id),
+    weaponsUsed: [...new Set(settledWeapons.map((i) => i.id))],
+    evolvedIds: [...new Set(settledWeapons.filter((i) => i.evolved).map((i) => i.id))],
   });
   runKillsByType = {};
   // honour titles (checked after the run is recorded so the codex is fresh)
@@ -1687,20 +1696,22 @@ function settleGame(kind) {
   questToasts(questEvent("survive", Math.floor(elapsed)));
   // 角色专精: lifetime kills crossed a level? coins + line
   const killsAfter = getStats().charKills[player.character] || 0;
-  const lvlBefore = masteryOf(killsAfter - player.kills);
+  const masteryKillsThisRun = tdMode ? 0 : player.kills;
+  const lvlBefore = masteryOf(killsAfter - masteryKillsThisRun);
   const lvlAfter = masteryOf(killsAfter);
-  if (lvlAfter > lvlBefore) {
+  if (!tdMode && lvlAfter > lvlBefore) {
     const bonus = 30 * (lvlAfter - lvlBefore) * lvlAfter;
     addCoins(bonus);
     lastMasteryUp = t(`${currentCharacter().name} 专精升至 Lv${lvlAfter}(+${bonus}金币)`, `${pick(currentCharacter(), "name")} mastery up to Lv${lvlAfter} (+${bonus}G)`);
   }
   // 角色残响: this timeline's private echoes open with mastery
-  if (lvlAfter >= 1) unlockEchoToast(player.character + "1");
-  if (lvlAfter >= 3) unlockEchoToast(player.character + "2");
+  if (!tdMode && lvlAfter >= 1) unlockEchoToast(player.character + "1");
+  if (!tdMode && lvlAfter >= 3) unlockEchoToast(player.character + "2");
   // 「永久成长」块(提交A): even a failed run visibly feeds the account
   permaGrowth = {
     coins: lastRunCoins,
-    killsBefore: killsAfter - player.kills,
+    masteryEnabled: !tdMode,
+    killsBefore: killsAfter - masteryKillsThisRun,
     killsAfter,
     lvlBefore,
     lvlAfter,
@@ -5108,7 +5119,7 @@ function update(dt) {
 
   const dead = enemies.filter((e) => e.hp <= 0 && !e.boss);
   for (const e of dead) {
-    player.kills += 1;
+    player.kills += tdKillCredit(e);
     const codexKey = codexKeyForEnemy(e);
     runKillsByType[codexKey] = (runKillsByType[codexKey] || 0) + 1;
     if (tdMode && td) {
@@ -5119,7 +5130,8 @@ function update(dt) {
       if (floatingTexts.length < 40) floatingTexts.push(new FloatingText(e.x, e.y - e.radius - 10, `+${gain}`, "#7cf28a"));
       // 无尽轮里金币进"本轮待结算"池(与经典同一风险规则);R4+断供
       const cf = currentCoinFactor();
-      const coinGain = cf <= 0 ? 0 : e.championProfile ? 8 : e.elite ? 3 : Math.random() < 0.13 * cf ? 1 + Math.floor(Math.random() * 2) : 0;
+      // TD 天意只拿下面的经典 Boss 赏金，不再额外叠一份冠军 8G。
+      const coinGain = tdDirectCoinDrop(e, cf);
       if (endlessRound > 0) roundPendingCoins += coinGain;
       else runCoins += coinGain;
     } else if (!e.noXp) spawnDrops(e);
@@ -5127,7 +5139,6 @@ function update(dt) {
       // TD 版天意倒下: 与经典同一竞技止血——阶段分当帧冻结,然后进
       // bossclear 选择(离开=通关结算 / 继续=90秒无尽审判轮)
       td.bossDown = true;
-      player.kills += 50; // Boss 折算50杀,赏金也对齐经典
       runCoins += Math.round(50 * coinGainMult() * getDifficulty().coinMult);
       stageClearScore = currentScore();
       stageClearTime = elapsed;
@@ -5163,7 +5174,8 @@ function update(dt) {
   enemies = enemies.filter((e) => (e.hp > 0 || e.boss));
   if (dead.length > 0) {
     questToasts(questEvent("kills", dead.length));
-    questToasts(questEvent("charKills", dead.length, { charId: player.character }));
+    // TD 是多角色编队，不能把任务进度伪装成队长单人击杀。
+    if (!tdMode) questToasts(questEvent("charKills", dead.length, { charId: player.character }));
     const eliteDead = dead.filter((e) => e.elite).length;
     if (eliteDead) {
       questToasts(questEvent("elites", eliteDead));
@@ -7663,12 +7675,18 @@ function draw() {
             : []),
           ...(nearMiss ? [{ text: nearMiss, font: "bold 13px monospace", color: "#ff8a5d" }] : []),
           { text: t("—— 构 筑 ——", "—— BUILD ——"), font: "12px monospace", color: "#5a5468" },
-          { text: weaponSummary(player), font: "14px monospace", color: "#7ea8ff" },
+          {
+            text: tdMode && td
+              ? weaponSummary({ weapons: td.towers.flatMap((tower) => tower.pp?.weapons || []) })
+              : weaponSummary(player),
+            font: "14px monospace",
+            color: "#7ea8ff",
+          },
           ...(runEquipSummary() ? [{ text: runEquipSummary(), font: "13px monospace", color: "#c8c2d4" }] : []),
           ...(activeContract ? [{ text: `${t("契约", "Pact")}「${pick(activeContract, "name")}」`, font: "13px monospace", color: "#d9c47a" }] : []),
           { text: t("—— 永久成长(死了也算数) ——", "—— PERMANENT GROWTH (kept even in death) ——"), font: "12px monospace", color: "#5a5468" },
           { text: `${t("金币", "Coins")} +${permaGrowth ? permaGrowth.coins : lastRunCoins}(${t("钱包", "Wallet")} ${getCoins()})`, font: "13px monospace", color: "#ffd166" },
-          ...(permaGrowth
+          ...(permaGrowth?.masteryEnabled
             ? [
                 {
                   text: `${t("角色专精", "Mastery")} ${permaGrowth.killsBefore} → ${permaGrowth.killsAfter} ${t("杀", "kills")}${permaGrowth.lvlAfter > permaGrowth.lvlBefore ? ` · ${t("升至", "up to")} Lv${permaGrowth.lvlAfter}!` : ` (Lv${permaGrowth.lvlAfter})`}`,
@@ -7977,9 +7995,9 @@ window.__test = DEBUG_BOSS !== null
       },
     }
   : null;
-// 塔防测试钩子(Phase 2): TD 成绩只存本地 best_td,永不上排行榜——快进/
-// 秒杀不构成竞技作弊面,因此不像 __test 那样锁在 ?boss 调试参数后面
-window.__tdtest = {
+// 塔防测试钩子只在无 hostname 的 headless、localhost 或已通过 DEBUG
+// 验证的浏览器开放。正式玩家不能再用控制台刷本地金币/击杀/轮数。
+window.__tdtest = tdTestHooksAllowed(location.hostname, DEBUG_UNLOCKED) ? {
   rushBoss() {
     if (!tdMode || !td || state !== "playing" || td.bossSpawned) return false;
     elapsed = Math.max(elapsed, bossAppearAt() - 0.5);
@@ -8006,7 +8024,7 @@ window.__tdtest = {
     td.entrance.hp = td.entrance.maxHp;
     return true;
   },
-};
+} : null;
 window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " + e.filename + ":" + e.lineno; });
 
 let lastTime = performance.now();

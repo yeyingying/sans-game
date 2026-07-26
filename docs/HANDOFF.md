@@ -63,8 +63,9 @@
 - Phase 2（2026-07-26 上线）：TD 版天意侵蚀Sans 是走路径的特殊怪（不用 `boss.js` 决斗剧本）——5:00 从走廊右端进场，血量按全塔最近 30 秒的**有效伤害** DPS 标定（过量处决伤害不计入；`tdBossHp()` 夹在 9000~150 万）。TD 天意与经典天意共享 Boss 身份规则：控制免疫、删除镰刀按天意比例结算；每 2.5 秒打门 10 点。路线统一为约 42 秒行军预算，怪物速度按实际路径长度归一，手机、电脑与随机地图不再改变到门时间。美术为 sans 走图侵蚀红染（`TD_BOSS_FRAMES`），顶部复用无尽首领的独立血条。
 - Boss 死亡＝竞技止血冻结阶段分 → `bossclear` 选择：离开＝通关结算；继续＝90 秒无尽审判轮。无尽首领（champion）在塔防中从走廊右端入轨压门，打门伤害节制为 `gateDmg`（12+2×轮）；轮内金币进「待结算」池，风险规则与经典一致；round 4+ 危险领域在塔防关闭。
 - 隔离契约：TD 击败 Boss 不计入 `bossKills`、不推进难度解锁 `diffCleared`、不发 Boss 系称号（和平主义者/渡鸦/尘归尘）、不解锁 Boss 系回响（after/wd/dust）、不触发审判纪元章节、不写崩溃检查点；走廊绘制含流向箭头脉冲动画。
+- TD 是多角色编队，因此总击杀与怪物图鉴照常累计，但不把整队击杀归到队长的角色专精、角色残响或角色击杀任务；结算构筑会列出实际放置塔的武器。TD 天意固定折算 50 击杀，只发一次经典 Boss 赏金，不叠加冠军 8G。
 - 手机横屏编队页使用独立大尺寸布局：角色卡 6 列、技能卡 4×2、队伍卡和开始/返回按钮均按至少约 44 物理像素设计。键盘可用 Enter 进入模式页，方向键/Tab 遍历“角色→技能→队伍→开始”，Enter 添加或移除，Esc 逐层返回；Canvas 带可见焦点、快捷键说明和 `aria-live` 状态播报。
-- 测试钩子 `window.__tdtest`（rushBoss/crushBoss/completeRound/healGate）常驻——塔防成绩仅存本地，不构成竞技作弊面；headless normal 模式覆盖 编队→放塔→Boss→bossclear→无尽→撤离 全链。
+- 测试钩子 `window.__tdtest`（rushBoss/crushBoss/completeRound/healGate）只在 headless、localhost 或已通过 DEBUG 验证的浏览器开放；正式玩家页面为 `null`。headless normal 模式覆盖 编队→放塔→Boss→bossclear→无尽→撤离 全链。
 - `mode: "td"` 尚未加入服务端遥测白名单；是否采集塔防平衡数据需单独裁决（裁决前塔防不发任何上报）。
 
 ### Boss 与无尽

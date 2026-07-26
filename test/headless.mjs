@@ -755,6 +755,8 @@ if (MODE === "normal") {
   // ---- 塔防冒烟(2026-07-16): 编队→放塔→怪打门→结算,全链不崩 --------------
   tap(861, 560); // gameover -> home
   check("back to title for TD", dbg().state === "title", dbg().state);
+  const tdLeaderKillsBefore = JSON.parse(storage.metaStats || "{}").charKills?.sans || 0;
+  check("td test hooks are available in headless only", !!window.__tdtest);
   key("Enter");
   check("keyboard opens mode select", dbg().state === "modeselect" && dbg().keyboard.modeFocus === 0, JSON.stringify(dbg().keyboard));
   key("ArrowDown");
@@ -844,6 +846,11 @@ if (MODE === "normal") {
       "td boss kill stays out of classic progression (bossKills/diffCleared)",
       (JSON.parse(storage.metaStats || "{}").bossKills || 0) === 0 && (JSON.parse(storage.metaStats || "{}").diffCleared ?? -1) <= 0,
       storage.metaStats
+    );
+    check(
+      "td team kills do not inflate leader mastery",
+      (JSON.parse(storage.metaStats || "{}").charKills?.sans || 0) === tdLeaderKillsBefore,
+      JSON.stringify({ before: tdLeaderKillsBefore, after: JSON.parse(storage.metaStats || "{}").charKills?.sans || 0 })
     );
     check(
       "td endless ledger isolated from char ledgers",

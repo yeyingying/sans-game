@@ -220,6 +220,22 @@ export function tdConfigureBoss(enemy, map, dps) {
   return enemy;
 }
 
+export function tdTestHooksAllowed(hostname = "", debugUnlocked = false) {
+  const host = String(hostname || "").toLowerCase();
+  return debugUnlocked || !host || host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+export function tdKillCredit(enemy) {
+  return enemy?.tdBoss ? 50 : 1;
+}
+
+export function tdDirectCoinDrop(enemy, coinFactor, random = Math.random) {
+  if (coinFactor <= 0 || enemy?.tdBoss) return 0;
+  if (enemy?.championProfile) return 8;
+  if (enemy?.elite) return 3;
+  return random() < 0.13 * coinFactor ? 1 + Math.floor(random() * 2) : 0;
+}
+
 // 塔的伪玩家: 数值字段 getter 代理到主 player——攻击/攻速/增伤选卡与
 // 商店力量/结晶加成天然对全体塔生效;位置固定,位移类武器已在选人时排除
 export function tdMakeTowerPP(x, y, charId, weaponInst, player) {

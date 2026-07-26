@@ -23,9 +23,12 @@ const {
   tdBuildMap,
   tdBossHp,
   tdConfigureBoss,
+  tdDirectCoinDrop,
+  tdKillCredit,
   tdRouteSpeed,
   tdRouteTravelSeconds,
   tdTargetFor,
+  tdTestHooksAllowed,
 } = await import(new URL(process.cwd() + "/src/td.js", "file://"));
 const { createWeaponInstance, updateWeapons } = await import(new URL(process.cwd() + "/src/weapon.js", "file://"));
 
@@ -118,6 +121,21 @@ check("TD Tianyi is immune to disarm", boss.applyDisarm(Infinity) === false && !
 check(
   "TD Tianyi gate pressure remains 10 damage every 2.5s",
   boss.gateDmg === TD_BOSS_GATE_DAMAGE && boss.contactInterval === TD_BOSS_GATE_INTERVAL
+);
+check("TD Tianyi grants exactly 50 kill credit", tdKillCredit(boss) === 50, String(tdKillCredit(boss)));
+check("TD Tianyi does not stack a champion coin drop", tdDirectCoinDrop(boss, 1, () => 0) === 0);
+check("regular TD enemies still grant one kill", tdKillCredit(fodder) === 1);
+check(
+  "production hides TD test hooks unless DEBUG is unlocked",
+  tdTestHooksAllowed("www.sansgecao.com", false) === false &&
+    tdTestHooksAllowed("api.sansgecao.com", false) === false &&
+    tdTestHooksAllowed("www.sansgecao.com", true) === true
+);
+check(
+  "headless and localhost keep TD test hooks",
+  tdTestHooksAllowed("", false) === true &&
+    tdTestHooksAllowed("localhost", false) === true &&
+    tdTestHooksAllowed("127.0.0.1", false) === true
 );
 
 boss.invulnTimer = 0;
