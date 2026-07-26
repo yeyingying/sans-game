@@ -6,6 +6,13 @@ import { eliteProfileFor } from "./codex.js";
 export const PLAYER_MAX_HP = 10000;
 export const PLAYER_FIRE_RATE_CAP = 50;
 
+// boss.js uses a hand-written object (`boss: true`), while tower defence uses
+// an Enemy walking the lane (`tdBoss: true`). Gameplay rules must treat both
+// as the same Tianyi-class boss; endless champions deliberately stay separate.
+export function isBossLike(enemy) {
+  return !!(enemy?.boss || enemy?.tdBoss);
+}
+
 export class Player {
   constructor(x, y) {
     this.x = x;
@@ -179,7 +186,8 @@ export class Enemy {
   // runs (the root itself + 2.5s), fresh roots are shrugged off.
   // permanent=true 时无视递减窗口(黑客结局的永久禁锢;冠军/天意除外)
   applyRoot(sec, permanent = false) {
-    if (permanent && !this.boss && !this.championProfile) {
+    if (isBossLike(this)) return false;
+    if (permanent && !this.championProfile) {
       this.rootTimer = Infinity;
       this.rootImmune = Infinity;
       return true;
@@ -191,9 +199,9 @@ export class Enemy {
   }
 
   // 缴械(2026-07-14 用户裁决): 普通/精英永久;冠军只吃3秒攻击冻结;
-  // 天意侵蚀Sans 完全免疫(它的攻击是boss.js剧本,冻结另议)
+  // 天意侵蚀Sans 完全免疫(经典决斗与TD走廊版口径一致)
   applyDisarm(sec = Infinity) {
-    if (this.boss) return false;
+    if (isBossLike(this)) return false;
     if (this.championProfile) {
       this.disarmTimer = Math.max(this.disarmTimer, Math.min(Number.isFinite(sec) ? sec : 3, 3));
       return true;
@@ -213,7 +221,10 @@ export class Enemy {
     // rooted enemies lose their invulnerability
     if (this.invulnTimer > 0 && this.rootTimer <= 0) return false;
     if (this.elite && Enemy.eliteAmp > 1) dmg = Math.round(dmg * Enemy.eliteAmp); // 弹壳遗物
-    Enemy.dmgDealt = (Enemy.dmgDealt || 0) + dmg; // 累计输出(塔防Boss血量按全塔DPS标定)
+    // Boss 标定只统计真正削掉的生命。处决技会传入 hp+99999；若把整
+    // 个请求值计入 DPS，下一局 TD Boss 的血量会被单次过量伤害抬高数千倍。
+    const effectiveDmg = Math.min(Math.max(0, dmg), Math.max(0, this.hp));
+    Enemy.dmgDealt = (Enemy.dmgDealt || 0) + effectiveDmg;
     this.hp -= dmg;
     this.hitFlash = 0.15;
     this.dmgAccum += dmg;

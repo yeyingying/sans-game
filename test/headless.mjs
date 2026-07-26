@@ -831,8 +831,10 @@ if (MODE === "normal") {
     check("td endless round 1 starts", d.state === "playing" && d.round === 1 && d.endless === true, JSON.stringify({ state: d.state, round: d.round }));
     run(2, guard);
     window.__tdtest.completeRound();
-    frame();
-    guard(dbg());
+    // A champion can drop a guaranteed chest on the same frame the shortcut
+    // completes the round. Let the normal input helper collect it, then assert
+    // the round transition instead of depending on same-frame draw order.
+    run(1, guard);
     check("td roundclear reached", dbg().state === "roundclear", dbg().state);
     tap(350, 371); // 撤离结算
     d = dbg();

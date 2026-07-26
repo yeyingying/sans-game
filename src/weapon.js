@@ -1,5 +1,6 @@
 import { circleHit } from "./utils.js";
 import { pick } from "./i18n.js";
+import { isBossLike } from "./entities.js?v=s2-20260726-td-balance1";
 
 export const WEAPONS = {
   bone: {
@@ -1858,7 +1859,7 @@ function updateInstance(player, inst, dt, world) {
         } else {
           if (f.leg === "back") {
             for (const o of enemies) {
-              if (o === f.e || o.boss || f.hitSet.has(o.id)) continue;
+              if (o === f.e || isBossLike(o) || f.hitSet.has(o.id)) continue;
               if (circleHit(f.e.x, f.e.y, 22, o.x, o.y, o.radius)) {
                 if (o.takeDamage(weaponDmg(player, tier.dmgMult * 0.5))) f.hitSet.add(o.id);
               }
@@ -1876,7 +1877,7 @@ function updateInstance(player, inst, dt, world) {
     // 随机一侧: 该侧全部敌人甩向对应屏幕边缘
     const side = ["up", "down", "left", "right"][Math.floor(Math.random() * 4)];
     const picked = enemies.filter((e) => {
-      if (e.boss) return false;
+      if (isBossLike(e)) return false;
       if (side === "up") return e.y < player.y;
       if (side === "down") return e.y > player.y;
       if (side === "left") return e.x < player.x;
@@ -1885,7 +1886,7 @@ function updateInstance(player, inst, dt, world) {
     if (!picked.length) {
       // Boss兜底(2026-07-15 用户反馈"打Boss完全不索敌"): 甩不动天意,
       // 但越界删除的判定本身照样砸在它身上
-      const b = enemies.find((e) => e.boss && Math.hypot(e.x - player.x, e.y - player.y) < 470);
+      const b = enemies.find((e) => isBossLike(e) && Math.hypot(e.x - player.x, e.y - player.y) < 470);
       if (!b) return;
       world.spawnBlast({ x: b.x, y: b.y, dmg: weaponDmg(player, tier.dmgMult), blast: tier.blast * (inst.evolved ? tier.edgeMult : 1), color: "#f2ead8" });
       inst.cooldown = 1 / (player.fireRate * tier.rateMult);
@@ -1929,13 +1930,13 @@ function updateInstance(player, inst, dt, world) {
       return;
     }
     const grabs = enemies
-      .filter((e) => !e.boss)
+      .filter((e) => !isBossLike(e))
       .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))
       .slice(0, tier.grabs)
       .filter((e) => Math.hypot(e.x - player.x, e.y - player.y) < effRange + 120);
     if (!grabs.length) {
       // Boss兜底: 拽不动天意,回收判定原地起爆(缴械由免疫规则裁决)
-      const b = enemies.find((e) => e.boss && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 120);
+      const b = enemies.find((e) => isBossLike(e) && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 120);
       if (!b) return;
       world.spawnBlast({ x: b.x, y: b.y, dmg: weaponDmg(player, tier.dmgMult), blast: tier.blast, color: "#c8d2e8" });
       inst.cooldown = 1 / (player.fireRate * tier.rateMult);
@@ -2004,9 +2005,10 @@ function updateInstance(player, inst, dt, world) {
     const bonus = 0.025 * Math.min(inst.enhance, 10); // 强化上限10次(用户原案)
     for (const e of enemies) {
       if (!circleHit(target.x, target.y, slashRadius, e.x, e.y, e.radius)) continue;
-      const throttled = e.boss || e.championProfile;
+      const bossLike = isBossLike(e);
+      const throttled = bossLike || e.championProfile;
       if (throttled && e.hackPct > 0) continue;
-      const pct = (e.boss ? tier.p3 : e.championProfile ? tier.p2 : e.elite ? tier.p1 : 1.0) + bonus;
+      const pct = (bossLike ? tier.p3 : e.championProfile ? tier.p2 : e.elite ? tier.p1 : 1.0) + bonus;
       if (e.takeDamage(Math.max(1, Math.round(e.maxHp * pct))) && throttled) e.hackPct = 2.5;
     }
     inst.hswing = { t: 0, radius: slashRadius, x: target.x, y: target.y };
@@ -2030,7 +2032,7 @@ function updateInstance(player, inst, dt, world) {
       e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * tier.push, world.bounds.top), world.bounds.bottom);
       e.applyRoot(1.2 + (inst.evolved ? tier.bonusRoot : 0));
       e.applyDisarm?.(Infinity);
-      if (e.boss || e.championProfile) continue; // 处决只对普通/精英
+      if (isBossLike(e) || e.championProfile) continue; // 处决只对普通/精英
       const line = (e.elite ? 0.2 : 0.5) + execBonus;
       if (e.hp / e.maxHp < line) {
         if (inst.enhance > 0) e.takeDamage(e.hp + 99999); // 斩杀线
@@ -2058,7 +2060,7 @@ function updateInstance(player, inst, dt, world) {
           if (circleHit(player.x, player.y, tier.size * 0.8, e.x, e.y, e.radius)) {
             if (e.takeDamage(weaponDmg(player, tier.chargeDmg))) {
               r.hitSet.add(e.id);
-              if (!e.boss) {
+              if (!isBossLike(e)) {
                 const d = Math.hypot(e.x - player.x, e.y - player.y) || 1;
                 e.x += ((e.x - player.x) / d) * 60;
                 e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * 60, world.bounds.top), world.bounds.bottom);
@@ -2187,12 +2189,12 @@ function updateInstance(player, inst, dt, world) {
       return;
     }
     const hosts = enemies
-      .filter((e) => !e.boss && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170) // Boss不当免伤宿主,但吃邻近炸点的溅射
+      .filter((e) => !isBossLike(e) && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170) // Boss不当免伤宿主,但吃邻近炸点的溅射
       .sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))
       .slice(0, tier.targets);
     if (!hosts.length) {
       // Boss兜底: 没有宿主时木马直接在天意身上引爆(它不是宿主,吃全额伤害)
-      const b = enemies.find((e) => e.boss && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170);
+      const b = enemies.find((e) => isBossLike(e) && Math.hypot(e.x - player.x, e.y - player.y) < effRange + 170);
       if (!b) return;
       const bossDmg = weaponDmg(player, tier.dmgMult);
       world.spawnBlast({ x: b.x, y: b.y, dmg: 0, blast: tier.blast, color: "#d8e2f0" });
@@ -2242,7 +2244,7 @@ function updateInstance(player, inst, dt, world) {
         // 强化: 撞上其他敌人时爆炸(每个飞行体只炸一次)
         if (!f.exploded && (inst.enhance > 0 || inst.evolved)) {
           for (const o of enemies) {
-            if (o === f.e || o.boss) continue;
+            if (o === f.e || isBossLike(o)) continue;
             if (circleHit(f.e.x, f.e.y, 20, o.x, o.y, o.radius)) {
               const r = inst.evolved ? 56 : 40 + 14 * Math.max(0, inst.enhance - 1);
               world.spawnBlast({ x: f.e.x, y: f.e.y, dmg: weaponDmg(player, tier.dmgMult * 0.6), blast: r, color: "#ff4d5e" });
@@ -2272,7 +2274,7 @@ function updateInstance(player, inst, dt, world) {
     const py = player.y + Math.sin(ang) * 34;
     world.spawnBlast({ x: px, y: py, dmg: weaponDmg(player, tier.dmgMult), blast: tier.blast, color: "#ff4d5e" });
     for (const e of enemies) {
-      if (e.boss) continue;
+      if (isBossLike(e)) continue;
       if (circleHit(px, py, tier.blast, e.x, e.y, e.radius)) {
         const d = Math.hypot(e.x - px, e.y - py) || 1;
         inst.flings.push({
@@ -2299,7 +2301,7 @@ function updateInstance(player, inst, dt, world) {
       // 目标已消失/死亡
       if (!e || e.hp <= 0) {
         if (inst.evolved && p.chainLeft > 0) {
-          const next = findNearestEnemy(player.x, player.y, 260, enemies.filter((x) => !x.boss));
+          const next = findNearestEnemy(player.x, player.y, 260, enemies.filter((x) => !isBossLike(x)));
           if (next) {
             inst.pounce = { phase: "leap", e: next, t: 0, fx: player.x, fy: player.y, chainLeft: p.chainLeft - 1, tickT: 0, rideT: 0 };
             return;
@@ -2323,7 +2325,7 @@ function updateInstance(player, inst, dt, world) {
           if (inst.enhance > 0) {
             const cap = 3 + (inst.enhance - 1);
             const near = enemies
-              .filter((o) => o !== e && !o.boss && Math.hypot(o.x - e.x, o.y - e.y) < 190)
+              .filter((o) => o !== e && !isBossLike(o) && Math.hypot(o.x - e.x, o.y - e.y) < 190)
               .sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y))
               .slice(0, cap);
             near.forEach((o, i) => {
@@ -2361,7 +2363,7 @@ function updateInstance(player, inst, dt, world) {
       return;
     }
     if (insanityBusy(player)) return; // 骨刺跳跃进行中不可扑
-    const t = findNearestEnemy(player.x, player.y, effRange + 90, enemies.filter((e) => !e.boss));
+    const t = findNearestEnemy(player.x, player.y, effRange + 90, enemies.filter((e) => !isBossLike(e)));
     if (!t) return;
     inst.pounce = { phase: "leap", e: t, t: 0, fx: player.x, fy: player.y, chainLeft: inst.evolved ? tier.chain - 1 : 0, tickT: 0, rideT: 0 };
     return;
@@ -2525,7 +2527,7 @@ function updateInstance(player, inst, dt, world) {
         if (inst.enhance > 0) {
           const push = 26 + 12 * (inst.enhance - 1);
           for (const o of enemies) {
-            if (circleHit(bx, by, 52, o.x, o.y, o.radius) && !o.boss) {
+            if (circleHit(bx, by, 52, o.x, o.y, o.radius) && !isBossLike(o)) {
               const d = Math.hypot(o.x - bx, o.y - by) || 1;
               o.x += ((o.x - bx) / d) * push;
               o.y = Math.min(Math.max(o.y + ((o.y - by) / d) * push, world.bounds.top), world.bounds.bottom);
@@ -2557,11 +2559,11 @@ function updateInstance(player, inst, dt, world) {
       inst.cooldown -= dt;
       return;
     }
-    let t = findNearestEnemy(player.x, player.y, effRange + 150, enemies.filter((e) => !e.boss));
+    let t = findNearestEnemy(player.x, player.y, effRange + 150, enemies.filter((e) => !isBossLike(e)));
     let noDrag = false;
     if (!t) {
       // Boss兜底: 拽不动天意,处刑连爆直接在它身上结算
-      t = findNearestEnemy(player.x, player.y, effRange + 150, enemies.filter((e) => e.boss));
+      t = findNearestEnemy(player.x, player.y, effRange + 150, enemies.filter((e) => isBossLike(e)));
       if (!t) return;
       noDrag = true;
     }

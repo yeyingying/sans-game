@@ -60,7 +60,7 @@
 - 最多选择 3 名 Sans，每名携带 1 把适合站桩的武器，沿随机走廊守住左侧入口。
 - 怪物、武器、选卡、经验和结算复用现有系统；入口初始 100 HP，破门后无法回血，再漏一只怪即失败。
 - 塔防不申请排行榜 run、不上传匿名 run 报告，成绩只保存在当前浏览器的 `best_td`（无尽独立键 `best_endless_td` / `best_endless_round_td`）。
-- Phase 2（2026-07-26 上线）：TD 版天意侵蚀Sans 是走路径的特殊怪（不用 `boss.js` 决斗剧本）——5:00 从走廊右端进场，血量按全塔最近 30 秒实测 DPS 标定（`Enemy.dmgDealt` 累计 + `td.dmgLog` 滚动窗口，`tdBossHp()` 夹在 9000~150 万），速度 42、每 2.5 秒打门 10 点；美术为 sans 走图侵蚀红染（`TD_BOSS_FRAMES`），顶部复用无尽首领的独立血条。
+- Phase 2（2026-07-26 上线）：TD 版天意侵蚀Sans 是走路径的特殊怪（不用 `boss.js` 决斗剧本）——5:00 从走廊右端进场，血量按全塔最近 30 秒的**有效伤害** DPS 标定（过量处决伤害不计入；`tdBossHp()` 夹在 9000~150 万）。TD 天意与经典天意共享 Boss 身份规则：控制免疫、删除镰刀按天意比例结算；每 2.5 秒打门 10 点。路线统一为约 42 秒行军预算，怪物速度按实际路径长度归一，手机、电脑与随机地图不再改变到门时间。美术为 sans 走图侵蚀红染（`TD_BOSS_FRAMES`），顶部复用无尽首领的独立血条。
 - Boss 死亡＝竞技止血冻结阶段分 → `bossclear` 选择：离开＝通关结算；继续＝90 秒无尽审判轮。无尽首领（champion）在塔防中从走廊右端入轨压门，打门伤害节制为 `gateDmg`（12+2×轮）；轮内金币进「待结算」池，风险规则与经典一致；round 4+ 危险领域在塔防关闭。
 - 隔离契约：TD 击败 Boss 不计入 `bossKills`、不推进难度解锁 `diffCleared`、不发 Boss 系称号（和平主义者/渡鸦/尘归尘）、不解锁 Boss 系回响（after/wd/dust）、不触发审判纪元章节、不写崩溃检查点；走廊绘制含流向箭头脉冲动画。
 - 手机横屏编队页使用独立大尺寸布局：角色卡 6 列、技能卡 4×2、队伍卡和开始/返回按钮均按至少约 44 物理像素设计。键盘可用 Enter 进入模式页，方向键/Tab 遍历“角色→技能→队伍→开始”，Enter 添加或移除，Esc 逐层返回；Canvas 带可见焦点、快捷键说明和 `aria-live` 状态播报。
@@ -240,6 +240,7 @@ node test/headless.mjs
 node test/headless.mjs boss
 node test/headless.mjs clear
 node test/weapons_smoke.mjs
+node test/td_balance.mjs
 node test/leaderboard.mjs
 node server/test.mjs
 node scripts/check-deploy-sync.mjs
@@ -250,6 +251,7 @@ git diff --check
 
 - `headless.mjs`：正常流程、UI 路径、Boss、通关 / 无尽结算、元进度。
 - `weapons_smoke.mjs`：48 把武器四档行为与 Boss-only 伤害契约。
+- `td_balance.mjs`：过量伤害、TD 天意身份、百分比武器、跨屏路线时间、Boss TTK 与破门预算。
 - `leaderboard.mjs`：游客恢复、run 生命周期、Boss 通关双榜和调试禁传。
 - `server/test.mjs`：评分、昵称、地域、后台、删除事务和难度漏斗。
 - `check-deploy-sync.mjs`：源码与发布镜像逐字节一致。

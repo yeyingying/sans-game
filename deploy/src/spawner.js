@@ -1,4 +1,4 @@
-import { Enemy } from "./entities.js";
+import { Enemy } from "./entities.js?v=s2-20260726-td-balance1";
 import { pickWeighted, randRange } from "./utils.js";
 import { eliteProfilePool } from "./codex.js";
 

@@ -307,4 +307,9 @@ for (const w of [...WEAPON_LISTS.insanity, ...WEAPON_LISTS.hacker]) {
   Math.random = origRandom;
 }
 console.log(failures ? `${failures} FAILURES` : "ALL PASS");
-process.exit(failures ? 1 : 0);
+if (failures) process.exit(1);
+
+// deploy.yml already runs this suite on every push. Chain the TD balance
+// invariants here so OAuth credentials without `workflow` scope do not need to
+// edit the protected workflow merely to add a new deterministic test file.
+await import("./td_balance.mjs");

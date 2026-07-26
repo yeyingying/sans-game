@@ -10,15 +10,20 @@ import { t, pick } from "./i18n.js";
 // 怪物只走走廊(到了可放置地面必须绕道=永远沿 waypoints 走)。
 
 export const TD_CELL = 54;
+export const TD_BOSS_BASE_SPEED = 42;
+export const TD_BOSS_TRAVEL_SECONDS = 42;
+export const TD_BOSS_TARGET_TTK = 42;
+export const TD_BOSS_GATE_DAMAGE = 10;
+export const TD_BOSS_GATE_INTERVAL = 2.5;
 
-export function tdBuildMap(width, height, wallH) {
+export function tdBuildMap(width, height, wallH, random = Math.random) {
   const cols = Math.floor(width / TD_CELL); // 17 @960
   const rows = Math.floor((height - wallH - 10) / TD_CELL); // 9 @600/100
   const oy = wallH + 6;
   const grid = Array.from({ length: rows }, () => Array(cols).fill(0)); // 0=可放置 1=走廊 2=障碍
   const midRow = Math.floor(rows / 2);
   // 从右往左刻走廊: 每前进 2-4 列随机竖折一次,最后两列并回中行
-  let row = 1 + Math.floor(Math.random() * (rows - 2));
+  let row = 1 + Math.floor(random() * (rows - 2));
   const cells = []; // [{c,r}] 右→左顺序
   let c = cols - 1;
   while (c >= 0) {
@@ -27,7 +32,13 @@ export function tdBuildMap(width, height, wallH) {
     if (c === 0) break;
     const targetRow = c <= 2 ? midRow : row;
     let jog = 0;
-    if (c > 2 && Math.random() < 0.45) jog = Math.floor(Math.random() * (rows - 2)) + 1 - row;
+    if (c > 2 && random() < 0.45) {
+      // 只折 1–2 格，避免随机一次从顶跳到底，造成同一设备也出现
+      // 30 秒与 100 秒两种完全不同的路线；地图仍有形状差异。
+      const dir = random() < 0.5 ? -1 : 1;
+      const amount = random() < 0.75 ? 1 : 2;
+      jog = Math.max(1, Math.min(rows - 2, row + dir * amount)) - row;
+    }
     if (c <= 2) jog = targetRow - row;
     const step = Math.sign(jog);
     for (let k = 0; k !== jog; k += step) {
@@ -38,11 +49,11 @@ export function tdBuildMap(width, height, wallH) {
     c -= 1;
   }
   // 随机障碍岩块: 走廊外再啃掉几格,地图差异感(不许贴走廊起终点)
-  let blocks = 5 + Math.floor(Math.random() * 4);
+  let blocks = 5 + Math.floor(random() * 4);
   let guard = 60;
   while (blocks > 0 && guard-- > 0) {
-    const rr = Math.floor(Math.random() * rows);
-    const cc = 1 + Math.floor(Math.random() * (cols - 2));
+    const rr = Math.floor(random() * rows);
+    const cc = 1 + Math.floor(random() * (cols - 2));
     if (grid[rr][cc] === 0) {
       grid[rr][cc] = 2;
       blocks--;
@@ -51,6 +62,11 @@ export function tdBuildMap(width, height, wallH) {
   const center = (cell) => ({ x: cell.c * TD_CELL + TD_CELL / 2, y: oy + cell.r * TD_CELL + TD_CELL / 2 });
   const waypoints = cells.map(center);
   const gate = center(cells[cells.length - 1]);
+  const spawn = { x: width + 30, y: waypoints[0].y };
+  let pathLength = Math.hypot(spawn.x - waypoints[0].x, spawn.y - waypoints[0].y);
+  for (let i = 1; i < waypoints.length; i++) {
+    pathLength += Math.hypot(waypoints[i].x - waypoints[i - 1].x, waypoints[i].y - waypoints[i - 1].y);
+  }
   return {
     cols,
     rows,
@@ -58,9 +74,30 @@ export function tdBuildMap(width, height, wallH) {
     grid,
     cells,
     waypoints,
-    spawn: { x: width + 30, y: waypoints[0].y }, // 屏外右缘进场
+    spawn, // 屏外右缘进场
     entranceXY: { x: gate.x - TD_CELL * 0.55, y: gate.y }, // 红门贴左缘
+    pathLength,
   };
+}
+
+// 以“42 速度走 42 秒”为统一路线预算。宽屏会生成更长的路径，因此只
+// 提高沿路敌人的像素速度，不增加它们到门所需的现实时间。这样手机、
+// 电脑和不同随机地图面对的是同一波次压力。
+export function tdRouteSpeed(map, baseSpeed) {
+  const referenceDistance = TD_BOSS_BASE_SPEED * TD_BOSS_TRAVEL_SECONDS;
+  return baseSpeed * (map.pathLength / referenceDistance);
+}
+
+export function tdRouteTravelSeconds(map, normalizedSpeed) {
+  return map.pathLength / Math.max(0.001, normalizedSpeed);
+}
+
+export function tdNormalizeEnemySpeed(enemy, map) {
+  if (!enemy.tdSpeedNormalized) {
+    enemy.speed = tdRouteSpeed(map, enemy.speed);
+    enemy.tdSpeedNormalized = true;
+  }
+  return enemy.speed;
 }
 
 export function tdCellAt(map, x, y) {
@@ -161,7 +198,26 @@ export function tdMeasuredDps(td) {
 }
 
 export function tdBossHp(dps) {
-  return Math.round(Math.min(1500000, Math.max(9000, dps * 42)));
+  return Math.round(Math.min(1500000, Math.max(9000, dps * TD_BOSS_TARGET_TTK)));
+}
+
+export function tdConfigureBoss(enemy, map, dps) {
+  enemy.tdBoss = true;
+  enemy.maxLives = 1;
+  enemy.lives = 1;
+  enemy.teleporter = false;
+  enemy.mark = null;
+  enemy.maxHp = tdBossHp(dps);
+  enemy.hp = enemy.maxHp;
+  enemy.speed = TD_BOSS_BASE_SPEED;
+  tdNormalizeEnemySpeed(enemy, map);
+  enemy.gateDmg = TD_BOSS_GATE_DAMAGE;
+  enemy.contactInterval = TD_BOSS_GATE_INTERVAL;
+  enemy.radius = Math.round(enemy.radius * 1.5);
+  enemy.attackRange = enemy.radius;
+  enemy.invulnTimer = 3;
+  enemy.tdWp = 0;
+  return enemy;
 }
 
 // 塔的伪玩家: 数值字段 getter 代理到主 player——攻击/攻速/增伤选卡与
@@ -202,6 +258,7 @@ export function tdWeaponAllowed(w) {
 // icecap(teleporter)的标记目标喂"前方第5个路径格"(半场非sans区,用户规格)。
 
 export function tdTargetFor(e, map) {
+  tdNormalizeEnemySpeed(e, map);
   const wps = map.waypoints;
   if (e.tdWp === undefined) {
     // 非 spawner 来源(开局热身怪/手工精英)就近入轨,不用跑回右端重走

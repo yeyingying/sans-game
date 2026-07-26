@@ -46,8 +46,8 @@ import {
   FloatingText,
   PLAYER_MAX_HP,
   PLAYER_FIRE_RATE_CAP,
-} from "./entities.js";
-import { Spawner, roundCoinFactor } from "./spawner.js";
+} from "./entities.js?v=s2-20260726-td-balance1";
+import { Spawner, roundCoinFactor } from "./spawner.js?v=s2-20260726-td-balance1";
 import {
   WEAPONS,
   CHARACTERS,
@@ -76,7 +76,7 @@ import {
   applyLevelUpBonus,
   weaponSummary,
   canEvolve,
-} from "./weapon.js?v=s2-20260718-art1";
+} from "./weapon.js?v=s2-20260726-td-balance1";
 import { rollEquipmentDrop, EQUIPMENT_TYPES } from "./items.js";
 import { ECHOES, CHAR_ECHOES, ALL_ECHOES, ECHO_BUD, ECHO_BLOOM, echoUnlocked, unlockEcho, unlockedEchoCount, unlockedAllEchoCount, randomEchoQuote } from "./echo.js";
 import {
@@ -208,7 +208,7 @@ import {
   tdXpFor,
   tdPlaceCost,
   tdMeasuredDps,
-  tdBossHp,
+  tdConfigureBoss,
   drawTdField,
   drawTdEntranceHud,
   drawTdBar,
@@ -221,7 +221,7 @@ import {
   tdRosterSlotRect,
   tdStartRect,
   tdBarSlotRect,
-} from "./td.js?v=s2-20260726-a11y1";
+} from "./td.js?v=s2-20260726-balance1";
 import {
   drawHud,
   drawCenterText,
@@ -2473,6 +2473,7 @@ function startTdRun() {
   reviveArmed = 0;
   activeContract = null;
   tutorialStep = -1;
+  Enemy.dmgDealt = 0; // TD Boss 标定只读取本局的有效伤害
   td = tdNewRun(tdBuildMap(WIDTH, HEIGHT, WALL_H), tdPickRoster.map((m) => ({ ...m, placed: false })));
   tdHoverCell = null;
   funValue = 0; // 访客彩蛋绕着玩家转,塔防局关闭
@@ -4462,6 +4463,13 @@ function update(dt) {
           WALL_H + 30 + Math.random() * (HEIGHT - WALL_H - 60),
           spawner.scale(true, !!profile, profile?.key)
         );
+        if (tdMode && td) {
+          // TD 精英潮也必须完整走同一条归一化路线；若沿用经典模式的
+          // 左右夹击坐标，宽屏会把一半精英直接生在门边。
+          e.x = td.map.spawn.x + Math.random() * 60;
+          e.y = td.map.spawn.y + (Math.random() - 0.5) * TD_CELL * 0.6;
+          e.tdWp = 0;
+        }
         enemies.push(e);
       }
     }
@@ -4480,22 +4488,9 @@ function update(dt) {
   if (tdMode && td && !td.bossSpawned && !bossDefeated && elapsed >= bossAppearAt()) {
     td.bossSpawned = true;
     const b = new Enemy("tank", td.map.spawn.x, td.map.spawn.y, spawner.scale(true, false));
-    b.tdBoss = true;
     b.championProfile = CORRUPTED_SANS; // 名字/图鉴身份=天意侵蚀Sans
     b.eliteProfile = null;
-    b.maxLives = 1;
-    b.lives = 1;
-    b.teleporter = false;
-    b.mark = null;
-    b.maxHp = tdBossHp(tdMeasuredDps(td));
-    b.hp = b.maxHp;
-    b.speed = 42; // 慢速行军: 走廊全程约30秒
-    b.dmg = 10; // 打门=每2.5秒10点: 破100血的门要25秒+,攻速大削(用户规格)
-    b.contactInterval = 2.5;
-    b.radius = Math.round(b.radius * 1.5);
-    b.attackRange = b.radius;
-    b.invulnTimer = 3; // 降临无敌窗,与无尽首领一致
-    b.tdWp = 0;
+    tdConfigureBoss(b, td.map, tdMeasuredDps(td));
     enemies.push(b);
     bossFightStartedAt = elapsed;
     bossPhaseReached = 1;
