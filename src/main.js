@@ -214,13 +214,14 @@ import {
   drawTdBar,
   drawModeSelect,
   drawTdPick,
+  tdModeOptions,
   modeOptionRect,
   tdPickCharRect,
   tdPickWeaponRect,
   tdRosterSlotRect,
   tdStartRect,
   tdBarSlotRect,
-} from "./td.js";
+} from "./td.js?v=s2-20260726-a11y1";
 import {
   drawHud,
   drawCenterText,
@@ -292,11 +293,39 @@ import {
   sfxMinusRect,
   sfxPlusRect,
   drawVolumeControl,
-} from "./ui.js?v=s2-20260718-debug1";
+} from "./ui.js?v=s2-20260726-a11y1";
 
 const canvas = document.getElementById("game");
+const srStatus = document.getElementById("game-status");
 const BASE_WIDTH = 960;
 const BASE_HEIGHT = 600;
+
+function announceGame(text) {
+  if (srStatus) srStatus.textContent = text;
+}
+
+let lastCanvasA11yLabel = "";
+function syncCanvasA11y() {
+  const screenNames = {
+    title: t("主菜单", "Main menu"),
+    modeselect: t("模式选择", "Mode select"),
+    tdpick: t("塔防编队", "Tower defense squad"),
+    charselect: t("角色选择", "Character select"),
+    weaponselect: t("技能选择", "Skill select"),
+    playing: tdMode ? t("塔防战斗", "Tower defense battle") : t("经典战斗", "Classic battle"),
+    paused: t("暂停", "Paused"),
+    choice: t("升级选择", "Upgrade select"),
+    gameover: t("结算", "Results"),
+    leaderboard: t("排行榜", "Leaderboard"),
+    shop: t("商店", "Shop"),
+    codex: t("图鉴", "Codex"),
+  };
+  const label = `${t("Sans 割草游戏", "Sans Survival")}：${screenNames[state] || t("游戏画面", "Game screen")}`;
+  if (label !== lastCanvasA11yLabel) {
+    canvas.setAttribute?.("aria-label", label);
+    lastCanvasA11yLabel = label;
+  }
+}
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -584,6 +613,9 @@ const TD_BOSS_FRAMES = WALK_SETS.sans.left.map((f) => tintSprite(f, "#ff4f70", 0
 let tdPickSel = 0; // 选人页当前高亮角色索引
 let tdPickRoster = []; // 选人页已选 [{char, weapon, charId, weaponId, cost, placed}]
 let tdHoverCell = null; // 放置态悬停格(触屏=最后一次点击预览)
+let modeKeyboardFocus = -1; // 模式页键盘焦点(-1=鼠标/触屏正在操作)
+let tdKeyboardFocus = null; // 编队页键盘焦点 {zone:"char|weapon|roster|start",index}
+let keyboardNavigation = false; // 只在键盘操作时显示可见焦点框
 let bossDeathSnapped = false; // stage score freezes the frame the boss dies
 let lastNewQuests = []; // bounties finished this run (gameover lines)
 let lastMasteryUp = null; // "角色 专精 LvN (+coins)" line
@@ -2453,6 +2485,91 @@ function startTdRun() {
   startBattleBgm();
 }
 
+function activateModeOption(index) {
+  if (index === 0) {
+    toCharSelect();
+  } else if (index === 1) {
+    state = "dailyintro";
+    bossClearChoice = 1;
+  } else if (index === 2) {
+    tdPickSel = 0;
+    tdPickRoster = [];
+    tdKeyboardFocus = { zone: "char", index: 0 };
+    state = "tdpick";
+    announceTdFocus();
+  }
+  sfxClick();
+}
+
+function usableTdWeapons() {
+  const c = CHARACTERS[tdPickSel];
+  return c ? WEAPON_LISTS[c.id].filter(tdWeaponAllowed) : [];
+}
+
+function addTdRosterWeapon(index) {
+  const c = CHARACTERS[tdPickSel];
+  const weapon = usableTdWeapons()[index];
+  if (!c || !weapon) return false;
+  if (tdPickRoster.length >= 3 || tdPickRoster.some((member) => member.charId === c.id)) {
+    sfxHurt();
+    announceGame(t("这个 Sans 已在队伍中，或队伍已满。", "That Sans is already in the squad, or the squad is full."));
+    return false;
+  }
+  tdPickRoster.push({ char: c, weapon, charId: c.id, weaponId: weapon.id, cost: c.cost || 1000, placed: false });
+  sfxEquip();
+  announceGame(t(`${pick(c, "name")}携带${pick(weapon, "name")}加入队伍，当前${tdPickRoster.length}人。`, `${pick(c, "name")} joins with ${pick(weapon, "name")}. Squad ${tdPickRoster.length} of 3.`));
+  return true;
+}
+
+function moveTdCharacter(delta) {
+  const locks = charLocksNow();
+  for (let step = 1; step <= CHARACTERS.length; step++) {
+    const next = (tdPickSel + delta * step + CHARACTERS.length) % CHARACTERS.length;
+    if (!locks[CHARACTERS[next].id]) {
+      tdPickSel = next;
+      setTdKeyboardFocus("char", next);
+      return;
+    }
+  }
+}
+
+function announceModeFocus() {
+  const option = tdModeOptions()[Math.max(0, modeKeyboardFocus)];
+  if (option) announceGame(`${option.name}。${option.hint}`);
+}
+
+function announceTdFocus() {
+  if (!tdKeyboardFocus) return;
+  const { zone, index } = tdKeyboardFocus;
+  if (zone === "char") {
+    const c = CHARACTERS[tdPickSel];
+    const lock = charLocksNow()[c.id];
+    announceGame(lock
+      ? t(`${pick(c, "name")}，未解锁。${lock.hint}`, `${pick(c, "name")}, locked. ${lock.hint}`)
+      : t(`${pick(c, "name")}，放置费用${c.cost || 1000}。`, `${pick(c, "name")}, placement cost ${c.cost || 1000}.`));
+  } else if (zone === "weapon") {
+    const weapon = usableTdWeapons()[index];
+    if (weapon) announceGame(t(`${pick(weapon, "name")}，${pick(weapon, "tag")}。按 Enter 加入队伍。`, `${pick(weapon, "name")}, ${pick(weapon, "tag")}. Press Enter to add.`));
+  } else if (zone === "roster") {
+    const member = tdPickRoster[index];
+    announceGame(member
+      ? t(`队伍第${index + 1}位，${pick(member.char, "name")}，${pick(member.weapon, "name")}。按 Enter 移除。`, `Squad slot ${index + 1}, ${pick(member.char, "name")}, ${pick(member.weapon, "name")}. Press Enter to remove.`)
+      : t(`队伍第${index + 1}位，空位。`, `Squad slot ${index + 1}, empty.`));
+  } else {
+    announceGame(t(`开始守门。当前队伍${tdPickRoster.length}人。`, `Hold the gate. Squad ${tdPickRoster.length} of 3.`));
+  }
+}
+
+function setTdKeyboardFocus(zone, index = 0) {
+  if (zone === "char") index = tdPickSel;
+  else if (zone === "weapon") index = Math.max(0, Math.min(index, Math.max(0, usableTdWeapons().length - 1)));
+  else if (zone === "roster") index = Math.max(0, Math.min(index, 2));
+  else index = 0;
+  tdKeyboardFocus = { zone, index };
+  keyboardNavigation = true;
+  announceTdFocus();
+}
+
 // 塔防失败: 破门后漏怪——借用死亡结算管线(player.hp=0 → death 结局)
 function tdLose(e) {
   player.invuln = 0;
@@ -3227,18 +3344,11 @@ function handleCanvasTap(pos) {
       sfxClick();
       return;
     }
-    if (inRect(pos, modeOptionRect(0, WIDTH, HEIGHT))) {
-      toCharSelect(); // 经典
-      sfxClick();
-    } else if (inRect(pos, modeOptionRect(1, WIDTH, HEIGHT))) {
-      state = "dailyintro"; // 每日: 保留说明大厅,不冷启动
-      bossClearChoice = 1;
-      sfxClick();
-    } else if (inRect(pos, modeOptionRect(2, WIDTH, HEIGHT))) {
-      tdPickSel = 0;
-      tdPickRoster = [];
-      state = "tdpick";
-      sfxClick();
+    for (let i = 0; i < 3; i++) {
+      if (inRect(pos, modeOptionRect(i, WIDTH, HEIGHT))) {
+        activateModeOption(i);
+        return;
+      }
     }
     return;
   }
@@ -3256,14 +3366,10 @@ function handleCanvasTap(pos) {
         return;
       }
     }
-    const c = CHARACTERS[tdPickSel];
-    const usable = WEAPON_LISTS[c.id].filter(tdWeaponAllowed);
+    const usable = usableTdWeapons();
     for (let i = 0; i < usable.length; i++) {
       if (inRect(pos, tdPickWeaponRect(i, WIDTH))) {
-        if (tdPickRoster.length < 3 && !tdPickRoster.some((m) => m.charId === c.id)) {
-          tdPickRoster.push({ char: c, weapon: usable[i], charId: c.id, weaponId: usable[i].id, cost: c.cost || 1000, placed: false });
-          sfxEquip();
-        } else sfxHurt(); // 满3或该sans已在队列
+        addTdRosterWeapon(i);
         return;
       }
     }
@@ -3642,6 +3748,9 @@ canvas.addEventListener("pointerup", (e) => {
   initSfx(); // AudioContext may only start inside a user gesture
   if (e.isPrimary === false || (e.button !== undefined && e.button !== 0)) return;
   e.preventDefault();
+  keyboardNavigation = false;
+  modeKeyboardFocus = -1;
+  tdKeyboardFocus = null;
   lastPointerTapAt = performance.now();
   handleCanvasTap(canvasCoords(e));
 });
@@ -3649,6 +3758,9 @@ canvas.addEventListener("pointerup", (e) => {
 canvas.addEventListener("click", (e) => {
   initSfx();
   if (performance.now() - lastPointerTapAt < 500) return;
+  keyboardNavigation = false;
+  modeKeyboardFocus = -1;
+  tdKeyboardFocus = null;
   handleCanvasTap(canvasCoords(e));
 });
 
@@ -3676,15 +3788,127 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (state === "title") {
-    if (k === " " || k === "enter") state = "charselect"; // 键盘快捷: 空格直入经典(老玩家肌肉记忆)
+    if (k === "enter") {
+      state = "modeselect";
+      modeKeyboardFocus = 0;
+      keyboardNavigation = true;
+      announceModeFocus();
+      sfxClick();
+    } else if (k === " ") {
+      e.preventDefault();
+      toCharSelect(); // 空格直入经典: 保留老玩家肌肉记忆
+      announceGame(t("经典割草。请选择角色。", "Classic survival. Choose a character."));
+    }
     return;
   }
   if (state === "modeselect") {
-    if (k === "escape") state = "title";
+    if (k === "escape") {
+      state = "title";
+      modeKeyboardFocus = -1;
+      announceGame(t("返回主菜单。", "Back to the main menu."));
+    } else if (k === "arrowup" || k === "arrowleft" || k === "arrowdown" || k === "arrowright") {
+      e.preventDefault();
+      const delta = k === "arrowup" || k === "arrowleft" ? -1 : 1;
+      modeKeyboardFocus = (Math.max(0, modeKeyboardFocus) + delta + 3) % 3;
+      keyboardNavigation = true;
+      sfxClick();
+      announceModeFocus();
+    } else if (/^[1-3]$/.test(k)) {
+      modeKeyboardFocus = Number(k) - 1;
+      keyboardNavigation = true;
+      announceModeFocus();
+    } else if (k === "enter" || k === " ") {
+      e.preventDefault();
+      keyboardNavigation = true;
+      if (modeKeyboardFocus < 0) modeKeyboardFocus = 0;
+      activateModeOption(modeKeyboardFocus);
+    }
     return;
   }
   if (state === "tdpick") {
-    if (k === "escape") state = "modeselect";
+    if (k === "escape") {
+      state = "modeselect";
+      modeKeyboardFocus = 2;
+      tdKeyboardFocus = null;
+      keyboardNavigation = true;
+      announceModeFocus();
+      return;
+    }
+    if (!tdKeyboardFocus) setTdKeyboardFocus("char", tdPickSel);
+    const zone = tdKeyboardFocus.zone;
+    const index = tdKeyboardFocus.index;
+    const weapons = usableTdWeapons();
+    if (k === "tab") {
+      e.preventDefault();
+      const zones = ["char", "weapon", "roster", "start"];
+      const next = (zones.indexOf(zone) + (e.shiftKey ? -1 : 1) + zones.length) % zones.length;
+      setTdKeyboardFocus(zones[next], zones[next] === "roster" ? 0 : 0);
+    } else if (zone === "char") {
+      if (k === "arrowleft" || k === "arrowup") {
+        e.preventDefault();
+        moveTdCharacter(-1);
+      } else if (k === "arrowright") {
+        e.preventDefault();
+        moveTdCharacter(1);
+      } else if (k === "arrowdown" || k === "enter" || k === " ") {
+        e.preventDefault();
+        setTdKeyboardFocus("weapon", 0);
+      }
+    } else if (zone === "weapon") {
+      if (k === "arrowleft" || k === "arrowright") {
+        e.preventDefault();
+        const delta = k === "arrowleft" ? -1 : 1;
+        setTdKeyboardFocus("weapon", (index + delta + weapons.length) % Math.max(1, weapons.length));
+      } else if (k === "arrowup") {
+        e.preventDefault();
+        if (index >= 4) setTdKeyboardFocus("weapon", index - 4);
+        else setTdKeyboardFocus("char", tdPickSel);
+      } else if (k === "arrowdown") {
+        e.preventDefault();
+        if (index + 4 < weapons.length) setTdKeyboardFocus("weapon", index + 4);
+        else setTdKeyboardFocus("roster", Math.min(index, 2));
+      } else if (k === "enter" || k === " ") {
+        e.preventDefault();
+        if (addTdRosterWeapon(index)) setTdKeyboardFocus("char", tdPickSel);
+      }
+    } else if (zone === "roster") {
+      if (k === "arrowleft" || k === "arrowright") {
+        e.preventDefault();
+        const delta = k === "arrowleft" ? -1 : 1;
+        setTdKeyboardFocus("roster", (index + delta + 3) % 3);
+      } else if (k === "arrowup") {
+        e.preventDefault();
+        setTdKeyboardFocus("weapon", Math.min(index, Math.max(0, weapons.length - 1)));
+      } else if (k === "arrowdown") {
+        e.preventDefault();
+        setTdKeyboardFocus("start");
+      } else if (k === "enter" || k === " ") {
+        e.preventDefault();
+        if (tdPickRoster[index]) {
+          const removed = tdPickRoster.splice(index, 1)[0];
+          sfxClick();
+          announceGame(t(`已移除${pick(removed.char, "name")}。`, `${pick(removed.char, "name")} removed.`));
+        } else {
+          sfxHurt();
+          announceTdFocus();
+        }
+      }
+    } else if (zone === "start") {
+      if (k === "arrowup") {
+        e.preventDefault();
+        setTdKeyboardFocus("roster", 0);
+      } else if (k === "enter" || k === " ") {
+        e.preventDefault();
+        if (tdPickRoster.length > 0) {
+          announceGame(t("塔防开始。守住左边入口。", "Tower defense started. Hold the left gate."));
+          startTdRun();
+          sfxClick();
+        } else {
+          sfxHurt();
+          announceGame(t("先选择一名 Sans 和一个技能。", "Choose a Sans and one skill first."));
+        }
+      }
+    }
     return;
   }
   if (state === "leaderboard") {
@@ -5212,6 +5436,7 @@ function spikeBoneSprite(sp) {
 }
 
 function draw() {
+  syncCanvasA11y();
   drawBackground();
 
   ctx.save();
@@ -6827,13 +7052,23 @@ function draw() {
   } else if (state === "leaderboard") {
     drawLeaderboard(ctx, WIDTH, HEIGHT);
   } else if (state === "modeselect") {
-    drawModeSelect(ctx, WIDTH, HEIGHT);
+    drawModeSelect(ctx, WIDTH, HEIGHT, keyboardNavigation ? modeKeyboardFocus : -1);
     drawBackButton(ctx, WIDTH, HEIGHT);
   } else if (state === "tdpick") {
     {
       const locks = charLocksNow();
       const c = CHARACTERS[tdPickSel];
-      drawTdPick(ctx, WIDTH, HEIGHT, CHARACTERS, tdPickSel, WEAPON_LISTS[c.id].filter(tdWeaponAllowed), tdPickRoster, locks);
+      drawTdPick(
+        ctx,
+        WIDTH,
+        HEIGHT,
+        CHARACTERS,
+        tdPickSel,
+        WEAPON_LISTS[c.id].filter(tdWeaponAllowed),
+        tdPickRoster,
+        locks,
+        keyboardNavigation ? tdKeyboardFocus : null
+      );
       drawBackButton(ctx, WIDTH, HEIGHT);
     }
   } else if (state === "charselect") {
@@ -7637,6 +7872,13 @@ function draw() {
 // debug probe (dev only)
 window.__dbg = () => ({
   state,
+  keyboard: {
+    modeFocus: state === "modeselect" ? modeKeyboardFocus : null,
+    tdFocus: state === "tdpick" ? tdKeyboardFocus : null,
+  },
+  tdPick: state === "tdpick"
+    ? { selectedChar: tdPickSel, roster: tdPickRoster.length }
+    : null,
   td: tdMode && td
     ? {
         gateHp: Math.ceil(td.entrance.hp),

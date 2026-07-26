@@ -363,25 +363,49 @@ export function drawTdEntranceHud(ctx, entrance) {
 
 // ---- 模式选择 / 塔防选人 UI 的矩形与绘制 ------------------------------------
 
+const isPhoneLayout = (width) => width >= 1000;
+
+export function tdModeOptions() {
+  return [
+    { name: t("经 典 模 式", "CLASSIC"), hint: t("五分钟构筑,挑战天意侵蚀Sans", "Five minutes of building toward the Boss"), color: "#7ea8ff" },
+    { name: t("每 日 挑 战", "DAILY RUN"), hint: t("全球同一起跑线,每天一张新考卷", "One seed, one fair race, every day"), color: "#c59bff" },
+    { name: t("塔 防 模 式", "TOWER DEFENSE"), hint: t("放置sans守住入口,怪物冲向左侧大门", "Place your sans, hold the gate on the left"), color: "#ff8a5d" },
+  ];
+}
+
+function drawKeyboardFocus(ctx, r, color = "#f2ead8") {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([9, 5]);
+  ctx.strokeRect(r.x + 5, r.y + 5, r.w - 10, r.h - 10);
+  ctx.setLineDash([]);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(r.x + 12, r.y + r.h / 2 - 7);
+  ctx.lineTo(r.x + 24, r.y + r.h / 2);
+  ctx.lineTo(r.x + 12, r.y + r.h / 2 + 7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 export function modeOptionRect(i, width, height) {
   const w = 460;
   const h = 74;
   return { x: width / 2 - w / 2, y: 150 + i * (h + 22), w, h };
 }
 
-export function drawModeSelect(ctx, width, height) {
+export function drawModeSelect(ctx, width, height, keyboardFocus = -1) {
+  const phone = isPhoneLayout(width);
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.97)";
   ctx.fillRect(0, 0, width, height);
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd166";
-  ctx.font = "bold 30px monospace";
+  ctx.font = `bold ${phone ? 34 : 30}px monospace`;
   ctx.fillText(t("选 择 模 式", "SELECT MODE"), width / 2, 92);
-  const modes = [
-    { name: t("经 典 模 式", "CLASSIC"), hint: t("五分钟构筑,挑战天意侵蚀Sans", "Five minutes of building toward the Boss"), color: "#7ea8ff" },
-    { name: t("每 日 挑 战", "DAILY RUN"), hint: t("全球同一起跑线,每天一张新考卷", "One seed, one fair race, every day"), color: "#c59bff" },
-    { name: t("塔 防 模 式", "TOWER DEFENSE"), hint: t("放置sans守住入口,怪物冲向左侧大门", "Place your sans, hold the gate on the left"), color: "#ff8a5d" },
-  ];
+  const modes = tdModeOptions();
   modes.forEach((m, i) => {
     const r = modeOptionRect(i, width, height);
     ctx.fillStyle = "#1d1828";
@@ -390,17 +414,29 @@ export function drawModeSelect(ctx, width, height) {
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = m.color;
-    ctx.font = "bold 20px monospace";
+    ctx.font = `bold ${phone ? 22 : 20}px monospace`;
     ctx.fillText(m.name, width / 2, r.y + 32);
     ctx.fillStyle = "#9a93ab";
-    ctx.font = "12px monospace";
+    ctx.font = `${phone ? 17 : 12}px monospace`;
     ctx.fillText(m.hint, width / 2, r.y + 56);
+    if (keyboardFocus === i) drawKeyboardFocus(ctx, r);
   });
+  if (keyboardFocus >= 0 && !phone) {
+    ctx.fillStyle = "#8fd6ff";
+    ctx.font = "13px monospace";
+    ctx.fillText(t("↑↓ 选择 · Enter 确认 · Esc 返回", "↑↓ Choose · Enter Confirm · Esc Back"), width / 2, height - 16);
+  }
   ctx.restore();
 }
 
 // 塔防选人: 上排角色卡,中排该角色可用武器,底部已选队列(≤3)+开战键
 export function tdPickCharRect(i, width) {
+  if (isPhoneLayout(width)) {
+    const gap = 14;
+    const total = Math.min(1120, width - 120);
+    const w = (total - gap * 5) / 6;
+    return { x: width / 2 - total / 2 + i * (w + gap), y: 78, w, h: 86 };
+  }
   const w = 138;
   const gap = 12;
   const total = 6 * w + 5 * gap;
@@ -408,6 +444,15 @@ export function tdPickCharRect(i, width) {
 }
 
 export function tdPickWeaponRect(i, width) {
+  if (isPhoneLayout(width)) {
+    const cols = 4;
+    const gap = 14;
+    const total = Math.min(1100, width - 160);
+    const w = (total - gap * (cols - 1)) / cols;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    return { x: width / 2 - total / 2 + col * (w + gap), y: 184 + row * 82, w, h: 70 };
+  }
   const w = 214;
   const gap = 10;
   const total = 4 * w + 3 * gap;
@@ -417,6 +462,12 @@ export function tdPickWeaponRect(i, width) {
 }
 
 export function tdRosterSlotRect(i, width, height) {
+  if (isPhoneLayout(width)) {
+    const gap = 16;
+    const total = Math.min(840, width - 360);
+    const w = (total - gap * 2) / 3;
+    return { x: width / 2 - total / 2 + i * (w + gap), y: 374, w, h: 72 };
+  }
   const w = 190;
   const gap = 14;
   const total = 3 * w + 2 * gap;
@@ -424,20 +475,28 @@ export function tdRosterSlotRect(i, width, height) {
 }
 
 export function tdStartRect(width, height) {
+  if (isPhoneLayout(width)) return { x: width / 2 - 180, y: height - 116, w: 360, h: 76 };
   return { x: width / 2 - 150, y: height - 96, w: 300, h: 54 };
 }
 
-export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, locksInfo) {
+export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, locksInfo, keyboardFocus = null) {
+  const phone = isPhoneLayout(width);
   ctx.save();
   ctx.fillStyle = "rgba(10, 8, 16, 0.97)";
   ctx.fillRect(0, 0, width, height);
   ctx.textAlign = "center";
   ctx.fillStyle = "#ff8a5d";
-  ctx.font = "bold 26px monospace";
-  ctx.fillText(t("塔 防 编 队", "TD SQUAD"), width / 2, 48);
+  ctx.font = `bold ${phone ? 32 : 26}px monospace`;
+  ctx.fillText(t("塔 防 编 队", "TD SQUAD"), width / 2, phone ? 38 : 48);
   ctx.fillStyle = "#9a93ab";
-  ctx.font = "12px monospace";
-  ctx.fillText(t("最多带 3 个 sans,每人只带 1 个技能;放置消耗经验,越放越贵", "Up to 3 sans, one skill each; placing costs XP and gets pricier"), width / 2, 72);
+  ctx.font = `${phone ? 17 : 12}px monospace`;
+  ctx.fillText(
+    phone
+      ? t("选 1–3 名 sans · 每人 1 个技能", "Pick 1–3 sans · one skill each")
+      : t("最多带 3 个 sans,每人只带 1 个技能;放置消耗经验,越放越贵", "Up to 3 sans, one skill each; placing costs XP and gets pricier"),
+    width / 2,
+    phone ? 64 : 72
+  );
 
   chars.forEach((c, i) => {
     const r = tdPickCharRect(i, width);
@@ -449,11 +508,12 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.lineWidth = on ? 3 : 2;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = locked ? "#5a5468" : c.color;
-    ctx.font = "bold 13px monospace";
-    ctx.fillText(pick(c, "name"), r.x + r.w / 2, r.y + 34);
+    ctx.font = `bold ${phone ? 20 : 13}px monospace`;
+    ctx.fillText(pick(c, "name"), r.x + r.w / 2, r.y + (phone ? 31 : 34));
     ctx.fillStyle = "#7d7690";
-    ctx.font = "11px monospace";
-    ctx.fillText(locked ? t("未解锁", "Locked") : `${t("放置", "Cost")} ${c.cost || 1000}`, r.x + r.w / 2, r.y + 58);
+    ctx.font = `${phone ? 16 : 11}px monospace`;
+    ctx.fillText(locked ? t("未解锁", "Locked") : `${t("放置", "Cost")} ${c.cost || 1000}`, r.x + r.w / 2, r.y + (phone ? 62 : 58));
+    if (keyboardFocus?.zone === "char" && keyboardFocus.index === i) drawKeyboardFocus(ctx, r);
   });
 
   weapons.forEach((w, i) => {
@@ -464,17 +524,22 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = w.color;
-    ctx.font = "bold 13px monospace";
-    ctx.fillText(pick(w, "name"), r.x + r.w / 2, r.y + 20);
+    ctx.font = `bold ${phone ? 19 : 13}px monospace`;
+    ctx.fillText(pick(w, "name"), r.x + r.w / 2, r.y + (phone ? 28 : 20));
     ctx.fillStyle = "#7d7690";
-    ctx.font = "10px monospace";
-    ctx.fillText(`[${pick(w, "tag")}]`, r.x + r.w / 2, r.y + 37);
+    ctx.font = `${phone ? 16 : 10}px monospace`;
+    ctx.fillText(`[${pick(w, "tag")}]`, r.x + r.w / 2, r.y + (phone ? 54 : 37));
+    if (keyboardFocus?.zone === "weapon" && keyboardFocus.index === i) drawKeyboardFocus(ctx, r);
   });
 
   // 已选队列
   ctx.fillStyle = "#9a93ab";
-  ctx.font = "bold 13px monospace";
-  ctx.fillText(t("出 战 队 列(点击移除)", "SQUAD (tap to remove)"), width / 2, height - 182);
+  ctx.font = `bold ${phone ? 17 : 13}px monospace`;
+  ctx.fillText(
+    phone ? t(`队 伍 ${roster.length}/3 · 点卡移除`, `SQUAD ${roster.length}/3 · tap to remove`) : t("出 战 队 列(点击移除)", "SQUAD (tap to remove)"),
+    width / 2,
+    phone ? 360 : height - 182
+  );
   for (let i = 0; i < 3; i++) {
     const r = tdRosterSlotRect(i, width, height);
     const m = roster[i];
@@ -485,16 +550,17 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     if (m) {
       ctx.fillStyle = "#f2ead8";
-      ctx.font = "bold 13px monospace";
-      ctx.fillText(pick(m.char, "name"), r.x + r.w / 2, r.y + 22);
+      ctx.font = `bold ${phone ? 18 : 13}px monospace`;
+      ctx.fillText(pick(m.char, "name"), r.x + r.w / 2, r.y + (phone ? 28 : 22));
       ctx.fillStyle = "#9a93ab";
-      ctx.font = "11px monospace";
-      ctx.fillText(pick(m.weapon, "name"), r.x + r.w / 2, r.y + 42);
+      ctx.font = `${phone ? 15 : 11}px monospace`;
+      ctx.fillText(pick(m.weapon, "name"), r.x + r.w / 2, r.y + (phone ? 55 : 42));
     } else {
       ctx.fillStyle = "#453f52";
-      ctx.font = "12px monospace";
-      ctx.fillText(t("空 位", "empty"), r.x + r.w / 2, r.y + 33);
+      ctx.font = `${phone ? 17 : 12}px monospace`;
+      ctx.fillText(t("空 位", "empty"), r.x + r.w / 2, r.y + (phone ? 43 : 33));
     }
+    if (keyboardFocus?.zone === "roster" && keyboardFocus.index === i) drawKeyboardFocus(ctx, r);
   }
   const sr = tdStartRect(width, height);
   const ready = roster.length > 0;
@@ -504,8 +570,14 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
   ctx.lineWidth = 2;
   ctx.strokeRect(sr.x, sr.y, sr.w, sr.h);
   ctx.fillStyle = ready ? "#ffd166" : "#453f52";
-  ctx.font = "bold 20px monospace";
-  ctx.fillText(t("开 始 守 门", "HOLD THE GATE"), width / 2, sr.y + 35);
+  ctx.font = `bold ${phone ? 24 : 20}px monospace`;
+  ctx.fillText(t("开 始 守 门", "HOLD THE GATE"), width / 2, sr.y + (phone ? 47 : 35));
+  if (keyboardFocus?.zone === "start") drawKeyboardFocus(ctx, sr, ready ? "#f2ead8" : "#8a8497");
+  if (keyboardFocus && !phone) {
+    ctx.fillStyle = "#8fd6ff";
+    ctx.font = "12px monospace";
+    ctx.fillText(t("方向键移动 · Enter 选择/移除 · Esc 返回", "Arrows move · Enter select/remove · Esc back"), width / 2, height - 7);
+  }
   ctx.restore();
 }
 

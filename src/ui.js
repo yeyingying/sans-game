@@ -147,7 +147,7 @@ export function drawResumeButton(ctx, width, height) {
   ctx.lineWidth = 2;
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#7cf28a";
-  ctx.font = "bold 17px monospace";
+  ctx.font = `bold ${T(17, 22)}px monospace`;
   ctx.textAlign = "center";
   ctx.fillText(t("继 续", "Resume"), btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
   ctx.restore();
@@ -233,7 +233,7 @@ export function drawMuteButton(ctx, width, muted) {
 }
 
 export function backButtonRect(width, height) {
-  return { x: 24, y: height - T(62, 72), w: T(120, 136), h: T(44, 54) };
+  return { x: 24, y: height - T(62, 82), w: T(120, 180), h: T(44, 70) };
 }
 
 export function drawBackButton(ctx, width, height) {

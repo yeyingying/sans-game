@@ -95,12 +95,25 @@ function check(name, cond, detail = "") {
 await import(new URL("../src/main.js", import.meta.url));
 
 const dbg = () => window.__dbg();
-function key(k) {
-  for (const fn of listeners.window.keydown || []) fn({ key: k, preventDefault: () => {} });
+function key(k, options = {}) {
+  for (const fn of listeners.window.keydown || []) fn({
+    key: k,
+    shiftKey: !!options.shiftKey,
+    preventDefault: () => {},
+  });
 }
 function keyUp(k) {
   for (const fn of listeners.window.keyup || []) fn({ key: k, preventDefault: () => {} });
 }
+
+{
+  const TD_LAYOUT = await import(new URL(`../src/td.js?layout=${MODE}`, import.meta.url));
+  check("phone TD character cards are finger-sized", TD_LAYOUT.tdPickCharRect(0, 1298).h >= 70);
+  check("phone TD weapon cards are finger-sized", TD_LAYOUT.tdPickWeaponRect(0, 1298).h >= 70);
+  check("phone TD roster cards are finger-sized", TD_LAYOUT.tdRosterSlotRect(0, 1298, 600).h >= 70);
+  check("phone TD start button is finger-sized", TD_LAYOUT.tdStartRect(1298, 600).h >= 70);
+}
+
 function frame(ms = 1000 / 30) {
   simNow += ms;
   const cb = rafCb;
@@ -228,6 +241,8 @@ function run(seconds, onFrame) {
   const spriteSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/sprites.js", import.meta.url), "utf8"));
   const uiSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/ui.js", import.meta.url), "utf8"));
   const mainSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8"));
+  const indexSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../index.html", import.meta.url), "utf8"));
+  const styleSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../style.css", import.meta.url), "utf8"));
   const entitySrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/entities.js", import.meta.url), "utf8"));
   const championSpriteSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/champion_sprites.js", import.meta.url), "utf8"));
   check(
@@ -249,6 +264,15 @@ function run(seconds, onFrame) {
         .includes('hint: "「精神错乱」专精 Lv1"'),
   );
   const dialogSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../src/dialog.js", import.meta.url), "utf8"));
+  check(
+    "Canvas 支持键盘聚焦、快捷键说明与读屏状态播报",
+    indexSrc.includes('tabindex="0"') &&
+      indexSrc.includes('role="application"') &&
+      indexSrc.includes('aria-describedby="game-instructions"') &&
+      indexSrc.includes('aria-live="polite"') &&
+      styleSrc.includes("canvas:focus-visible") &&
+      mainSrc.includes("announceTdFocus"),
+  );
   check(
     "菜单DEBUG码可全解锁且调试存档永久禁止上传排行榜",
     mainSrc.includes('const DEBUG_UNLOCK_HASH = "758d4934531bfa65c1cece06017a3fcdead64023bab50560fae83a69311a6b7a"') &&
@@ -731,12 +755,37 @@ if (MODE === "normal") {
   // ---- 塔防冒烟(2026-07-16): 编队→放塔→怪打门→结算,全链不崩 --------------
   tap(861, 560); // gameover -> home
   check("back to title for TD", dbg().state === "title", dbg().state);
-  tap(480, 392); // [选 择 模 式]
-  check("mode select opens (TD)", dbg().state === "modeselect", dbg().state);
-  tap(480, 379); // 第三项: 塔防模式
-  check("td pick opens", dbg().state === "tdpick", dbg().state);
-  tap(144, 248); // 传说之下(默认高亮) 的 1 号武器 -> 入队
-  tap(480, 531); // 开 始 守 门
+  key("Enter");
+  check("keyboard opens mode select", dbg().state === "modeselect" && dbg().keyboard.modeFocus === 0, JSON.stringify(dbg().keyboard));
+  key("ArrowDown");
+  key("ArrowDown");
+  check("keyboard focuses TD mode", dbg().keyboard.modeFocus === 2, JSON.stringify(dbg().keyboard));
+  key("Enter");
+  check("keyboard opens TD pick", dbg().state === "tdpick" && dbg().keyboard.tdFocus?.zone === "char", JSON.stringify(dbg().keyboard));
+  key("Escape");
+  check("TD pick Escape returns to focused mode", dbg().state === "modeselect" && dbg().keyboard.modeFocus === 2, JSON.stringify(dbg().keyboard));
+  key("Escape");
+  check("mode Escape returns to title", dbg().state === "title", dbg().state);
+  key("Enter");
+  key("ArrowDown");
+  key("ArrowDown");
+  key("Enter");
+  key("ArrowDown"); // 角色 → 第一个技能
+  check("TD keyboard reaches weapon grid", dbg().keyboard.tdFocus?.zone === "weapon", JSON.stringify(dbg().keyboard));
+  key("Enter"); // 传说之下(默认高亮) 的 1 号武器 -> 入队
+  check("TD keyboard adds roster member", dbg().tdPick?.roster === 1 && dbg().keyboard.tdFocus?.zone === "char", JSON.stringify(dbg().tdPick));
+  key("Tab");
+  key("Tab");
+  key("Enter");
+  check("TD keyboard removes roster member", dbg().tdPick?.roster === 0 && dbg().keyboard.tdFocus?.zone === "roster", JSON.stringify(dbg().tdPick));
+  key("ArrowUp");
+  key("Enter");
+  check("TD keyboard can re-add after removal", dbg().tdPick?.roster === 1, JSON.stringify(dbg().tdPick));
+  key("Tab");
+  key("Tab");
+  key("Tab");
+  check("TD Tab reaches start button", dbg().keyboard.tdFocus?.zone === "start", JSON.stringify(dbg().keyboard));
+  key("Enter"); // 开 始 守 门
   const td0 = dbg().td;
   check("td run starts with 100hp gate + 1000xp", dbg().state === "playing" && td0 && td0.gateHp === 100 && td0.xp === 1000, JSON.stringify(td0));
   check(
