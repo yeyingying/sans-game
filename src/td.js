@@ -5,6 +5,26 @@
 // 本文件只放 TD 专属逻辑: 地图/路径/入口/塔位/选人/绘制。
 import { t, pick } from "./i18n.js";
 import { IS_TOUCH } from "./ui.js";
+import { ICONS, drawPixelIcon } from "./sprites.js";
+
+// 武器攻击形态族: 按中文 tag 关键词归族(数据字段恒为中文,EN 显示层不影响)。
+// 顺序即优先级——tag 常含两个概念(如"穿透灼烧"),更具辨识度的族先匹配
+const TD_TAG_ICON = [
+  [/追踪|锁定|点名|标记/, "whoming"],
+  [/环绕|环状|回旋|旋转/, "worbit"],
+  [/光束|激光|灼烧/, "wbeam"],
+  [/召唤|地面|地阵|坠地|天降/, "wsummon"],
+  [/禁锢|缓速|减速|牵引|握合|缴械/, "wcontrol"],
+  [/爆破|爆发|轰击|清场|连爆|炮阵|范围/, "wblast"],
+  [/穿透|直线|突进|横扫|劈砍|斩/, "wpierce"],
+  [/护体|免伤|骑乘|宿主|反弹/, "wguard"],
+];
+
+export function tdWeaponFormIcon(w) {
+  const tag = w?.tag || "";
+  for (const [re, key] of TD_TAG_ICON) if (re.test(tag)) return ICONS[key];
+  return ICONS.wshot;
+}
 
 // ---- 地图 -------------------------------------------------------------------
 // 网格随机走廊: 从右缘随机行蜿蜒到左缘中间的入口。走廊格不可放置,
@@ -664,6 +684,25 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.fillStyle = "#7d7690";
     ctx.font = `${phone ? 16 : 11}px monospace`;
     ctx.fillText(locked ? t("未解锁", "Locked") : t("全队首塔免费", "Team's first tower free"), r.x + r.w / 2, r.y + (phone ? 62 : 58));
+    // 入队队徽(2026-07-27): 已在③队伍里的角色,卡右上角标队长/入队——
+    // 入队反馈不再只藏在底部队伍栏
+    const slot = roster.findIndex((m) => m.charId === c.id);
+    if (slot >= 0) {
+      const lead = slot === 0;
+      const label = lead ? t("队长", "LEAD") : t("入队", "IN");
+      ctx.font = `bold ${phone ? 13 : 10}px monospace`;
+      const bw = ctx.measureText(label).width + (phone ? 12 : 8);
+      const bh = phone ? 20 : 15;
+      const bx = r.x + r.w - bw - 3;
+      const by = r.y + 3;
+      ctx.fillStyle = lead ? "#33240f" : "#12241a";
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = lead ? "#ffd166" : "#7cf28a";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = lead ? "#ffd166" : "#7cf28a";
+      ctx.fillText(label, bx + bw / 2, by + bh - (phone ? 5 : 4));
+    }
     if (keyboardFocus?.zone === "char" && keyboardFocus.index === i) drawKeyboardFocus(ctx, r);
   });
 
@@ -727,6 +766,9 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.strokeStyle = w.color;
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
+    // 形态族像素图标(左侧竖直居中): 扫一眼就知道这把怎么打
+    const icon = tdWeaponFormIcon(w);
+    if (icon) drawPixelIcon(ctx, icon, r.x + (phone ? 10 : 8), r.y + r.h / 2 - (phone ? 11 : 8), phone ? 22 : 16);
     ctx.fillStyle = w.color;
     ctx.font = `bold ${phone ? 19 : 13}px monospace`;
     ctx.fillText(pick(w, "name"), r.x + r.w / 2, r.y + (phone ? 28 : 20));
