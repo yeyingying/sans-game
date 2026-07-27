@@ -1,4 +1,4 @@
-import { ICONS, drawIconLabel, drawPixelIcon } from "./sprites.js";
+import { ICONS, drawIconLabel, drawPixelIcon, weaponFormIcon } from "./sprites.js";
 import { t, pick, currentLang } from "./i18n.js";
 
 // 触屏设备: 触控目标放大到 ≥68 画布px(画布600高缩到手机≈390,≈44物理px);
@@ -997,6 +997,9 @@ export function codexEntryRect(i, width) {
 // 选人页的翻页箭头: 同图鉴尺寸,但放在副标题两侧(标题行让位)
 export function charPageArrowRect(direction, width) {
   const b = codexPageRect(direction, width);
+  // 选人页翻页箭头触屏放大到 64(≈41物理px): 这里上下都有留白,
+  // 不像图鉴页那样会压住格子
+  if (IS_TOUCH) return { x: width / 2 + (direction < 0 ? -176 - 32 : 144), y: 84, w: 64, h: 64 };
   return { ...b, y: 84 };
 }
 
@@ -1635,9 +1638,14 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
     ctx.lineWidth = active ? 3 : 2;
     ctx.strokeRect(box.x, box.y, box.w, box.h);
 
-    // colored icon block (grey while locked)
-    ctx.fillStyle = lock ? "#453f52" : w.color;
-    ctx.fillRect(box.x + 12, box.y + box.h / 2 - 8, 16, 16);
+    // 形态族像素图标(与塔防编队页同源, 2026-07-27)——纯色方块只在锁定时
+    // 保留灰块占位, backlog P0"武器不用色块"至此闭环
+    if (lock) {
+      ctx.fillStyle = "#453f52";
+      ctx.fillRect(box.x + 12, box.y + box.h / 2 - 8, 16, 16);
+    } else {
+      drawPixelIcon(ctx, weaponFormIcon(w), box.x + 10, box.y + box.h / 2 - 10, 20);
+    }
 
     if (lock) {
       ctx.textAlign = "left";

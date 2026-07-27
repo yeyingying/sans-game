@@ -5,26 +5,7 @@
 // 本文件只放 TD 专属逻辑: 地图/路径/入口/塔位/选人/绘制。
 import { t, pick } from "./i18n.js";
 import { IS_TOUCH } from "./ui.js";
-import { ICONS, drawPixelIcon } from "./sprites.js";
-
-// 武器攻击形态族: 按中文 tag 关键词归族(数据字段恒为中文,EN 显示层不影响)。
-// 顺序即优先级——tag 常含两个概念(如"穿透灼烧"),更具辨识度的族先匹配
-const TD_TAG_ICON = [
-  [/追踪|锁定|点名|标记/, "whoming"],
-  [/环绕|环状|回旋|旋转/, "worbit"],
-  [/光束|激光|灼烧/, "wbeam"],
-  [/召唤|地面|地阵|坠地|天降/, "wsummon"],
-  [/禁锢|缓速|减速|牵引|握合|缴械/, "wcontrol"],
-  [/爆破|爆发|轰击|清场|连爆|炮阵|范围/, "wblast"],
-  [/穿透|直线|突进|横扫|劈砍|斩/, "wpierce"],
-  [/护体|免伤|骑乘|宿主|反弹/, "wguard"],
-];
-
-export function tdWeaponFormIcon(w) {
-  const tag = w?.tag || "";
-  for (const [re, key] of TD_TAG_ICON) if (re.test(tag)) return ICONS[key];
-  return ICONS.wshot;
-}
+import { drawPixelIcon, weaponFormIcon } from "./sprites.js";
 
 // ---- 地图 -------------------------------------------------------------------
 // 网格随机走廊: 从右缘随机行蜿蜒到左缘中间的入口。走廊格不可放置,
@@ -767,7 +748,7 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     // 形态族像素图标(左侧竖直居中): 扫一眼就知道这把怎么打
-    const icon = tdWeaponFormIcon(w);
+    const icon = weaponFormIcon(w);
     if (icon) drawPixelIcon(ctx, icon, r.x + (phone ? 10 : 8), r.y + r.h / 2 - (phone ? 11 : 8), phone ? 22 : 16);
     ctx.fillStyle = w.color;
     ctx.font = `bold ${phone ? 19 : 13}px monospace`;

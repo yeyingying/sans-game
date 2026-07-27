@@ -283,6 +283,26 @@ export const ICONS = Object.freeze({
   ]),
 });
 
+// 武器攻击形态族: 按中文 tag 关键词归族(数据字段恒为中文,EN 显示层无关)。
+// 顺序即优先级——tag 常含两个概念(如"穿透灼烧"),更具辨识度的族先匹配。
+// TD 编队页与经典武器库共用,保证同一把武器两端图标一致。
+const WEAPON_FORM_FAMILIES = [
+  [/追踪|锁定|点名|标记/, "whoming"],
+  [/环绕|环状|回旋|旋转/, "worbit"],
+  [/光束|激光|灼烧/, "wbeam"],
+  [/召唤|地面|地阵|坠地|天降/, "wsummon"],
+  [/禁锢|缓速|减速|牵引|握合|缴械/, "wcontrol"],
+  [/爆破|爆发|轰击|清场|连爆|炮阵|范围/, "wblast"],
+  [/穿透|直线|突进|横扫|劈砍|斩/, "wpierce"],
+  [/护体|免伤|骑乘|宿主|反弹/, "wguard"],
+];
+
+export function weaponFormIcon(w) {
+  const tag = w?.tag || "";
+  for (const [re, key] of WEAPON_FORM_FAMILIES) if (re.test(tag)) return ICONS[key];
+  return ICONS.wshot;
+}
+
 export function drawPixelIcon(ctx, icon, x, y, size = 16, alpha = 1) {
   if (!icon) return;
   ctx.save();

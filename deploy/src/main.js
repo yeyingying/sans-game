@@ -3287,7 +3287,8 @@ function canvasCoords(e) {
 
 // ⚡去变强 on the defeat screen: centered between share (left) and home (right)
 function upgradeJumpRect(w, h) {
-  return IS_TOUCH ? { x: w / 2 - 82, y: h - 72, w: 164, h: 54 } : { x: w / 2 - 75, y: h - 62, w: 150, h: 44 };
+  // 触屏加高到 60(≈38物理px): 上方紧贴详情按钮压不动更多,宽度补偿
+  return IS_TOUCH ? { x: w / 2 - 96, y: h - 72, w: 192, h: 60 } : { x: w / 2 - 75, y: h - 62, w: 150, h: 44 };
 }
 
 function inRect(p, r) {
