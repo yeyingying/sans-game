@@ -6928,12 +6928,12 @@ function draw() {
 
   if (tdMode && td) {
     // 塔防HUD: 入口血条顶替玩家血条(左上),经验与编队栏在底部
-    drawTdEntranceHud(ctx, td.entrance);
+    drawTdEntranceHud(ctx, td.entrance, WIDTH);
     if (state === "playing" || state === "paused" || state === "choice") drawTdBar(ctx, WIDTH, HEIGHT, td);
-    // 计时器沿用(顶部中央)
+    // 计时器沿用(顶部中央;触屏加大一档保物理可读)
     ctx.textAlign = "center";
     ctx.fillStyle = "#f2ead8";
-    ctx.font = "16px monospace";
+    ctx.font = `${IS_TOUCH ? "bold 20px" : "16px"} monospace`;
     ctx.fillText(`${Math.floor(elapsed / 60)}:${String(Math.floor(elapsed % 60)).padStart(2, "0")}`, WIDTH / 2, 32);
     ctx.textAlign = "left";
   } else {
@@ -7980,7 +7980,7 @@ function draw() {
   // press feedback: topmost layer, every screen — the tapped button pops white
   if (tapFlash) {
     ctx.save();
-    ctx.globalAlpha = (tapFlash.t / 0.16) * 0.35;
+    ctx.globalAlpha = Math.min(1, (tapFlash.t / 0.16) * 0.35);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(tapFlash.x - 2, tapFlash.y - 2, tapFlash.w + 4, tapFlash.h + 4);
     ctx.restore();
@@ -8136,7 +8136,7 @@ window.addEventListener("error", (e) => { window.__lastErr = e.message + " @ " +
 
 let lastTime = performance.now();
 function loop(now) {
-  const dt = Math.min((now - lastTime) / 1000, 1 / 30);
+  const dt = Math.max(0, Math.min((now - lastTime) / 1000, 1 / 30)); // 时间倒流(工具驱动帧)不许把计时器越减越大
   lastTime = now;
 
   // crossfade the menu theme and the battle music

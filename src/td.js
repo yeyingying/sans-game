@@ -4,6 +4,7 @@
 // 攻击/攻速/增伤卡与商店加成零改动全塔生效),掉落/结算管线照旧。
 // 本文件只放 TD 专属逻辑: 地图/路径/入口/塔位/选人/绘制。
 import { t, pick } from "./i18n.js";
+import { IS_TOUCH } from "./ui.js";
 
 // ---- 地图 -------------------------------------------------------------------
 // 网格随机走廊: 从右缘随机行蜿蜒到左缘中间的入口。走廊格不可放置,
@@ -460,10 +461,11 @@ export function drawTdField(ctx, map, entrance, armed, hoverCell, towers) {
   ctx.restore();
 }
 
-// 入口血条(左上,替代玩家血条位)
-export function drawTdEntranceHud(ctx, entrance) {
-  const w = 264;
-  const h = 22;
+// 入口血条(左上,替代玩家血条位);触控大档整体放大保可读
+export function drawTdEntranceHud(ctx, entrance, width = 0) {
+  const big = bigUi(width);
+  const w = big ? 336 : 264;
+  const h = big ? 30 : 22;
   ctx.save();
   ctx.fillStyle = "#241f2b";
   ctx.fillRect(16, 16, w, h);
@@ -481,12 +483,12 @@ export function drawTdEntranceHud(ctx, entrance) {
   ctx.lineWidth = low ? 3 : 2;
   ctx.strokeRect(16, 16, w, h);
   ctx.fillStyle = "#f2ead8";
-  ctx.font = "bold 13px monospace";
+  ctx.font = `bold ${big ? 17 : 13}px monospace`;
   ctx.textAlign = "left";
   ctx.fillText(
     entrance.destroyed ? t("⚠ 入口已被破坏!", "⚠ GATE DESTROYED!") : `${t("入口", "GATE")} ${Math.ceil(entrance.hp)}/${entrance.maxHp}`,
     22,
-    32
+    16 + h / 2 + (big ? 6 : 5)
   );
   ctx.restore();
 }
@@ -494,6 +496,9 @@ export function drawTdEntranceHud(ctx, entrance) {
 // ---- 模式选择 / 塔防选人 UI 的矩形与绘制 ------------------------------------
 
 const isPhoneLayout = (width) => width >= 1000;
+// 触控大档: 手机画布或触屏设备(平板 960 画布)都用放大的局内控件——
+// 编队卡/血条/文字按 ≥44 物理像素标准设计,桌面鼠标保持紧凑
+const bigUi = (width) => isPhoneLayout(width) || IS_TOUCH;
 
 export function tdModeOptions() {
   return [
@@ -722,6 +727,13 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
 
 // 局内底部编队栏: 三个成员卡(价格/已放置/待放置高亮)
 export function tdBarSlotRect(i, width, height) {
+  if (bigUi(width)) {
+    // 触控档: 76 画布px ≈ 49 物理px(600→390 缩放),达到手指标准
+    const w = 220;
+    const gap = 12;
+    const total = 3 * w + 2 * gap;
+    return { x: width / 2 - total / 2 + i * (w + gap), y: height - 84, w, h: 76 };
+  }
   const w = 170;
   const gap = 10;
   const total = 3 * w + 2 * gap;
@@ -729,6 +741,7 @@ export function tdBarSlotRect(i, width, height) {
 }
 
 export function drawTdBar(ctx, width, height, td) {
+  const big = bigUi(width);
   ctx.save();
   ctx.textAlign = "center";
   td.roster.forEach((m, i) => {
@@ -744,32 +757,41 @@ export function drawTdBar(ctx, width, height, td) {
     ctx.lineWidth = armed ? 3 : 2;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = "#f2ead8";
-    ctx.font = "bold 12px monospace";
+    ctx.font = `bold ${big ? 17 : 12}px monospace`;
     // 同一角色可重复放置(2026-07-26): 卡片常亮,标已上场数量+下一座价格
     const placedN = m.placedN || 0;
-    ctx.fillText(placedN > 0 ? `${pick(m.char, "name")} ×${placedN}` : pick(m.char, "name"), r.x + r.w / 2, r.y + 20);
-    ctx.font = "11px monospace";
+    ctx.fillText(placedN > 0 ? `${pick(m.char, "name")} ×${placedN}` : pick(m.char, "name"), r.x + r.w / 2, r.y + (big ? 30 : 20));
+    ctx.font = `${big ? 15 : 11}px monospace`;
     ctx.fillStyle = afford ? "#ffd166" : "#c95d5d";
-    ctx.fillText(cost === 0 ? t("免费上场", "Deploy free") : `${t("经验", "XP")} ${cost}`, r.x + r.w / 2, r.y + 40);
+    ctx.fillText(cost === 0 ? t("免费上场", "Deploy free") : `${t("经验", "XP")} ${cost}`, r.x + r.w / 2, r.y + (big ? 58 : 40));
   });
+  // 编队栏上一行只回答一个问题: 放置态=下一步怎么做(黄),平时=队长加成(静)
+  const infoY = height - (big ? 96 : 74);
   const leader = td.roster[0];
-  if (leader) {
+  ctx.font = `bold ${big ? 16 : 12}px monospace`;
+  ctx.textAlign = "center";
+  if (td.armedSlot >= 0 && td.roster[td.armedSlot]) {
+    ctx.fillStyle = "#ffd93d";
+    ctx.fillText(
+      t(`放置 ${pick(td.roster[td.armedSlot].char, "name")}:点绿色地面 · 再点卡取消`, `Placing ${pick(td.roster[td.armedSlot].char, "name")}: tap a green tile · tap card to cancel`),
+      width / 2,
+      infoY
+    );
+  } else if (leader) {
     const leaderPct = tdLeaderDamagePct(td.roster);
     ctx.fillStyle = leaderPct > 0 ? "#ffd166" : "#9a93ab";
-    ctx.font = "bold 12px monospace";
-    ctx.textAlign = "center";
     ctx.fillText(
       leaderPct > 0
         ? t(`队长 ${pick(leader.char, "name")} · 全塔伤害 +${leaderPct}%`, `Leader ${pick(leader.char, "name")} · all towers +${leaderPct}% damage`)
         : t(`队长 ${pick(leader.char, "name")} · 无团队加成`, `Leader ${pick(leader.char, "name")} · no team bonus`),
       width / 2,
-      height - 74
+      infoY
     );
   }
   // 经验余额(右下角,编队栏上方)
   ctx.fillStyle = "#7cf28a";
-  ctx.font = "bold 14px monospace";
+  ctx.font = `bold ${big ? 19 : 14}px monospace`;
   ctx.textAlign = "right";
-  ctx.fillText(`${t("经验", "XP")} ${Math.floor(td.xp)}`, width - 18, height - 74);
+  ctx.fillText(`${t("经验", "XP")} ${Math.floor(td.xp)}`, width - 18, infoY);
   ctx.restore();
 }
