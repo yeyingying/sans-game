@@ -459,6 +459,17 @@ const CHAR_NATURE = {
 function charOwned(id) {
   return localStorage.getItem("own_" + id) === "1";
 }
+// 结算页"再来一局": 回到本局所属模式(2026-07-27 用户反馈——塔防死后
+// 被丢进经典选人,一路点下去就开了经典局)。塔防回编队页且保留上局编队。
+function restartSameMode() {
+  if (tdMode) {
+    tdKeyboardFocus = { zone: "char", index: 0 };
+    state = "tdpick";
+    return;
+  }
+  toCharSelect();
+}
+
 function charLocksNow() {
   const locks = {};
   for (const c of CHARACTERS) {
@@ -1646,6 +1657,7 @@ function settleGame(kind) {
     kills: player.kills,
     // 塔防的天意是按全塔DPS标定的另一套数值——不计入经典 Boss 击杀数,
     // 也不推进难度解锁(diffCleared);击杀图鉴照常累计
+    classicRun: !tdMode, // 击杀解锁分账: TD 不喂 classicKills
     bossKilled: bossDefeated && !tdMode,
     // TD is a three-character team. Crediting every kill to the leader falsely
     // unlocks that character's mastery and echoes, so team runs stay out of
@@ -1742,6 +1754,8 @@ function settleGame(kind) {
   } else {
     gameoverCta = { label: t("⟳ 再 来 一 局", "⟳ ONE MORE RUN"), act: "char" };
   }
+  // 塔防局的主按钮语义=回塔防编队(restartSameMode),标签同步说清楚
+  if (tdMode && gameoverCta.act === "char") gameoverCta = { label: t("⟳ 再 守 一 局", "⟳ HOLD AGAIN"), act: "char" };
   if (gameoverCta.act !== "shop" && coachAdvice) {
     const nextBuy = UPGRADES
       .map((u) => ({ u, lvl: upgradeLevel(u.id), cost: upgradeCost(u.id), gate: upgradeGate(u.id) }))
@@ -3782,7 +3796,7 @@ function handleCanvasTap(pos) {
     if (inRect(pos, restartButtonRect(WIDTH, HEIGHT))) {
       sfxClick();
       if (gameoverCta?.act === "shop") state = "shop";
-      else toCharSelect();
+      else restartSameMode();
       return;
     }
     if (inRect(pos, homeButtonRect(WIDTH, HEIGHT))) {
@@ -4094,7 +4108,7 @@ window.addEventListener("keydown", (e) => {
   } else if (state === "gameover" && k === "escape") {
     goTitle();
   } else if (state === "gameover" && (k === " " || k === "enter")) {
-    toCharSelect();
+    restartSameMode();
   } else if (state === "chapter" && (k === " " || k === "enter" || k === "escape")) {
     chapterAdvance();
   }

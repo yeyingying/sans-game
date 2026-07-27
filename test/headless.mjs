@@ -869,6 +869,9 @@ if (MODE === "normal") {
       JSON.stringify({ td: storage.best_endless_round_td, sans: storage.best_endless_round_sans })
     );
     check("td pressure or income arrived", sawPressure, JSON.stringify(dbg().td));
+    // 结算主按钮/回车: 塔防必须回塔防编队,不能掉进经典选人(2026-07-27修复)
+    key("Enter");
+    check("td restart returns to TD squad, not classic select", dbg().state === "tdpick", dbg().state);
   }
 } else if (MODE === "clear") {
   // ?boss=weak route: actually beat the boss, then exercise the boss-clear

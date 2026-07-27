@@ -384,6 +384,10 @@ export function claimDailyFlower(todayStr, yesterdayStr) {
 
 let stats = readJson("metaStats", { totalKills: 0, runs: 0, bossKills: 0 });
 if (!stats.charKills) stats.charKills = {}; // per-character kills (weapon unlocks)
+// 经典模式击杀分账(2026-07-27 用户反馈: 塔防全队海量击杀把 totalKills 型
+// 角色解锁一夜灌满)。角色解锁门槛改读 classicKills;totalKills 保留给
+// 图鉴/统计。存量账号既往不咎: 首次迁移按当前总数入账。
+if (stats.classicKills === undefined) stats.classicKills = stats.totalKills || 0;
 if (stats.diffCleared === undefined) stats.diffCleared = -1; // hardest difficulty with a boss kill
 if (!stats.killsByType) stats.killsByType = {}; // bestiary counts
 if (!stats.weaponsUsed) stats.weaponsUsed = {}; // codex: weapon ever owned
@@ -401,8 +405,10 @@ export function recordRun({
   killsByType = null,
   weaponsUsed = null,
   evolvedIds = null,
+  classicRun = true, // 塔防传 false: 击杀不进角色解锁的经典分账
 } = {}) {
   stats.totalKills += kills;
+  if (classicRun) stats.classicKills += kills;
   stats.runs += 1;
   if (charId) stats.charKills[charId] = (stats.charKills[charId] || 0) + kills;
   if (bossKilled) {
@@ -432,6 +438,7 @@ function statsTargetAfterRun({
 } = {}) {
   const target = JSON.parse(JSON.stringify(stats));
   target.totalKills = (target.totalKills || 0) + kills;
+  target.classicKills = (target.classicKills || 0) + kills; // 检查点只在经典局写(塔防早退)
   target.runs = (target.runs || 0) + 1;
   target.bossKills = (target.bossKills || 0) + (bossKilled ? 1 : 0);
   target.diffCleared = bossKilled ? Math.max(target.diffCleared ?? -1, difficulty) : target.diffCleared ?? -1;
@@ -504,6 +511,7 @@ export function recoverSafeRunCheckpoint() {
 
   const target = checkpoint.statsFloor || {};
   stats.totalKills = Math.max(stats.totalKills || 0, target.totalKills || 0);
+  stats.classicKills = Math.max(stats.classicKills || 0, target.classicKills || 0);
   stats.runs = Math.max(stats.runs || 0, target.runs || 0);
   stats.bossKills = Math.max(stats.bossKills || 0, target.bossKills || 0);
   stats.diffCleared = Math.max(stats.diffCleared ?? -1, target.diffCleared ?? -1);
@@ -588,11 +596,13 @@ export function setDifficulty(id) {
 
 // sans is always open; the rest are earned. Anyone with a recorded best on a
 // character keeps it (players from before the unlock system lose nothing).
+// 击杀门槛只认经典模式分账(classicKills)——塔防是多塔编队,击杀量级
+// 完全不同,不能当同一场考试(2026-07-27 用户反馈)
 const CHAR_CONDITIONS = {
   ukb: {
-    hint: "累计击杀 1500 只怪物",
-    progress: () => `${Math.min(stats.totalKills, 1500)} / 1500`,
-    met: () => stats.totalKills >= 1500,
+    hint: "经典模式累计击杀 1500 只怪物",
+    progress: () => `${Math.min(stats.classicKills, 1500)} / 1500`,
+    met: () => stats.classicKills >= 1500,
   },
   horror: {
     hint: "击败一次天意侵蚀Sans",
@@ -600,9 +610,9 @@ const CHAR_CONDITIONS = {
     met: () => stats.bossKills >= 1,
   },
   hard: {
-    hint: "击败Boss且累计击杀 6000",
-    progress: () => `${stats.bossKills >= 1 ? "Boss✓" : "Boss✗"} · ${Math.min(stats.totalKills, 6000)} / 6000`,
-    met: () => stats.bossKills >= 1 && stats.totalKills >= 6000,
+    hint: "击败Boss且经典累计击杀 6000",
+    progress: () => `${stats.bossKills >= 1 ? "Boss✓" : "Boss✗"} · ${Math.min(stats.classicKills, 6000)} / 6000`,
+    met: () => stats.bossKills >= 1 && stats.classicKills >= 6000,
   },
 };
 
