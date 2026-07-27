@@ -633,12 +633,28 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     phone ? 64 : 72
   );
 
+  // ① 选人区: 左上角步骤标签锚定第一张角色卡
+  const charRect0 = tdPickCharRect(0, width);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#8fd6ff";
+  ctx.font = `bold ${phone ? 15 : 12}px monospace`;
+  ctx.fillText(t("① 选 sans", "① Pick a sans"), charRect0.x + 2, charRect0.y - 6);
+  ctx.textAlign = "center";
+
   chars.forEach((c, i) => {
     const r = tdPickCharRect(i, width);
     const locked = locksInfo[c.id];
     const on = i === sel;
     ctx.fillStyle = on ? "#2e2748" : "#1d1828";
     ctx.fillRect(r.x, r.y, r.w, r.h);
+    if (on && !locked) {
+      // 选中态: 角色色底纹,和下方武器分组框同色呼应
+      ctx.save();
+      ctx.globalAlpha = 0.14;
+      ctx.fillStyle = c.color;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.restore();
+    }
     ctx.strokeStyle = locked ? "#453f52" : on ? c.color : "#5a5468";
     ctx.lineWidth = on ? 3 : 2;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
@@ -650,6 +666,59 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.fillText(locked ? t("未解锁", "Locked") : t("全队首塔免费", "Team's first tower free"), r.x + r.w / 2, r.y + (phone ? 62 : 58));
     if (keyboardFocus?.zone === "char" && keyboardFocus.index === i) drawKeyboardFocus(ctx, r);
   });
+
+  // ② 技能区: 当前角色色的分组框——被选中的角色卡向下打 ▼,框线嵌图例
+  // 「给『XX』配 1 个技能」。角色一换,框/图例/▼ 同步换色换名,
+  // "中间这排武器属于上面选中的人"不用读说明也能看懂
+  const selChar = chars[sel];
+  const selLocked = locksInfo[selChar?.id];
+  const groupColor = selLocked ? "#5a5468" : selChar?.color || "#5a5468";
+  if (weapons.length) {
+    let fx0 = Infinity;
+    let fy0 = Infinity;
+    let fx1 = -Infinity;
+    let fy1 = -Infinity;
+    weapons.forEach((w, i) => {
+      const r = tdPickWeaponRect(i, width);
+      fx0 = Math.min(fx0, r.x);
+      fy0 = Math.min(fy0, r.y);
+      fx1 = Math.max(fx1, r.x + r.w);
+      fy1 = Math.max(fy1, r.y + r.h);
+    });
+    const pad = phone ? 8 : 7;
+    ctx.save();
+    ctx.strokeStyle = groupColor;
+    ctx.globalAlpha = 0.6;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(fx0 - pad, fy0 - pad, fx1 - fx0 + pad * 2, fy1 - fy0 + pad * 2);
+    ctx.restore();
+    // fieldset 式图例: 垫底色块盖住框线,文字骑线
+    const legend = selLocked
+      ? t(`② ${pick(selChar, "name")} · 未解锁`, `② ${pick(selChar, "name")} · Locked`)
+      : t(`② 给「${pick(selChar, "name")}」配 1 个技能`, `② Pick 1 skill for ${pick(selChar, "name")}`);
+    ctx.font = `bold ${phone ? 15 : 12}px monospace`;
+    const lw = ctx.measureText(legend).width;
+    // 手机档图例放框线右上角: 左侧窄带留给选中卡的 ▼ 连接符,互不相压
+    const legendX = phone ? fx1 + pad - lw - 22 : fx0 - pad + 10;
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(10, 8, 16, 0.97)";
+    ctx.fillRect(legendX, fy0 - pad - (phone ? 10 : 8), lw + 12, phone ? 20 : 16);
+    ctx.fillStyle = groupColor;
+    ctx.fillText(legend, legendX + 6, fy0 - pad + (phone ? 5 : 4));
+    ctx.textAlign = "center";
+    // 选中角色卡 → 分组框的 ▼ 连接符(最后画,不被图例垫底块盖住)
+    if (selChar) {
+      const sr = tdPickCharRect(sel, width);
+      ctx.fillStyle = groupColor;
+      ctx.beginPath();
+      const ay = fy0 - pad;
+      ctx.moveTo(sr.x + sr.w / 2 - 7, sr.y + sr.h + 2);
+      ctx.lineTo(sr.x + sr.w / 2 + 7, sr.y + sr.h + 2);
+      ctx.lineTo(sr.x + sr.w / 2, Math.min(sr.y + sr.h + 12, ay + 1));
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
 
   weapons.forEach((w, i) => {
     const r = tdPickWeaponRect(i, width);
@@ -678,8 +747,8 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     : t("第一位成员是队长", "First member becomes leader");
   ctx.fillText(
     phone
-      ? t(`队伍 ${roster.length}/3 · ${leaderRule}`, `SQUAD ${roster.length}/3 · ${leaderRule}`)
-      : t(`出战队列 · ${leaderRule}`, `SQUAD · ${leaderRule}`),
+      ? t(`③ 队伍 ${roster.length}/3 · ${leaderRule}`, `③ SQUAD ${roster.length}/3 · ${leaderRule}`)
+      : t(`③ 出战队列 ${roster.length}/3 · ${leaderRule}`, `③ SQUAD ${roster.length}/3 · ${leaderRule}`),
     width / 2,
     phone ? 360 : height - 182
   );
