@@ -1874,13 +1874,18 @@ function updateInstance(player, inst, dt, world) {
       inst.cooldown -= dt;
       return;
     }
-    // 随机一侧: 该侧全部敌人甩向对应屏幕边缘
-    const side = ["up", "down", "left", "right"][Math.floor(Math.random() * 4)];
+    // 随机一侧: 该侧全部敌人甩向对应屏幕边缘。
+    // 塔防(world.tdMidX 非空,2026-07-26 用户规格): 往左甩=把怪送向红门,
+    // 该侧攻击直接取消;往右甩最多到半场,不许一口气送回右缘重走全程
+    const tdMidX = world.tdMidX ?? null;
+    const sides = tdMidX !== null ? ["up", "down", "right"] : ["up", "down", "left", "right"];
+    const side = sides[Math.floor(Math.random() * sides.length)];
     const picked = enemies.filter((e) => {
       if (isBossLike(e)) return false;
       if (side === "up") return e.y < player.y;
       if (side === "down") return e.y > player.y;
       if (side === "left") return e.x < player.x;
+      if (tdMidX !== null && e.x >= tdMidX - 40) return false; // 已过半场: 右甩只会倒拖,跳过
       return e.x > player.x;
     });
     if (!picked.length) {
@@ -1893,7 +1898,8 @@ function updateInstance(player, inst, dt, world) {
       return;
     }
     for (const e of picked) {
-      const tx = side === "left" ? player.x - 470 : side === "right" ? player.x + 470 : e.x;
+      let tx = side === "left" ? player.x - 470 : side === "right" ? player.x + 470 : e.x;
+      if (tdMidX !== null && side === "right") tx = Math.max(e.x, Math.min(tx, tdMidX)); // 半场封顶,且绝不往门口倒拖
       const ty = side === "up" ? world.bounds.top : side === "down" ? world.bounds.bottom : e.y;
       inst.hflings.push({ e, ox: e.x, oy: e.y, fx: e.x, fy: e.y, tx, ty, t: 0, dur: 0.3, leg: "out" });
     }

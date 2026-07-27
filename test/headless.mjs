@@ -806,6 +806,13 @@ if (MODE === "normal") {
   check("td map exposes a free cell", !!fc);
   tap(fc.x, fc.y); // 放塔
   check("td first tower placed for free", dbg().td.towers === 1 && dbg().td.xp === 1000, JSON.stringify(dbg().td));
+  // 同一角色重复放置(2026-07-26 用户规格): 卡片不灰,第二座走梯度价 1000
+  tap(300, 564); // 再点同一张编队卡
+  check("td same card re-arms for a second copy", dbg().td.armed === 0, JSON.stringify(dbg().td));
+  const fc2 = dbg().td.freeCell;
+  check("td second free cell exists", !!fc2 && (fc2.x !== fc.x || fc2.y !== fc.y));
+  tap(fc2.x, fc2.y);
+  check("td duplicate tower costs the 1000 ladder price", dbg().td.towers === 2 && dbg().td.xp === 0, JSON.stringify(dbg().td));
   // healGate 钩子保门跑30秒——单塔守100血门本身是输得掉的,而 Phase 2 冒烟
   // 需要确定性活到 Boss/无尽段;真实压力(门被打/塔有收入)沿途顺带观察。
   // 不能拖到50秒再rush: 塔杀不完的怪会在门口堆到"单帧伤害>整门血",

@@ -82,18 +82,30 @@ check(
 let minBossSpeed = Infinity;
 let maxBossSpeed = 0;
 let maxTravelError = 0;
+let minLanes = Infinity;
+let maxLanes = 0;
+let laneGateMismatch = false;
 for (const width of [844, 960, 1298, 1920]) {
   for (let seed = 1; seed <= 48; seed++) {
     const map = tdBuildMap(width, 720, 100, mulberry32(seed));
-    const speed = tdRouteSpeed(map, 42);
-    const seconds = tdRouteTravelSeconds(map, speed);
-    minBossSpeed = Math.min(minBossSpeed, speed);
-    maxBossSpeed = Math.max(maxBossSpeed, speed);
-    maxTravelError = Math.max(maxTravelError, Math.abs(seconds - TD_BOSS_TRAVEL_SECONDS));
+    minLanes = Math.min(minLanes, map.lanes.length);
+    maxLanes = Math.max(maxLanes, map.lanes.length);
+    const gate = map.lanes[0].waypoints[map.lanes[0].waypoints.length - 1];
+    for (let li = 0; li < map.lanes.length; li++) {
+      const end = map.lanes[li].waypoints[map.lanes[li].waypoints.length - 1];
+      if (end.x !== gate.x || end.y !== gate.y) laneGateMismatch = true;
+      const speed = tdRouteSpeed(map, 42, li);
+      const seconds = tdRouteTravelSeconds(map, speed, li);
+      minBossSpeed = Math.min(minBossSpeed, speed);
+      maxBossSpeed = Math.max(maxBossSpeed, speed);
+      maxTravelError = Math.max(maxTravelError, Math.abs(seconds - TD_BOSS_TRAVEL_SECONDS));
+    }
   }
 }
+check("maps carve 2-3 attack lanes", minLanes >= 2 && maxLanes <= 3, `${minLanes}-${maxLanes}`);
+check("every lane funnels into the same gate", !laneGateMismatch);
 check(
-  "phone and desktop routes share one travel-time budget",
+  "phone/desktop routes and every lane share one travel-time budget",
   maxTravelError < 1e-9,
   `max error ${maxTravelError}`
 );
@@ -140,16 +152,21 @@ check(
     tdTestHooksAllowed("127.0.0.1", false) === true
 );
 check(
-  "first TD tower is free for every owned character",
-  tdPlaceCost(1000, 0) === 0 &&
-    tdPlaceCost(10000, 0) === 0 &&
-    tdPlaceCost(15000, 0) === 0
+  "free characters keep a free first tower",
+  tdPlaceCost(1000, 0) === 0 && tdPlaceCost(undefined, 0) === 0
 );
 check(
-  "later TD towers use one shared 1000→10000 economy",
+  "premium characters pay their character price per tower (hacker 15000)",
+  tdPlaceCost(15000, 0) === 15000 &&
+    tdPlaceCost(10000, 0) === 10000 &&
+    tdPlaceCost(15000, 2) === 15000 // 梯度10000 < 底价15000 → 仍收15000
+);
+check(
+  "shared ladder still escalates 1000→10000→100000",
   tdPlaceCost(1000, 1) === 1000 &&
-    tdPlaceCost(10000, 1) === 1000 &&
-    tdPlaceCost(15000, 2) === 10000
+    tdPlaceCost(1000, 2) === 10000 &&
+    tdPlaceCost(1000, 3) === 100000 &&
+    tdPlaceCost(15000, 3) === 100000 // 梯度超过底价后按梯度走
 );
 check(
   "TD leader bonus comes only from the first squad member",

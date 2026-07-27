@@ -22,32 +22,58 @@ export function tdBuildMap(width, height, wallH, random = Math.random) {
   const oy = wallH + 6;
   const grid = Array.from({ length: rows }, () => Array(cols).fill(0)); // 0=可放置 1=走廊 2=障碍
   const midRow = Math.floor(rows / 2);
-  // 从右往左刻走廊: 每前进 2-4 列随机竖折一次,最后两列并回中行
-  let row = 1 + Math.floor(random() * (rows - 2));
-  const cells = []; // [{c,r}] 右→左顺序
-  let c = cols - 1;
-  while (c >= 0) {
-    grid[row][c] = 1;
-    cells.push({ c, r: row });
-    if (c === 0) break;
-    const targetRow = c <= 2 ? midRow : row;
-    let jog = 0;
-    if (c > 2 && random() < 0.45) {
-      // 只折 1–2 格，避免随机一次从顶跳到底，造成同一设备也出现
-      // 30 秒与 100 秒两种完全不同的路线；地图仍有形状差异。
-      const dir = random() < 0.5 ? -1 : 1;
-      const amount = random() < 0.75 ? 1 : 2;
-      jog = Math.max(1, Math.min(rows - 2, row + dir * amount)) - row;
-    }
-    if (c <= 2) jog = targetRow - row;
-    const step = Math.sign(jog);
-    for (let k = 0; k !== jog; k += step) {
-      row += step;
+  // 从右往左刻一条走廊: 每前进 2-4 列随机竖折一次,最后两列并回中行
+  const carveLane = (startRow) => {
+    let row = startRow;
+    const cells = []; // [{c,r}] 右→左顺序
+    let c = cols - 1;
+    while (c >= 0) {
       grid[row][c] = 1;
       cells.push({ c, r: row });
+      if (c === 0) break;
+      const targetRow = c <= 2 ? midRow : row;
+      let jog = 0;
+      if (c > 2 && random() < 0.45) {
+        // 只折 1–2 格，避免随机一次从顶跳到底，造成同一设备也出现
+        // 30 秒与 100 秒两种完全不同的路线；地图仍有形状差异。
+        const dir = random() < 0.5 ? -1 : 1;
+        const amount = random() < 0.75 ? 1 : 2;
+        jog = Math.max(1, Math.min(rows - 2, row + dir * amount)) - row;
+      }
+      if (c <= 2) jog = targetRow - row;
+      const step = Math.sign(jog);
+      for (let k = 0; k !== jog; k += step) {
+        row += step;
+        grid[row][c] = 1;
+        cells.push({ c, r: row });
+      }
+      c -= 1;
     }
-    c -= 1;
+    return cells;
+  };
+  // 多条进攻路线(2026-07-26 用户规格): 2-3 条走廊各自从右缘蜿蜒,
+  // 最后两列全部并回中行同一红门。起始行错开,保证入场口视觉分离。
+  const laneCount = 2 + (random() < 0.4 ? 1 : 0);
+  const startRows = [];
+  for (let li = 0; li < laneCount; li++) {
+    let row = 1 + Math.floor(random() * (rows - 2));
+    let tries = 12;
+    while (startRows.some((r) => Math.abs(r - row) < 2) && tries-- > 0) {
+      row = 1 + Math.floor(random() * (rows - 2));
+    }
+    startRows.push(row);
   }
+  const center = (cell) => ({ x: cell.c * TD_CELL + TD_CELL / 2, y: oy + cell.r * TD_CELL + TD_CELL / 2 });
+  const lanes = startRows.map((startRow) => {
+    const cells = carveLane(startRow);
+    const waypoints = cells.map(center);
+    const spawn = { x: width + 30, y: waypoints[0].y }; // 屏外右缘进场
+    let pathLength = Math.hypot(spawn.x - waypoints[0].x, spawn.y - waypoints[0].y);
+    for (let i = 1; i < waypoints.length; i++) {
+      pathLength += Math.hypot(waypoints[i].x - waypoints[i - 1].x, waypoints[i].y - waypoints[i - 1].y);
+    }
+    return { cells, waypoints, spawn, pathLength };
+  });
   // 随机障碍岩块: 走廊外再啃掉几格,地图差异感(不许贴走廊起终点)
   let blocks = 5 + Math.floor(random() * 4);
   let guard = 60;
@@ -59,42 +85,60 @@ export function tdBuildMap(width, height, wallH, random = Math.random) {
       blocks--;
     }
   }
-  const center = (cell) => ({ x: cell.c * TD_CELL + TD_CELL / 2, y: oy + cell.r * TD_CELL + TD_CELL / 2 });
-  const waypoints = cells.map(center);
-  const gate = center(cells[cells.length - 1]);
-  const spawn = { x: width + 30, y: waypoints[0].y };
-  let pathLength = Math.hypot(spawn.x - waypoints[0].x, spawn.y - waypoints[0].y);
-  for (let i = 1; i < waypoints.length; i++) {
-    pathLength += Math.hypot(waypoints[i].x - waypoints[i - 1].x, waypoints[i].y - waypoints[i - 1].y);
-  }
+  const gate = center(lanes[0].cells[lanes[0].cells.length - 1]);
   return {
     cols,
     rows,
     oy,
     grid,
-    cells,
-    waypoints,
-    spawn, // 屏外右缘进场
+    lanes,
+    // 旧字段镜像到 0 号车道: 既有调用(tdAtGate/入口/兜底)零改动继续工作
+    cells: lanes[0].cells,
+    waypoints: lanes[0].waypoints,
+    spawn: lanes[0].spawn,
+    pathLength: lanes[0].pathLength,
     entranceXY: { x: gate.x - TD_CELL * 0.55, y: gate.y }, // 红门贴左缘
-    pathLength,
   };
+}
+
+// 车道解析: e.tdLane 缺失/越界时(开局热身怪、手工来源)全车道最近路径点入轨
+export function tdLaneFor(e, map) {
+  const lanes = map.lanes || [{ cells: map.cells, waypoints: map.waypoints, spawn: map.spawn, pathLength: map.pathLength }];
+  if (e.tdLane === undefined || e.tdLane >= lanes.length) {
+    let bestLane = 0;
+    let bestWp = 0;
+    let bd = Infinity;
+    lanes.forEach((lane, li) => {
+      lane.waypoints.forEach((p, wi) => {
+        const d = Math.hypot(e.x - p.x, e.y - p.y);
+        if (d < bd) { bd = d; bestLane = li; bestWp = wi; }
+      });
+    });
+    e.tdLane = bestLane;
+    if (e.tdWp === undefined) e.tdWp = bestWp;
+  }
+  return lanes[e.tdLane];
 }
 
 // 以“42 速度走 42 秒”为统一路线预算。宽屏会生成更长的路径，因此只
 // 提高沿路敌人的像素速度，不增加它们到门所需的现实时间。这样手机、
-// 电脑和不同随机地图面对的是同一波次压力。
-export function tdRouteSpeed(map, baseSpeed) {
+// 电脑、不同随机地图和不同车道面对的是同一波次压力。
+export function tdRouteSpeed(map, baseSpeed, laneIdx = 0) {
   const referenceDistance = TD_BOSS_BASE_SPEED * TD_BOSS_TRAVEL_SECONDS;
-  return baseSpeed * (map.pathLength / referenceDistance);
+  const lane = map.lanes?.[laneIdx];
+  const pathLength = lane ? lane.pathLength : map.pathLength;
+  return baseSpeed * (pathLength / referenceDistance);
 }
 
-export function tdRouteTravelSeconds(map, normalizedSpeed) {
-  return map.pathLength / Math.max(0.001, normalizedSpeed);
+export function tdRouteTravelSeconds(map, normalizedSpeed, laneIdx = 0) {
+  const lane = map.lanes?.[laneIdx];
+  const pathLength = lane ? lane.pathLength : map.pathLength;
+  return pathLength / Math.max(0.001, normalizedSpeed);
 }
 
 export function tdNormalizeEnemySpeed(enemy, map) {
   if (!enemy.tdSpeedNormalized) {
-    enemy.speed = tdRouteSpeed(map, enemy.speed);
+    enemy.speed = tdRouteSpeed(map, enemy.speed, enemy.tdLane ?? 0);
     enemy.tdSpeedNormalized = true;
   }
   return enemy.speed;
@@ -163,10 +207,12 @@ export function tdXpFor(enemy, xpMult = 1) {
 }
 
 export function tdPlaceCost(charCost, placedCount) {
-  // 角色买断价只决定是否拥有角色,不能在塔防里重复收费。
-  // 第一座塔免费保证任何已解锁角色都能开局;后续全队统一按 1000→10000 计价。
-  void charCost; // 保留参数兼容旧调用,但明确不参与塔防经济
-  return placedCount <= 0 ? 0 : 1000 * Math.pow(10, placedCount - 1);
+  // 2026-07-26 用户裁决: 同一角色可以重复放置;免费角色第一座免费,
+  // 之后全队走 1000→10000→100000 梯度;付费角色每一座至少其角色价
+  // (黑客初始 15000、精神错乱 10000,不再免费),梯度超过底价后按梯度走。
+  const ladder = placedCount <= 0 ? 0 : 1000 * Math.pow(10, placedCount - 1);
+  const premiumFloor = (charCost || 0) >= 10000 ? charCost : 0;
+  return Math.max(ladder, premiumFloor);
 }
 
 export function tdLeaderDamagePct(roster) {
@@ -208,7 +254,7 @@ export function tdBossHp(dps) {
   return Math.round(Math.min(1500000, Math.max(9000, dps * TD_BOSS_TARGET_TTK)));
 }
 
-export function tdConfigureBoss(enemy, map, dps) {
+export function tdConfigureBoss(enemy, map, dps, laneIdx = 0) {
   enemy.tdBoss = true;
   enemy.maxLives = 1;
   enemy.lives = 1;
@@ -217,6 +263,7 @@ export function tdConfigureBoss(enemy, map, dps) {
   enemy.maxHp = tdBossHp(dps);
   enemy.hp = enemy.maxHp;
   enemy.speed = TD_BOSS_BASE_SPEED;
+  enemy.tdLane = Math.min(laneIdx, (map.lanes?.length || 1) - 1);
   tdNormalizeEnemySpeed(enemy, map);
   enemy.gateDmg = TD_BOSS_GATE_DAMAGE;
   enemy.contactInterval = TD_BOSS_GATE_INTERVAL;
@@ -281,8 +328,10 @@ export function tdWeaponAllowed(w) {
 // icecap(teleporter)的标记目标喂"前方第5个路径格"(半场非sans区,用户规格)。
 
 export function tdTargetFor(e, map) {
+  // 先定车道(缺失时全车道就近入轨),再按该车道路径长度归一速度
+  const lane = tdLaneFor(e, map);
   tdNormalizeEnemySpeed(e, map);
-  const wps = map.waypoints;
+  const wps = lane.waypoints;
   if (e.tdWp === undefined) {
     // 非 spawner 来源(开局热身怪/手工精英)就近入轨,不用跑回右端重走
     let best = 0;
@@ -358,9 +407,10 @@ export function drawTdField(ctx, map, entrance, armed, hoverCell, towers) {
   ctx.lineWidth = 2;
   ctx.lineCap = "round";
   const flowPhase = performance.now() / 380;
-  for (let k = 0; k < map.cells.length - 1; k++) {
-    const a = map.waypoints[k];
-    const b = map.waypoints[k + 1];
+  for (const lane of map.lanes || [{ cells: map.cells, waypoints: map.waypoints }])
+  for (let k = 0; k < lane.cells.length - 1; k++) {
+    const a = lane.waypoints[k];
+    const b = lane.waypoints[k + 1];
     const dx = Math.sign(b.x - a.x);
     const dy = Math.sign(b.y - a.y);
     // 波峰沿 k 增大方向移动;基础透明度保证静止时也读得出方向
@@ -686,24 +736,21 @@ export function drawTdBar(ctx, width, height, td) {
     const armed = td.armedSlot === i;
     const cost = tdPlaceCost(m.cost, td.placedCount);
     const afford = td.xp >= cost;
-    ctx.fillStyle = m.placed ? "#14101c" : armed ? "#33240f" : "#1d1828";
+    ctx.fillStyle = armed ? "#33240f" : "#1d1828";
     ctx.globalAlpha = 0.94;
     ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = m.placed ? "#3a3050" : armed ? "#ffd93d" : afford ? "#7cf28a" : "#5a5468";
+    ctx.strokeStyle = armed ? "#ffd93d" : afford ? "#7cf28a" : "#5a5468";
     ctx.lineWidth = armed ? 3 : 2;
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = m.placed ? "#5a5468" : "#f2ead8";
+    ctx.fillStyle = "#f2ead8";
     ctx.font = "bold 12px monospace";
-    ctx.fillText(pick(m.char, "name"), r.x + r.w / 2, r.y + 20);
+    // 同一角色可重复放置(2026-07-26): 卡片常亮,标已上场数量+下一座价格
+    const placedN = m.placedN || 0;
+    ctx.fillText(placedN > 0 ? `${pick(m.char, "name")} ×${placedN}` : pick(m.char, "name"), r.x + r.w / 2, r.y + 20);
     ctx.font = "11px monospace";
-    if (m.placed) {
-      ctx.fillStyle = "#7cf28a";
-      ctx.fillText(t("已上场", "Deployed"), r.x + r.w / 2, r.y + 40);
-    } else {
-      ctx.fillStyle = afford ? "#ffd166" : "#c95d5d";
-      ctx.fillText(cost === 0 ? t("免费上场", "Deploy free") : `${t("经验", "XP")} ${cost}`, r.x + r.w / 2, r.y + 40);
-    }
+    ctx.fillStyle = afford ? "#ffd166" : "#c95d5d";
+    ctx.fillText(cost === 0 ? t("免费上场", "Deploy free") : `${t("经验", "XP")} ${cost}`, r.x + r.w / 2, r.y + 40);
   });
   const leader = td.roster[0];
   if (leader) {

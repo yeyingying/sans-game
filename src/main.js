@@ -2494,7 +2494,7 @@ function startTdRun() {
   activeContract = null;
   tutorialStep = -1;
   Enemy.dmgDealt = 0; // TD Boss 标定只读取本局的有效伤害
-  td = tdNewRun(tdBuildMap(WIDTH, HEIGHT, WALL_H), tdPickRoster.map((m) => ({ ...m, placed: false })));
+  td = tdNewRun(tdBuildMap(WIDTH, HEIGHT, WALL_H), tdPickRoster.map((m) => ({ ...m, placedN: 0 })));
   tdHoverCell = null;
   funValue = 0; // 访客彩蛋绕着玩家转,塔防局关闭
   savepointNote = null;
@@ -2868,11 +2868,32 @@ function buildTdChoicePool() {
       });
     }
   }
-  // 已放塔的技能卡: 专属/品阶/进化,标题前面写角色名(用户规格)
+  // 已放塔的技能卡: 专属/品阶/进化/获得新武器,标题前面写角色名(用户规格)
   for (const tw of td.towers) {
-    const inst = tw.pp.weapons[0];
-    const w = WEAPONS[inst.id];
     const charName = pick(CHARACTERS.find((c) => c.id === tw.charId) || CHARACTERS[0], "name");
+    // 获得新武器(2026-07-26 用户规格): 从该角色可站桩武器里补一把,
+    // 每塔最多 3 把——手机上四座满配塔也不超过经典单人武器量级
+    if (tw.pp.weapons.length < 3) {
+      const owned = new Set(tw.pp.weapons.map((i) => i.id));
+      const options = (WEAPON_LISTS[tw.charId] || []).filter((w) => tdWeaponAllowed(w) && !owned.has(w.id));
+      if (options.length) {
+        pool.push({
+          kind: "newWeapon",
+          weight: 18,
+          make: () => {
+            const w = options[Math.floor(Math.random() * options.length)];
+            return {
+              title: `${charName}·${t("获得新武器", "New Weapon")}`,
+              desc: `${pick(w, "name")}\n[${pick(w, "tag")}]`,
+              color: w.color,
+              apply: () => { tw.pp.weapons.push(createWeaponInstance(w.id)); },
+            };
+          },
+        });
+      }
+    }
+    for (const inst of tw.pp.weapons) {
+    const w = WEAPONS[inst.id];
     if (w.enhance) {
       pool.push({
         kind: "enhance",
@@ -2913,6 +2934,7 @@ function buildTdChoicePool() {
           apply: () => { inst.evolved = true; },
         }),
       });
+    }
     }
   }
   return pool;
@@ -3302,8 +3324,7 @@ function handleCanvasTap(pos) {
   if (state === "playing" && tdMode && td) {
     for (let i = 0; i < td.roster.length; i++) {
       if (inRect(pos, tdBarSlotRect(i, WIDTH, HEIGHT))) {
-        const m = td.roster[i];
-        if (m.placed) { sfxHurt(); return; }
+        // 同一角色可重复放置(2026-07-26 用户规格): 卡片不再一次性
         td.armedSlot = td.armedSlot === i ? -1 : i; // 再点=取消
         tdHoverCell = null;
         sfxClick();
@@ -3321,7 +3342,7 @@ function handleCanvasTap(pos) {
           const at = tdCellCenter(td.map, cell.c, cell.r);
           const inst = createWeaponInstance(m.weaponId);
           td.towers.push({ slot: td.armedSlot, charId: m.charId, weaponId: m.weaponId, cell: { c: cell.c, r: cell.r }, pp: tdMakeTowerPP(at.x, at.y, m.charId, inst, player) });
-          m.placed = true;
+          m.placedN = (m.placedN || 0) + 1;
           td.placedCount += 1;
           td.armedSlot = -1;
           floatingTexts.push(new FloatingText(at.x, at.y - 34, `-${cost} ${t("经验", "XP")}`, "#ffd166"));
@@ -4158,7 +4179,7 @@ function spawnDrops(enemy) {
   // 怪物糖 (UT: healing is food): a rare clutch save — the closer to death,
   // the likelier the miracle (2.5% hurt / 6% below 40% hp)
   const candyChance =
-    activeContract?.id === "wind" ? 0 : player.hp < player.maxHp * 0.4 ? 0.015 : player.hp < player.maxHp * 0.85 ? 0.006 : 0;
+    tdMode || activeContract?.id === "wind" ? 0 : player.hp < player.maxHp * 0.4 ? 0.015 : player.hp < player.maxHp * 0.85 ? 0.006 : 0;
   if (!enemy.elite && Math.random() < candyChance) {
     pickups.push(new Pickup(enemy.x + (Math.random() - 0.5) * 12, enemy.y + (Math.random() - 0.5) * 12, "candy", {}));
   }
@@ -4541,10 +4562,12 @@ function update(dt) {
   // 思路对齐经典Boss),打门攻速大幅削减,给修门/集火留反应窗。
   if (tdMode && td && !td.bossSpawned && !bossDefeated && elapsed >= bossAppearAt()) {
     td.bossSpawned = true;
-    const b = new Enemy("tank", td.map.spawn.x, td.map.spawn.y, spawner.scale(true, false));
+    const bossLane = Math.floor(Math.random() * td.map.lanes.length);
+    const laneSpawn = td.map.lanes[bossLane].spawn;
+    const b = new Enemy("tank", laneSpawn.x, laneSpawn.y, spawner.scale(true, false));
     b.championProfile = CORRUPTED_SANS; // 名字/图鉴身份=天意侵蚀Sans
     b.eliteProfile = null;
-    tdConfigureBoss(b, td.map, tdMeasuredDps(td));
+    tdConfigureBoss(b, td.map, tdMeasuredDps(td), bossLane);
     enemies.push(b);
     bossFightStartedAt = elapsed;
     bossPhaseReached = 1;
@@ -4572,7 +4595,9 @@ function update(dt) {
   }
 
   const bossCutscene = bossFight && (bossFight.state === "intro" || bossFight.state === "transition");
-  const moveVec = bossCutscene ? { x: 0, y: 0 } : getMoveVector();
+  // 塔防: 隐身本体不许移动——否则镜头跟着走,固定地图和怪物就错位了
+  // (2026-07-26 用户反馈截图: 方向键/摇杆把视角推出地图)
+  const moveVec = bossCutscene || tdMode ? { x: 0, y: 0 } : getMoveVector();
   const bounds = {
     left: -Infinity, // the hall stretches forever to both sides
     right: Infinity,
@@ -4595,7 +4620,12 @@ function update(dt) {
   player.moveSpeed = baseMove;
   player.regen = baseRegen;
   player.regenPct = baseRegenPct;
-  camX = player.x - WIDTH / 2;
+  if (tdMode) {
+    // 双保险: 任何把本体推走的力(击退/彩蛋)都不许晃动塔防镜头
+    player.x = WIDTH / 2;
+    player.y = HEIGHT / 2;
+  }
+  camX = tdMode ? 0 : player.x - WIDTH / 2;
 
   if (!bossCutscene) {
     const weaponWorld = {
@@ -4606,10 +4636,27 @@ function update(dt) {
       spawnSpike,
       spawnBlast,
       bounds: { top: WALL_H + 20, bottom: HEIGHT - 16 }, // playfield, excluding the column wall
+      tdMidX: tdMode && td ? WIDTH / 2 : null, // 黑客甩掷的塔防规则开关(见 weapon.js hfling)
     };
     updateWeapons(player, dt, weaponWorld); // 塔防局 player.weapons=[] 自然空转
     if (tdMode && td) {
-      for (const tw of td.towers) updateWeapons(tw.pp, dt, weaponWorld); // 每座塔跑同一套武器系统
+      for (const tw of td.towers) {
+        updateWeapons(tw.pp, dt, weaponWorld); // 每座塔跑同一套武器系统
+        // 塔面向攻击方向(2026-07-26 用户规格): 取射程内最近敌人定向,
+        // 没有目标时保持上一朝向
+        let near = null;
+        let nd = 560;
+        for (const e of enemies) {
+          if (e.hp <= 0) continue;
+          const d = Math.hypot(e.x - tw.pp.x, e.y - tw.pp.y);
+          if (d < nd) { nd = d; near = e; }
+        }
+        if (near) {
+          const dx = near.x - tw.pp.x;
+          const dy = near.y - tw.pp.y;
+          tw.pp.dir = Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
+        }
+      }
       tdEntranceTick(td.entrance, dt);
       if (td.entrance.destroyed) td.entrance.warnT += dt;
       // 全塔DPS滚动采样(每秒一条累计快照,窗口≈30秒)——Boss血量标定数据源
@@ -4643,9 +4690,13 @@ function update(dt) {
     for (const e of spawner.update(dt, camX)) {
       if (enemies.length >= 220) break; // hard cap: keep phones alive in endless
       if (tdMode && td) {
-        // 塔防: 出怪节奏原样复用,出生点重定位到走廊右端(带纵向抖动防叠罗汉)
-        e.x = td.map.spawn.x + Math.random() * 60;
-        e.y = td.map.spawn.y + (Math.random() - 0.5) * TD_CELL * 0.6;
+        // 塔防: 出怪节奏原样复用,随机分配一条进攻车道,出生点重定位到
+        // 该车道的走廊右端(带纵向抖动防叠罗汉)
+        const laneIdx = Math.floor(Math.random() * td.map.lanes.length);
+        const lane = td.map.lanes[laneIdx];
+        e.x = lane.spawn.x + Math.random() * 60;
+        e.y = lane.spawn.y + (Math.random() - 0.5) * TD_CELL * 0.6;
+        e.tdLane = laneIdx;
         e.tdWp = 0;
       }
       enemies.push(e);
@@ -4686,10 +4737,12 @@ function update(dt) {
       b.invulnTimer = 3;
       b.eliteSkillTimer = 1.0;
       if (tdMode && td) {
-        // 塔防无尽: 首领同样从走廊右端入轨压门,打门伤害节制成
+        // 塔防无尽: 首领同样从随机车道右端入轨压门,打门伤害节制成
         // 可读的倒计时(身板 dmg 直怼门会一两下秒破)
-        b.x = td.map.spawn.x;
-        b.y = td.map.spawn.y;
+        const laneIdx = Math.floor(Math.random() * td.map.lanes.length);
+        b.x = td.map.lanes[laneIdx].spawn.x;
+        b.y = td.map.lanes[laneIdx].spawn.y;
+        b.tdLane = laneIdx;
         b.tdWp = 0;
         b.gateDmg = 12 + 2 * endlessRound;
         b.contactInterval = Math.max(b.contactInterval || 1, 1.6);
@@ -4767,7 +4820,9 @@ function update(dt) {
   }
   // 访客事件: after the opening minute, rare one-time drop-ins (never during
   // the boss, never in ?boss debug runs so the test routes stay deterministic)
-  if (state === "playing" && !DEBUG_BOSS && !dailyMode && !bossFight && elapsed > 60) {
+  // 访客彩蛋全部围着本体转——塔防没有本体,狗/花/Temmie/信统统不来
+  // (2026-07-26 用户截图: Temmie 与帕子的信出现在塔防局)
+  if (state === "playing" && !DEBUG_BOSS && !dailyMode && !bossFight && !tdMode && elapsed > 60) {
     if (!visitorRolls.dog && Math.random() < dt / 150) {
       visitorRolls.dog = true;
       dogVisit = {
@@ -5504,7 +5559,7 @@ function draw() {
         ctx.shadowBlur = 14;
       }
       const set = WALK_SETS[tw.charId] || WALK_SETS.sans;
-      drawSprite(ctx, (set.left || set.down)[0], tw.pp.x, tw.pp.y, 34);
+      drawSprite(ctx, (set[tw.pp.dir] || set.left || set.down)[0], tw.pp.x, tw.pp.y, 34);
       ctx.restore();
     }
   }
@@ -6784,15 +6839,17 @@ function draw() {
     ctx.font = "bold 14px monospace";
     // EN lines run wider than CJK — grow the box like the savepoint frame does
     const bw = Math.max(480, Math.min(WIDTH - 24, ctx.measureText(candyBanner.text).width + 44));
+    // 塔防底部被编队栏+队长行占用,叙事框上移一档防遮挡
+    const by = tdMode ? HEIGHT - 148 : HEIGHT - 92;
     ctx.fillStyle = "rgba(10, 8, 16, 0.85)";
-    ctx.fillRect(WIDTH / 2 - bw / 2, HEIGHT - 92, bw, 34);
+    ctx.fillRect(WIDTH / 2 - bw / 2, by, bw, 34);
     ctx.strokeStyle = "#7cf28a";
     ctx.lineWidth = 2;
-    ctx.strokeRect(WIDTH / 2 - bw / 2, HEIGHT - 92, bw, 34);
+    ctx.strokeRect(WIDTH / 2 - bw / 2, by, bw, 34);
     ctx.textAlign = "center";
     ctx.fillStyle = "#7cf28a";
     ctx.font = "bold 14px monospace";
-    ctx.fillText(candyBanner.text, WIDTH / 2, HEIGHT - 70);
+    ctx.fillText(candyBanner.text, WIDTH / 2, by + 22);
     ctx.restore();
     ctx.textAlign = "left";
   }
@@ -6986,7 +7043,7 @@ function draw() {
       ctx.textAlign = "left";
     }
   }
-  if (state === "playing") drawJoystick(ctx, getJoystick());
+  if (state === "playing" && !tdMode) drawJoystick(ctx, getJoystick()); // 塔防没有本体可动,不画摇杆
 
   // black-screen intro — drawn under the menus so the pause screen still shows
   if (introBlack > 0) {
