@@ -847,12 +847,15 @@ export function leaderboardButtonRect(width, height) {
 
 // ---- boss-clear choice screen ------------------------------------------------
 
+// 触屏档放大到 76 画布px(≈49 物理px): 这是"离开还是继续"的关键抉择,
+// 手机上不能是最难点中的按钮(每日大厅/轮末结算共用这对矩形)
 export function bossClearLeaveRect(width, height) {
-  return { x: width / 2 - 240, y: height / 2 + 42, w: 220, h: 58 };
+  const w = T(220, 250);
+  return { x: width / 2 - w - T(20, 15), y: height / 2 + 42, w, h: T(58, 76) };
 }
 
 export function bossClearContinueRect(width, height) {
-  return { x: width / 2 + 20, y: height / 2 + 42, w: 220, h: 58 };
+  return { x: width / 2 + T(20, 15), y: height / 2 + 42, w: T(220, 250), h: T(58, 76) };
 }
 
 // selected: 0 = leave with the loot, 1 = keep fighting (endless)
@@ -883,8 +886,8 @@ export function drawBossClearScreen(ctx, width, height, selected) {
     ctx.lineWidth = active ? 3 : 2;
     ctx.strokeRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
     ctx.fillStyle = active ? b.color : "#c8c2d4";
-    ctx.font = "bold 18px monospace";
-    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + 36);
+    ctx.font = `bold ${T(18, 20)}px monospace`;
+    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + b.rect.h / 2 + 7);
     if (active) {
       ctx.font = "bold 16px monospace";
       ctx.fillText("▼", b.rect.x + b.rect.w / 2, b.rect.y - 10);
@@ -893,7 +896,7 @@ export function drawBossClearScreen(ctx, width, height, selected) {
 
   ctx.fillStyle = "#d9c47a";
   ctx.font = "12px monospace";
-  ctx.fillText(t("※ 无尽模式的金币收益会逐渐衰减", "※ Endless coin yield decays round by round"), width / 2, height / 2 + 128);
+  ctx.fillText(t("※ 无尽模式的金币收益会逐渐衰减", "※ Endless coin yield decays round by round"), width / 2, height / 2 + T(128, 146));
   ctx.restore();
 }
 
@@ -929,13 +932,13 @@ export function drawDailyIntro(ctx, width, height, info, selected) {
     ctx.lineWidth = active ? 3 : 2;
     ctx.strokeRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
     ctx.fillStyle = active ? b.color : "#c8c2d4";
-    ctx.font = "bold 18px monospace";
-    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + 36);
+    ctx.font = `bold ${T(18, 20)}px monospace`;
+    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + b.rect.h / 2 + 7);
     if (active) ctx.fillText("\u25bc", b.rect.x + b.rect.w / 2, b.rect.y - 10);
   });
   ctx.fillStyle = "#9a93ab";
   ctx.font = "12px monospace";
-  ctx.fillText("\u2190\u2192 \u9009\u62e9 \u00b7 Enter/\u7a7a\u683c \u786e\u8ba4 \u00b7 Esc \u8fd4\u56de", width / 2, height / 2 + 130);
+  ctx.fillText("\u2190\u2192 \u9009\u62e9 \u00b7 Enter/\u7a7a\u683c \u786e\u8ba4 \u00b7 Esc \u8fd4\u56de", width / 2, height / 2 + T(130, 146));
   ctx.restore();
 }
 
@@ -967,8 +970,8 @@ export function drawRoundClearScreen(ctx, width, height, round, selected, pendin
     ctx.lineWidth = active ? 3 : 2;
     ctx.strokeRect(b.rect.x, b.rect.y, b.rect.w, b.rect.h);
     ctx.fillStyle = active ? b.color : "#c8c2d4";
-    ctx.font = "bold 18px monospace";
-    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + 36);
+    ctx.font = `bold ${T(18, 20)}px monospace`;
+    ctx.fillText(b.label, b.rect.x + b.rect.w / 2, b.rect.y + b.rect.h / 2 + 7);
     if (active) {
       ctx.font = "bold 16px monospace";
       ctx.fillText("▼", b.rect.x + b.rect.w / 2, b.rect.y - 10);
@@ -977,7 +980,7 @@ export function drawRoundClearScreen(ctx, width, height, round, selected, pendin
 
   ctx.fillStyle = "#d9c47a";
   ctx.font = "12px monospace";
-  ctx.fillText(t("※ 下一轮更危险：轮中死亡将丢失该轮待结算金币", "※ Deeper is deadlier: dying mid-round forfeits its pending coins"), width / 2, height / 2 + 128);
+  ctx.fillText(t("※ 下一轮更危险：轮中死亡将丢失该轮待结算金币", "※ Deeper is deadlier: dying mid-round forfeits its pending coins"), width / 2, height / 2 + T(128, 146));
   ctx.restore();
 }
 
@@ -1707,7 +1710,8 @@ export function choiceBoxRect(i, width, height) {
 }
 
 export function rerollButtonRect(width, height) {
-  return { x: width / 2 - T(70, 78), y: height / 2 + 110, w: T(140, 156), h: T(40, 52) };
+  // 触屏档 68 画布px ≈ 44 物理px;宽度同步放大防指尖误触相邻卡片
+  return { x: width / 2 - T(70, 100), y: height / 2 + T(110, 104), w: T(140, 200), h: T(40, 68) };
 }
 
 // 选卡像素图标(美术批 backlog 第3项): kind → ICONS key。
@@ -1785,14 +1789,14 @@ export function drawChoiceScreen(ctx, width, height, options, rerolls) {
   ctx.lineWidth = 2;
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = canReroll ? "#5ee6e6" : "#6b6578";
-  ctx.font = "bold 15px monospace";
+  ctx.font = `bold ${T(15, 18)}px monospace`;
   drawIconLabel(
     ctx,
     ICONS.refresh,
     canReroll ? (rerolls > 1 ? `${t("刷新", "Reroll")} ×${rerolls}` : t("刷新", "Reroll")) : t("已刷新", "Used"),
     btn.x + btn.w / 2,
-    btn.y + btn.h / 2 + 5,
-    14,
+    btn.y + btn.h / 2 + T(5, 6),
+    T(14, 17),
     5
   );
   ctx.restore();
