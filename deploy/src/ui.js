@@ -1589,6 +1589,7 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
   if (selLock && selLock.gated) ctx.fillText(t("地狱通关后可购", "Clear HELL to buy"), width / 2, btn.y + btn.h / 2 + 7);
+  else if (selLock && selLock.freeLock) ctx.fillText(t("未 解 锁", "LOCKED"), width / 2, btn.y + btn.h / 2 + 7); // 条件锁: 卡面写着门槛
   else if (selLock) drawIconLabel(ctx, ICONS.coin, `${selLock.cost} ${t("解锁", "Unlock")}`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
   else ctx.fillText(t("确 定", "Confirm"), width / 2, btn.y + btn.h / 2 + 7);
   drawBackButton(ctx, width, height);
@@ -1703,7 +1704,8 @@ export function drawWeaponSelect(ctx, width, height, weapons, selected, charName
   ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
   ctx.fillStyle = "#ffd166";
   ctx.font = "bold 20px monospace";
-  if (charPrice) drawIconLabel(ctx, ICONS.coin, `${charPrice} ${t("解锁", "Unlock")}`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
+  if (charPrice === -1) ctx.fillText(t("未 解 锁", "LOCKED"), width / 2, btn.y + btn.h / 2 + 7); // 免费角色条件锁: 不可购买
+  else if (charPrice) drawIconLabel(ctx, ICONS.coin, `${charPrice} ${t("解锁", "Unlock")}`, width / 2, btn.y + btn.h / 2 + 8, 18, 6);
   else ctx.fillText(t("确 定", "Confirm"), width / 2, btn.y + btn.h / 2 + 7);
   drawBackButton(ctx, width, height);
   ctx.restore();

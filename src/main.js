@@ -103,6 +103,8 @@ import {
   recordRun,
   isWeaponUnlocked,
   weaponUnlockInfo,
+  isCharUnlocked,
+  charUnlockInfo,
   getStats,
   DIFFICULTIES,
   isDifficultyUnlocked,
@@ -473,11 +475,22 @@ function restartSameMode() {
 function charLocksNow() {
   const locks = {};
   for (const c of CHARACTERS) {
-    if (!c.cost || charOwned(c.id)) continue;
-    const gated = c.gate === "hell" && (getStats().diffCleared ?? -1) < 2;
-    locks[c.id] = gated
-      ? { hint: t("地狱难度通关后可购", "Clear HELL to purchase"), progress: `${t("买断价", "Price")} ${c.cost}`, cost: c.cost, gated: true }
-      : { hint: `${c.cost} ${t("金币买断", "coins to own")}`, progress: `${t("钱包", "Wallet")} ${getCoins()}`, cost: c.cost };
+    if (c.cost) {
+      if (charOwned(c.id)) continue;
+      const gated = c.gate === "hell" && (getStats().diffCleared ?? -1) < 2;
+      locks[c.id] = gated
+        ? { hint: t("地狱难度通关后可购", "Clear HELL to purchase"), progress: `${t("买断价", "Price")} ${c.cost}`, cost: c.cost, gated: true }
+        : { hint: `${c.cost} ${t("金币买断", "coins to own")}`, progress: `${t("钱包", "Wallet")} ${getCoins()}`, cost: c.cost };
+      continue;
+    }
+    // 免费角色条件锁(2026-07-27 用户复现"全角色解锁"): meta.js 的
+    // isCharUnlocked/charUnlockInfo 自付费角色改版后一直没人调用——
+    // 击杀/Boss 门槛只写在数据里,渲染和确认都没拦。此处接回,
+    // 绘制层(剪影+锁+条件行)与 tdpick 的 locked 拦截自动复用
+    if (!isCharUnlocked(c.id, bestScoreOf(c.id))) {
+      const info = charUnlockInfo(c.id);
+      locks[c.id] = { hint: info.hint, progress: info.progress, freeLock: true };
+    }
   }
   return locks;
 }
@@ -486,6 +499,10 @@ function tryBuySelectedChar() {
   const c = CHARACTERS[selectedChar];
   const lock = charLocksNow()[c.id];
   if (!lock) return false;
+  if (lock.freeLock) {
+    sfxHurt(); // 免费角色条件锁: 不可购买,卡面已写解锁条件
+    return true;
+  }
   if (lock.gated) {
     sfxHurt(); // 门槛未过: 先通关地狱
     return true;
@@ -1946,6 +1963,8 @@ function goTitle() {
 function toCharSelect() {
   // wipe the world so the old battlefield doesn't show behind the menu
   exitDailyMode(); // safety: never leak the seeded RNG into normal play
+  // 存档守卫: 免费角色条件锁接回后,旧存档可能停留在"当时能选"的角色上
+  if (charLocksNow()[CHARACTERS[selectedChar]?.id]) selectedChar = 0;
   reset(currentWeaponList()[0].id);
   bgm.pause();
   bgm.muted = true;
@@ -3819,7 +3838,9 @@ function handleCanvasTap(pos) {
       state = "shop";
       return;
     }
-    toCharSelect();
+    // 结算页点空白 = 无操作(2026-07-27 用户复现"塔防死后自动进普通模式"
+    // 的真正根因: 旧兜底"点哪都进经典选人",手机上死亡瞬间的误触直接把
+    // 塔防玩家丢进经典模式)。重开走大按钮/回车,两者都按模式回对入口。
   }
 }
 
@@ -7230,7 +7251,13 @@ function draw() {
       selectedWeapon,
       pick(currentCharacter(), "name"),
       weaponLocks(),
-      charLocksNow()[currentCharacter().id]?.gated ? null : charLocksNow()[currentCharacter().id]?.cost || null // 预览: 确认键=买断,门槛未过只看不卖
+      (() => {
+        // 预览: 确认键=买断;门槛未过/免费条件锁(-1)只看不卖
+        const lk = charLocksNow()[currentCharacter().id];
+        if (!lk) return null;
+        if (lk.freeLock) return -1;
+        return lk.gated ? null : lk.cost || null;
+      })()
     );
     if (CONTRACTS_ENABLED) drawContractChips(ctx, WIDTH, HEIGHT, offeredContracts, selectedContract);
   } else if (state === "paused") {
