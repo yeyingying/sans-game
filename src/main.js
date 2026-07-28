@@ -38,6 +38,7 @@ import {
 import {
   Player,
   Enemy,
+  isBossLike,
   Projectile,
   Bomb,
   Explosion,
@@ -1614,7 +1615,7 @@ function settleGame(kind) {
   if (tdMode) {
     // 塔防最好成绩独立记账——量纲与经典分不可混,更不能上排行榜
     lastBest = parseInt(localStorage.getItem("best_td") || "0", 10) || 0;
-    newRecord = lastScore > lastBest;
+    newRecord = !PRODUCTION_DEBUG_RUN && lastScore > lastBest; // 调试局不许伪造本地最好
     if (newRecord) localStorage.setItem("best_td", String(lastScore));
   } else {
     lastBest = bestScoreOf(player.character);
@@ -2620,7 +2621,9 @@ function announceTdFocus() {
     const lock = charLocksNow()[c.id];
     announceGame(lock
       ? t(`${pick(c, "name")}，未解锁。${lock.hint}`, `${pick(c, "name")}, locked. ${lock.hint}`)
-      : t(`${pick(c, "name")}，放置费用${c.cost || 1000}。`, `${pick(c, "name")}, placement cost ${c.cost || 1000}.`));
+      : c.cost
+        ? t(`${pick(c, "name")}，每座至少 ${c.cost} 经验。`, `${pick(c, "name")}, at least ${c.cost} XP per tower.`)
+        : t(`${pick(c, "name")}，全队首塔免费，之后按梯度计价。`, `${pick(c, "name")}, team's first tower free, then ladder pricing.`));
   } else if (zone === "weapon") {
     const weapon = usableTdWeapons()[index];
     if (weapon) announceGame(t(`${pick(weapon, "name")}，${pick(weapon, "tag")}。按 Enter 加入队伍。`, `${pick(weapon, "name")}, ${pick(weapon, "tag")}. Press Enter to add.`));
@@ -3846,6 +3849,15 @@ function handleCanvasTap(pos) {
 
 let lastPointerTapAt = 0;
 
+// 放置态悬停预览: tdHoverCell 此前是死变量(声明了却没人写入),
+// drawTdField 的高亮分支永不触发——桌面跟鼠标,触屏跟手指滑动
+canvas.addEventListener("pointermove", (e) => {
+  if (!(state === "playing" && tdMode && td && td.armedSlot >= 0)) return;
+  const pos = canvasCoords(e);
+  const cell = tdCellAt(td.map, pos.x, pos.y);
+  tdHoverCell = cell && cell.kind === 0 ? { c: cell.c, r: cell.r } : null;
+});
+
 canvas.addEventListener("pointerup", (e) => {
   initSfx(); // AudioContext may only start inside a user gesture
   if (e.isPrimary === false || (e.button !== undefined && e.button !== 0)) return;
@@ -5033,7 +5045,9 @@ function update(dt) {
             // 破门冲击波: 门口的怪全部炸开(最后的喘息),之后新到达者判负
             explosions.push(new Explosion(td.entrance.x, td.entrance.y, TD_CELL * 2.2, "#ff3d5a"));
             for (const o of enemies) {
-              if (!o.boss && tdAtGate(o, td.map)) o.hp = 0;
+              // 天意/无尽首领不吃破门冲击波: 否则Boss亲手破门=被白杀,
+              // 守门失败反而触发 bossclear 通关(o.boss 在TD恒为空,旧守卫是死代码)
+              if (!isBossLike(o) && !o.roundBoss && tdAtGate(o, td.map)) o.hp = 0;
             }
             sfxAlarm();
             tipQueue.push({ title: t("⚠ 入口已被破坏!", "⚠ GATE DESTROYED!"), lines: [t("无法再回血——下一只怪物冲进来就输了", "No more healing — the next leak loses the run")], t: 6 });
@@ -5170,11 +5184,12 @@ function update(dt) {
               color: "#ff8a8a",
             });
           }
-          if (sp.knockback > 0) {
+          if (sp.knockback > 0 && !isBossLike(e)) {
             const dx = e.x - sp.x;
             const dy = e.y - sp.y;
             const d = Math.hypot(dx, dy) || 1;
-            e.x += (dx / d) * sp.knockback;
+            // 塔防: 横向击退只许向右(向门推=送怪)
+            e.x += (tdMode ? Math.max(0, dx / d) : dx / d) * sp.knockback;
             e.y += (dy / d) * sp.knockback;
           }
         }
@@ -5300,7 +5315,9 @@ function update(dt) {
       const chestChance = e.roundBoss || e.championProfile
         ? endlessRound <= 3 ? 1 : 0.4 // deep-round champions: trophy, not salary
         : 0.12 * chestFactor;
-      if (Math.random() < chestChance) {
+      // 塔防不掉宝箱: 没有本体去捡,掉在地上永远捡不到,磁吸偶尔隔空开箱
+      // 更怪;当场强开又会在 Boss 死亡帧覆盖 bossclear 状态。经济补偿待裁决
+      if (!tdMode && Math.random() < chestChance) {
         pickups.push(new Pickup(e.x, e.y, "chest", {}));
       }
     }

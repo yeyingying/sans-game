@@ -1950,11 +1950,15 @@ function updateInstance(player, inst, dt, world) {
     }
     for (const e of grabs) {
       const a = Math.random() * Math.PI * 2;
+      let tx = player.x + Math.cos(a) * 230;
+      // 塔防(tdMidX 非空): 随机落点绝不向门(左)拖怪,也不甩过半场——
+      // 塔常贴门放,向塔拽=帮怪赶路(与 hfling 同一条规则)
+      if (world.tdMidX != null) tx = Math.max(e.x, Math.min(tx, world.tdMidX));
       inst.hflings.push({
         e,
         fx: e.x,
         fy: e.y,
-        tx: player.x + Math.cos(a) * 230,
+        tx,
         ty: Math.min(Math.max(player.y + Math.sin(a) * 230, world.bounds.top), world.bounds.bottom),
         t: 0,
         dur: 0.28,
@@ -2032,10 +2036,13 @@ function updateInstance(player, inst, dt, world) {
     const execBonus = 0.05 * Math.min(inst.enhance, 5); // 强化上限5次(用户原案)
     for (const e of enemies) {
       if (!circleHit(player.x, player.y, tier.radius, e.x, e.y, e.radius)) continue;
-      // 击退
+      // 击退(天意级免位移;塔防横向只许向右——向门推=送怪)
       const d = Math.hypot(e.x - player.x, e.y - player.y) || 1;
-      e.x += ((e.x - player.x) / d) * tier.push;
-      e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * tier.push, world.bounds.top), world.bounds.bottom);
+      if (!isBossLike(e)) {
+        const nx = (e.x - player.x) / d;
+        e.x += (world.tdMidX != null ? Math.max(0, nx) : nx) * tier.push;
+        e.y = Math.min(Math.max(e.y + ((e.y - player.y) / d) * tier.push, world.bounds.top), world.bounds.bottom);
+      }
       e.applyRoot(1.2 + (inst.evolved ? tier.bonusRoot : 0));
       e.applyDisarm?.(Infinity);
       if (isBossLike(e) || e.championProfile) continue; // 处决只对普通/精英
@@ -2287,7 +2294,8 @@ function updateInstance(player, inst, dt, world) {
           e,
           fx: e.x,
           fy: e.y,
-          dx: (e.x - px) / d,
+          // 塔防: 击飞的横向分量只许向右(向门甩=送怪进场)
+          dx: world.tdMidX != null ? Math.max(0, (e.x - px) / d) : (e.x - px) / d,
           dy: (e.y - py) / d,
           dist: tier.fling,
           t: 0,
@@ -2535,7 +2543,9 @@ function updateInstance(player, inst, dt, world) {
           for (const o of enemies) {
             if (circleHit(bx, by, 52, o.x, o.y, o.radius) && !isBossLike(o)) {
               const d = Math.hypot(o.x - bx, o.y - by) || 1;
-              o.x += ((o.x - bx) / d) * push;
+              const nx = (o.x - bx) / d;
+              // 塔防: 击退的横向分量只许向右(向门推=送怪)
+              o.x += (world.tdMidX != null ? Math.max(0, nx) : nx) * push;
               o.y = Math.min(Math.max(o.y + ((o.y - by) / d) * push, world.bounds.top), world.bounds.bottom);
             }
           }
@@ -2574,6 +2584,8 @@ function updateInstance(player, inst, dt, world) {
       noDrag = true;
     }
     const d = Math.hypot(t.x - player.x, t.y - player.y) || 1;
+    // 塔防: 落点(塔面前)在怪的门侧时取消拉拽位移,原地连爆(伤害不减)
+    if (world.tdMidX != null && player.x + ((t.x - player.x) / d) * 42 < t.x) noDrag = true;
     inst.ipullBurst = { t: 0, e: t, ex: t.x, ey: t.y, lx: t.x, ly: t.y, dirX: (t.x - player.x) / d, dirY: (t.y - player.y) / d, fired: 0, noDrag };
     return;
   }
@@ -3136,7 +3148,8 @@ function updateInstance(player, inst, dt, world) {
           if (s.stuck.includes(e)) continue;
           if (circleHit(s.x, s.y, tier.size + 12, e.x, e.y, e.radius)) {
             if (e.takeDamage(dmg)) {
-              s.stuck.push(e); // stuck to the axe
+              // 天意级不粘斧(免位移契约): 只吃旋斧伤害,不能被整个搬走
+              if (!isBossLike(e)) s.stuck.push(e);
               if (inst.enhance > 0) {
                 player.hp = Math.min(player.maxHp, player.hp + inst.enhance);
               }
@@ -3147,9 +3160,12 @@ function updateInstance(player, inst, dt, world) {
         if (!s.thrown) {
           s.thrown = true;
           s.dir = s.angle + Math.PI / 2; // fly off along the tangent
+          // 塔防: 掷出方向的横向分量只许向右(向门掷=把整捆怪送到门口)
+          if (world.tdMidX != null && Math.cos(s.dir) < 0) s.dir = Math.PI - s.dir;
         }
         s.x += Math.cos(s.dir) * 480 * dt;
         s.y += Math.sin(s.dir) * 480 * dt;
+        if (world.tdMidX != null) s.x = Math.min(s.x, world.tdMidX); // 半场封顶,同甩掷规则
         // never fling the bundle into the column wall or below the arena
         if (world.bounds) {
           s.y = Math.max(world.bounds.top, Math.min(world.bounds.bottom, s.y));
@@ -3404,14 +3420,22 @@ function updateInstance(player, inst, dt, world) {
       const d = Math.hypot(dx, dy) || 1;
       const arrive = player.radius + e.radius + 16;
       const step = 340 * dt;
-      if (d - step <= arrive) {
-        e.x = player.x - (dx / d) * arrive;
-        e.y = player.y - (dy / d) * arrive;
+      // 天意级(Boss身份)免位移——TD天意是走路径的普通Enemy,没有boss.js
+      // 每帧接管坐标,锁链能把它无限拖回塔边;伤害照常结算。
+      // 塔防普通怪: 横向拖拽只许向右(向门拖=帮怪赶路,同hgrab规则)
+      const bossLocked = isBossLike(e);
+      const clampX = (nx) => (world.tdMidX != null ? Math.max(e.x, nx) : nx);
+      if (bossLocked || d - step <= arrive) {
+        // Boss兜底: 拽不动天意——原地结算全额收线伤害,别让锁链死锁在它身上
+        if (!bossLocked) {
+          e.x = clampX(player.x - (dx / d) * arrive);
+          e.y = player.y - (dy / d) * arrive;
+        }
         e.takeDamage(weaponDmg(player, tier.dmgMult));
         e.applyRoot(tier.root);
         c.done = true;
       } else {
-        e.x += (dx / d) * step;
+        e.x = clampX(e.x + (dx / d) * step);
         e.y += (dy / d) * step;
         e.takeDamage(tickDps * dt);
       }
@@ -3997,7 +4021,8 @@ export function updateWeapons(player, dt, world) {
         if (e.takeDamage(p.orbTick)) {
           e.laserTick = 0.02;
           e.rootTimer = Math.max(e.rootTimer, 0.06);
-          if (p.stickCap > 0 && !p.stuck.includes(e) && p.stuck.length < p.stickCap) {
+          // 天意级不粘光球(免位移契约): 伤害/短禁照吃,不能被挂着带飞
+          if (p.stickCap > 0 && !isBossLike(e) && !p.stuck.includes(e) && p.stuck.length < p.stickCap) {
             p.stuck.push(e);
           }
         }
@@ -4006,7 +4031,8 @@ export function updateWeapons(player, dt, world) {
     // drag snared enemies along with the orb
     if (p.stuck) {
       for (const e of p.stuck) {
-        e.x = p.x;
+        // 塔防: 粘住的怪横向只随光球向右移(向门带飞=送怪)
+        e.x = world.tdMidX != null ? Math.max(e.x, Math.min(p.x, world.tdMidX)) : p.x;
         e.y = p.y;
         e.rootTimer = Math.max(e.rootTimer, 0.1);
       }

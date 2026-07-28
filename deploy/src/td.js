@@ -664,7 +664,12 @@ export function drawTdPick(ctx, width, height, chars, sel, weapons, roster, lock
     ctx.fillText(pick(c, "name"), r.x + r.w / 2, r.y + (phone ? 31 : 34));
     ctx.fillStyle = "#7d7690";
     ctx.font = `${phone ? 16 : 11}px monospace`;
-    ctx.fillText(locked ? t("未解锁", "Locked") : t("全队首塔免费", "Team's first tower free"), r.x + r.w / 2, r.y + (phone ? 62 : 58));
+    // 付费角色首座就收角色底价(tdPlaceCost),不能沿用"首塔免费"文案
+    ctx.fillText(
+      locked ? t("未解锁", "Locked") : c.cost ? t(`每座 ≥${c.cost}`, `≥${c.cost} per tower`) : t("全队首塔免费", "Team's first tower free"),
+      r.x + r.w / 2,
+      r.y + (phone ? 62 : 58)
+    );
     // 入队队徽(2026-07-27): 已在③队伍里的角色,卡右上角标队长/入队——
     // 入队反馈不再只藏在底部队伍栏
     const slot = roster.findIndex((m) => m.charId === c.id);
