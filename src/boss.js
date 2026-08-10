@@ -1501,7 +1501,7 @@ function drawBossBody(c, x, y, t, active, opts = {}) {
   const { shake = 0, gesture = null, tele = null, animT = 0, faceDir = "down", moving = false, hitFlash = 0, phase2 = false, scale = 1 } = opts;
   // pick a walk frame like the player does
   const frames = WALK_SETS.sans[faceDir] || WALK_SETS.sans.down;
-  const spr = moving ? frames[Math.floor(animT * 7) % 4] : frames[0];
+  const spr = moving ? frames[Math.floor(animT * 7) % frames.length] : frames[0]; // 帧数随贴图组走(手绘版=3帧)
 
   // gesture offsets: hop up, lunge forward, recoil back, crouch, channel tremble
   let gx = 0;
