@@ -1,6 +1,7 @@
 import { getMoveVector, initTouch, setMovementEnabled, getJoystick, JOY_MAX_R } from "./input.js";
 import {
   WALK_SETS,
+  NEWCHAR_PORTRAITS,
   ENEMY_FROGGIT,
   ENEMY_BAT,
   ENEMY_GHOST,
@@ -442,14 +443,8 @@ const CHEST_BASE = buildPx(
 const CHOICE_INTERVAL = 15;
 const WALL_H = 100; // top wall band: huge columns, no spawns, out of bounds
 // portraits for the character-select screen (front-facing stand frame)
-const PLAYER_SPRITES = {
-  sans: WALK_SETS.sans.down[0],
-  ukb: WALK_SETS.ukb.down[0],
-  horror: WALK_SETS.horror.down[0],
-  hard: WALK_SETS.hard.down[0],
-  insanity: WALK_SETS.insanity.down[0],
-  hacker: WALK_SETS.hacker.down[0],
-};
+// 选人立绘用手绘大版(29px 精细版,newchars.png 上半);走图用下半 24px 版
+const PLAYER_SPRITES = NEWCHAR_PORTRAITS;
 // characters that radiate a glow, and its color(hacker=眼中红光的近似)
 const CHAR_GLOWS = { ukb: "#a55dff", hard: "#5db9ff", insanity: "#d92535", hacker: "#ff2d3d" };
 // 付费角色天性梯度(2026-07-14 用户裁决: 票价越高天性越强)
@@ -6592,8 +6587,8 @@ function draw() {
   if (!flickerHidden && !tdMode) { // 塔防: 本体退场,输出全在塔上
     const set = WALK_SETS[player.character] || WALK_SETS.sans;
     const frames = set[player.dir] || set.down;
-    // 4-frame cycle like the sheet: stand, step, stand, other step
-    const frame = player.moving ? frames[Math.floor(player.walkTime * 7) % 4] : frames[0];
+    // 帧数由贴图组决定(手绘正式贴图为 6 帧正面循环)
+    const frame = player.moving ? frames[Math.floor(player.walkTime * 7) % frames.length] : frames[0];
     // dash afterimages: fading blue-tinted ghosts along the dash path
     for (const inst of player.weapons) {
       if (inst.id !== "dash") continue;

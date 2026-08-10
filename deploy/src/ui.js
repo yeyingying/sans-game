@@ -1517,7 +1517,8 @@ export function drawCharSelect(ctx, width, height, characters, selected, sprites
         ctx.shadowColor = glow;
         ctx.shadowBlur = 22;
       }
-      const scale = 5;
+      // 手绘大版立绘(44px 高)比旧图(27px)高: 缩放自适应,别把名字行压住
+      const scale = sprite.height > 30 ? 4 : 5;
       ctx.drawImage(
         sprite,
         box.x + box.w / 2 - (sprite.width * scale) / 2,
